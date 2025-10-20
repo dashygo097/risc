@@ -4,7 +4,9 @@
 .bloop/
 .bsp/
 .metals/
+
 project/project
 build/
 target/
 obj_dir/
+logs/
