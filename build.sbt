@@ -27,27 +27,6 @@ lazy val top = (project in file("src/top"))
       "dashygo097" %% "mem"    % "0.1.0",
       "dashygo097" %% "perip"  % "0.1.0",
       "dashygo097" %% "mod"    % "0.1.0",
-      "dashygo097" %% "app"    % "0.1.0",
-      
-      "org.chipsalliance" %% "chisel" % chiselVersion,
-    ),
-    Compile / unmanagedSourceDirectories += baseDirectory.value,
-    addCompilerPlugin("org.chipsalliance" % "chisel-plugin" % chiselVersion cross CrossVersion.full),
-  )
-
-lazy val rv = (project in file("src/components"))
-  .settings(
-    name := "rv",
-    libraryDependencies ++= Seq(
-      "dashygo097" %% "utils"  % "0.1.0",
-      "dashygo097" %% "dds"    % "0.1.0",
-      "dashygo097" %% "dsp"    % "0.1.0",
-      "dashygo097" %% "math"   % "0.1.0",
-      "dashygo097" %% "com"    % "0.1.0",
-      "dashygo097" %% "mem"    % "0.1.0",
-      "dashygo097" %% "perip"  % "0.1.0",
-      "dashygo097" %% "mod"    % "0.1.0",
-      "dashygo097" %% "app"    % "0.1.0",
       
       "org.chipsalliance" %% "chisel" % chiselVersion,
     ),

@@ -2,10 +2,15 @@
 
 package gcd
 
-import app.VerilogEmitter
 import chisel3._
-import _root_.circt.stage.ChiselStage
+import utils.VerilogEmitter
+// _root_ disambiguates from package chisel3.util.circt if user imports chisel3.util._
 
+/**
+  * Compute GCD using subtraction method.
+  * Subtracts the smaller from the larger until register y is zero.
+  * value in register x is then the GCD
+  */
 class GCD extends Module {
   val io = IO(new Bundle {
     val value1        = Input(UInt(16.W))
@@ -30,6 +35,9 @@ class GCD extends Module {
   io.outputValid := y === 0.U
 }
 
+/**
+ * Generate Verilog sources and save it in file GCD.v
+ */
 object GCD extends App {
-  VerilogEmitter.parse(new GCD, filename="gcd.sv", info=true)
+  VerilogEmitter.parse(new GCD, filename="123.v", info=true)
 }
