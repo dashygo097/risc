@@ -1,0 +1,10 @@
+.scalafmt.conf
+.DS_Store
+.vscode/
+.bloop/
+.bsp/
+.metals/
+project/project
+build/
+target/
+obj_dir/
