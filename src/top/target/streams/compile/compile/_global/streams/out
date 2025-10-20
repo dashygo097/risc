@@ -1,4 +1,0 @@
-[0m[[0m[33mwarn[0m] [0m[0m/Users/dashygo/Dev/Hardware/rvcpu/src/top/a.scala:7:27: Unused import[0m
-[0m[[0m[33mwarn[0m] [0m[0mimport _root_.circt.stage.ChiselStage[0m
-[0m[[0m[33mwarn[0m] [0m[0m                          ^[0m
-[0m[[0m[33mwarn[0m] [0m[0mone warning found[0m
