@@ -20,7 +20,7 @@ build: pre
 	@sbt compile
 
 run: pre
-	@sbt top/run
+	@sbt core/run
 
 clean:
 	@rm -rf $(SIM_DIR)/logs
