@@ -7,19 +7,19 @@ import chisel3._
 class RV32RegFile extends Module {
   override def desiredName: String = s"rv32_regfile"
 
-  val rs1_addr = IO(Input(UInt(5.W)))
-  val rs2_addr = IO(Input(UInt(5.W)))
-  val rd_addr = IO(Input(UInt(5.W)))
+  val rs1_addr   = IO(Input(UInt(5.W)))
+  val rs2_addr   = IO(Input(UInt(5.W)))
+  val rd_addr    = IO(Input(UInt(5.W)))
   val write_data = IO(Input(UInt(32.W)))
-  val rd_we = IO(Input(Bool()))
+  val rd_we      = IO(Input(Bool()))
 
   val rs1_data = IO(Output(UInt(32.W)))
   val rs2_data = IO(Output(UInt(32.W)))
 
   val inner = Module(new DualPortRegFile(32, 32))
 
-  inner.io.rs1_addr := rs1_addr
-  inner.io.rs2_addr := rs2_addr
+  inner.io.rs1_addr   := rs1_addr
+  inner.io.rs2_addr   := rs2_addr
   inner.io.write_addr := rd_addr
   inner.io.write_data := write_data
 
@@ -34,5 +34,5 @@ class RV32RegFile extends Module {
 }
 
 object RV32RegFile extends App {
-  VerilogEmitter.parse(new RV32RegFile, "rv32_regfile.sv", info=true)
+  VerilogEmitter.parse(new RV32RegFile, "rv32_regfile.sv", info = true)
 }
