@@ -15,9 +15,9 @@ ThisBuild / scalacOptions ++= Seq(
   "-Ymacro-annotations"
 )
 
-lazy val top = (project in file("src/top"))
+lazy val core = (project in file("src/core"))
   .settings(
-    name := "top",
+    name := "core",
     libraryDependencies ++= Seq(
       "dashygo097" %% "utils"  % "0.1.0",
       "dashygo097" %% "dds"    % "0.1.0",
