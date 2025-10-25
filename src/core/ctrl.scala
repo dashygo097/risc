@@ -5,6 +5,8 @@ import chisel3._
 import chisel3.util._
 
 class RV32GloblCtrlUnit extends Module {
+  override def desiredName: String =
+    s"rv32_globl_ctrl_unit"
   val inst     = IO(Input(UInt(32.W)))
   val alu_ctrl = IO(Output(UInt(4.W)))
   val mem_ctrl = IO(Output(UInt(3.W)))

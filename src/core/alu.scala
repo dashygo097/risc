@@ -1,8 +1,8 @@
 package core
 
+import utils._
 import chisel3._
 import chisel3.util._
-import utils._
 
 object ALUOp {
   val ADD  = 0x0.U
