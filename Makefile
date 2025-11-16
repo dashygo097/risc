@@ -6,7 +6,7 @@ SYNTH_DIR = $(BASE_DIR)/synth
 TB_DIR = $(SIM_DIR)/tb
 COCOTB_DIR = $(SIM_DIR)/cocotb
 
-LIB ?= app
+LIB ?= core 
 FZF ?= false
 STA_TOOL ?= yosys
 
@@ -26,7 +26,7 @@ build: pre
 	@sbt compile
 
 run: pre
-	@sbt $(LIB)/run
+	@sbt "$(LIB)/run"
 
 clean:
 	@rm -rf $(SYNTH_DIR)
