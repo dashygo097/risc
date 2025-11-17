@@ -4,6 +4,7 @@
 .bloop/
 .bsp/
 .metals/
+.cache/
 
 project/project
 build/
