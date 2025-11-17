@@ -10,3 +10,4 @@ build/
 target/
 obj_dir/
 logs/
+synth/

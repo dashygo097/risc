@@ -4,20 +4,18 @@ SCRIPTS_DIR = $(BASE_DIR)/scripts
 SIM_DIR = $(BASE_DIR)/sims
 SYNTH_DIR = $(BASE_DIR)/synth
 TB_DIR = $(SIM_DIR)/tb
-COCOTB_DIR = $(SIM_DIR)/cocotb
 
 LIB ?= core 
 FZF ?= false
 STA_TOOL ?= yosys
 
-.PHONY: pre fmt build run clean update localpublish tb cocotb sta sta-yosys sta-vivado
+.PHONY: pre fmt build run clean update localpublish tb sta sta-yosys sta-vivado
 
 pre:
 	@mkdir -p $(BUILD_DIR)
 	@mkdir -p $(SIM_DIR)
 	@mkdir -p $(SYNTH_DIR)
 	@mkdir -p $(TB_DIR)
-	@mkdir -p $(COCOTB_DIR)
 
 fmt:
 	@scalafmt
@@ -43,18 +41,6 @@ tb: pre
 		bash $(SCRIPTS_DIR)/tb_fzf.sh ; \
 	else \
 		bash $(SCRIPTS_DIR)/tb.sh ; \
-	fi
-
-cocotb: pre
-	@touch $(COCOTB_DIR)/cocotb.make
-	@echo "TOPLEVEL_LANG ?= verilog" > $(COCOTB_DIR)/cocotb.make
-	@echo "SIM = icarus" >> $(COCOTB_DIR)/cocotb.make
-	@echo "" >> $(COCOTB_DIR)/cocotb.make
-	@echo "include $(shell cocotb-config --makefiles)/Makefile.sim" >> $(COCOTB_DIR)/cocotb.make
-	@if [ "$(FZF)" = "true" ] ; then \
-		bash $(SCRIPTS_DIR)/cocotb_fzf.sh; \
-	else \
-		bash $(SCRIPTS_DIR)/cocotb.sh; \
 	fi
 
 sta-yosys: pre
