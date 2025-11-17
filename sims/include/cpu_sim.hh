@@ -20,34 +20,28 @@ public:
   CPUSimulator(bool enable_trace = false);
   ~CPUSimulator();
 
-  // Load programs
   bool load_hex(const std::string &filename);
   bool load_bin(const std::string &filename, uint32_t base_addr = 0);
   bool load_elf(const std::string &filename);
 
-  // Control
   void reset();
   void step(int cycles = 1);
   void run(uint64_t max_cycles = 0);
   void run_until(uint32_t pc);
 
-  // State inspection
   uint32_t get_pc() const;
   uint32_t get_reg(uint8_t reg) const;
   uint32_t read_mem(uint32_t addr) const;
   void write_mem(uint32_t addr, uint32_t data);
 
-  // Statistics
   uint64_t get_cycle_count() const { return cycle_count_; }
   uint64_t get_inst_count() const { return inst_count_; }
   double get_ipc() const;
 
-  // Configuration
   void set_verbose(bool verbose) { verbose_ = verbose; }
   void set_timeout(uint64_t timeout) { timeout_ = timeout; }
   void enable_profiling(bool enable) { profiling_ = enable; }
 
-  // Trace
   void dump_registers() const;
   void dump_memory(uint32_t start, uint32_t size) const;
   void save_trace(const std::string &filename);

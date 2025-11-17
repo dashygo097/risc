@@ -1,4 +1,4 @@
-#include "instruction.h"
+#include "instruction.hh"
 #include <iomanip>
 #include <sstream>
 
@@ -12,7 +12,6 @@ void Instruction::decode() {
   rs2_ = (raw_ >> 20) & 0x1F;
   funct7_ = (raw_ >> 25) & 0x7F;
 
-  // Decode immediate based on type
   switch (get_type()) {
   case I_TYPE:
     imm_ = decode_i_imm();
@@ -38,23 +37,23 @@ void Instruction::decode() {
 Instruction::Type Instruction::get_type() const {
   switch (opcode_) {
   case 0b0110011:
-    return R_TYPE; // R-type
+    return R_TYPE;
   case 0b0010011:
-    return I_TYPE; // I-type ALU
+    return I_TYPE;
   case 0b0000011:
-    return I_TYPE; // Load
+    return I_TYPE;
   case 0b1100111:
-    return I_TYPE; // JALR
+    return I_TYPE;
   case 0b0100011:
-    return S_TYPE; // Store
+    return S_TYPE;
   case 0b1100011:
-    return B_TYPE; // Branch
+    return B_TYPE;
   case 0b0110111:
-    return U_TYPE; // LUI
+    return U_TYPE;
   case 0b0010111:
-    return U_TYPE; // AUIPC
+    return U_TYPE;
   case 0b1101111:
-    return J_TYPE; // JAL
+    return J_TYPE;
   default:
     return UNKNOWN;
   }
@@ -62,7 +61,7 @@ Instruction::Type Instruction::get_type() const {
 
 std::string Instruction::get_mnemonic() const {
   switch (opcode_) {
-  case 0b0110011: // R-type
+  case 0b0110011:
     switch (funct3_) {
     case 0b000:
       return (funct7_ == 0) ? "add" : "sub";
@@ -83,7 +82,7 @@ std::string Instruction::get_mnemonic() const {
     }
     break;
 
-  case 0b0010011: // I-type ALU
+  case 0b0010011:
     switch (funct3_) {
     case 0b000:
       return "addi";
@@ -104,7 +103,7 @@ std::string Instruction::get_mnemonic() const {
     }
     break;
 
-  case 0b0000011: // Load
+  case 0b0000011:
     switch (funct3_) {
     case 0b000:
       return "lb";
@@ -119,7 +118,7 @@ std::string Instruction::get_mnemonic() const {
     }
     break;
 
-  case 0b0100011: // Store
+  case 0b0100011:
     switch (funct3_) {
     case 0b000:
       return "sb";
@@ -130,7 +129,7 @@ std::string Instruction::get_mnemonic() const {
     }
     break;
 
-  case 0b1100011: // Branch
+  case 0b1100011:
     switch (funct3_) {
     case 0b000:
       return "beq";
@@ -173,7 +172,7 @@ std::string Instruction::to_string() const {
     break;
 
   case I_TYPE:
-    if (opcode_ == 0b0000011) { // Load
+    if (opcode_ == 0b0000011) {
       oss << "x" << (int)rd_ << ", " << imm_ << "(x" << (int)rs1_ << ")";
     } else {
       oss << "x" << (int)rd_ << ", x" << (int)rs1_ << ", " << imm_;
@@ -207,14 +206,14 @@ std::string Instruction::to_string() const {
 int32_t Instruction::decode_i_imm() const {
   int32_t imm = (raw_ >> 20) & 0xFFF;
   if (imm & 0x800)
-    imm |= 0xFFFFF000; // Sign extend
+    imm |= 0xFFFFF000;
   return imm;
 }
 
 int32_t Instruction::decode_s_imm() const {
   int32_t imm = ((raw_ >> 7) & 0x1F) | ((raw_ >> 20) & 0xFE0);
   if (imm & 0x800)
-    imm |= 0xFFFFF000; // Sign extend
+    imm |= 0xFFFFF000;
   return imm;
 }
 
@@ -222,7 +221,7 @@ int32_t Instruction::decode_b_imm() const {
   int32_t imm = ((raw_ >> 7) & 0x1E) | ((raw_ >> 20) & 0x7E0) |
                 ((raw_ << 4) & 0x800) | ((raw_ >> 19) & 0x1000);
   if (imm & 0x1000)
-    imm |= 0xFFFFE000; // Sign extend
+    imm |= 0xFFFFE000;
   return imm;
 }
 
@@ -232,11 +231,10 @@ int32_t Instruction::decode_j_imm() const {
   int32_t imm = ((raw_ >> 20) & 0x7FE) | ((raw_ >> 9) & 0x800) |
                 (raw_ & 0xFF000) | ((raw_ >> 11) & 0x100000);
   if (imm & 0x100000)
-    imm |= 0xFFE00000; // Sign extend
+    imm |= 0xFFE00000;
   return imm;
 }
 
-// Static encoders
 uint32_t Instruction::encode_add(uint8_t rd, uint8_t rs1, uint8_t rs2) {
   return (0b0000000 << 25) | (rs2 << 20) | (rs1 << 15) | (0b000 << 12) |
          (rd << 7) | 0b0110011;

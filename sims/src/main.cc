@@ -1,6 +1,7 @@
-#include "cpu_sim.h"
+#include "cpu_sim.hh"
 #include <cstdlib>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <string>
 
@@ -82,12 +83,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  // Create simulator
   CPUSimulator sim(enable_trace);
   sim.set_verbose(verbose);
   sim.enable_profiling(profile);
 
-  // Load program
   std::cout << "Loading program: " << program_file << std::endl;
 
   bool loaded = false;
@@ -125,7 +124,6 @@ int main(int argc, char **argv) {
                       end_time - start_time)
                       .count();
 
-  // Print statistics
   std::cout << "\n========================================\n";
   std::cout << "Simulation Statistics\n";
   std::cout << "========================================\n";
@@ -136,17 +134,14 @@ int main(int argc, char **argv) {
   std::cout << "Runtime:      " << duration << " ms\n";
   std::cout << "========================================\n\n";
 
-  // Dump registers if requested
   if (dump_regs) {
     sim.dump_registers();
   }
 
-  // Dump memory if requested
   if (dump_mem) {
     sim.dump_memory(dump_mem_addr, dump_mem_size);
   }
 
-  // Save trace
   if (enable_trace) {
     sim.save_trace("execution_trace.log");
     std::cout << "Trace saved to execution_trace.log\n";

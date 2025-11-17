@@ -1,5 +1,5 @@
-#include "memory.h"
-#include "hex_loader.h"
+#include "memory.hh"
+#include "hex_loader.hh"
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -64,7 +64,6 @@ bool Memory::load_hex(const std::string &filename) {
     return true;
   }
 
-  // Try Intel HEX format
   std::vector<uint8_t> byte_data;
   uint32_t load_addr;
   if (HexLoader::load_intel_hex(filename, byte_data, load_addr)) {
