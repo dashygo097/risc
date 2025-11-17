@@ -1,22 +1,15 @@
-#include "cpu_sim.h"
-#include "elf_loader.h"
-#include "hex_loader.h"
-#include "instruction.h"
-#include "memory.h"
-#include "trace.h"
-#include <fstream>
-#include <iomanip>
+#include "cpu_sim.hh"
+#include "elf_loader.hh"
+#include "hex_loader.hh"
+#include "instruction.hh"
+#include "memory.hh"
+#include "trace.hh"
 #include <iostream>
 
 CPUSimulator::CPUSimulator(bool enable_trace)
-    : dut_(new Vrv32_cpu),
-      imem_(new Memory(256 * 1024, 0x00000000)) // 256KB instruction memory
-      ,
-      dmem_(new Memory(256 * 1024, 0x80000000)) // 256KB data memory
-      ,
-      trace_(new ExecutionTrace()), time_counter_(0), cycle_count_(0),
-      inst_count_(0), timeout_(1000000) // 1M cycles default
-      ,
+    : dut_(new Vrv32_cpu), imem_(new Memory(256 * 1024, 0x00000000)),
+      dmem_(new Memory(256 * 1024, 0x80000000)), trace_(new ExecutionTrace()),
+      time_counter_(0), cycle_count_(0), inst_count_(0), timeout_(1000000),
       verbose_(false), profiling_(false), trace_enabled_(enable_trace) {
 #ifdef ENABLE_TRACE
   if (trace_enabled_) {
@@ -62,10 +55,8 @@ void CPUSimulator::reset() {
 }
 
 void CPUSimulator::clock_tick() {
-  // Fetch instruction
   dut_->imem_inst = imem_->read32(dut_->imem_addr);
 
-  // Rising edge
   dut_->clock = 1;
   dut_->eval();
 
@@ -75,7 +66,6 @@ void CPUSimulator::clock_tick() {
   }
 #endif
 
-  // Capture state on rising edge
   if (dut_->debug_reg_write) {
     register_values_[dut_->debug_reg_addr] = dut_->debug_reg_data;
     inst_count_++;
@@ -110,7 +100,6 @@ void CPUSimulator::clock_tick() {
     }
   }
 
-  // Falling edge
   dut_->clock = 0;
   dut_->eval();
 
@@ -215,7 +204,4 @@ void CPUSimulator::save_trace(const std::string &filename) {
   trace_->save(filename);
 }
 
-void CPUSimulator::check_termination() {
-  // Check for infinite loop or halt condition
-  // You can customize this based on your needs
-}
+void CPUSimulator::check_termination() {}

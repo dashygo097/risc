@@ -1,10 +1,9 @@
-#include "elf_loader.h"
-#include "memory.h"
+#include "elf_loader.hh"
+#include "memory.hh"
 #include <cstring>
 #include <fstream>
 #include <iostream>
 
-// Simple ELF32 header structures
 struct ELF32_Header {
   uint8_t e_ident[16];
   uint16_t e_type;
@@ -57,30 +56,25 @@ bool ELFLoader::load(const std::string &filename, Memory &mem) {
     return false;
   }
 
-  // Read ELF header
   ELF32_Header elf_header;
   file.read(reinterpret_cast<char *>(&elf_header), sizeof(elf_header));
 
-  // Check if it's RISC-V
-  if (elf_header.e_machine != 0xF3) { // EM_RISCV = 243 (0xF3)
+  if (elf_header.e_machine != 0xF3) {
     std::cerr << "Not a RISC-V ELF file" << std::endl;
     return false;
   }
 
-  // Load program headers
   file.seekg(elf_header.e_phoff);
 
   for (int i = 0; i < elf_header.e_phnum; i++) {
     ELF32_ProgramHeader ph;
     file.read(reinterpret_cast<char *>(&ph), sizeof(ph));
 
-    // PT_LOAD = 1
     if (ph.p_type == 1 && ph.p_filesz > 0) {
       std::vector<uint8_t> data(ph.p_filesz);
       file.seekg(ph.p_offset);
       file.read(reinterpret_cast<char *>(data.data()), ph.p_filesz);
 
-      // Write to memory
       for (size_t j = 0; j < data.size(); j++) {
         mem.write8(ph.p_paddr + j, data[j]);
       }
@@ -98,7 +92,6 @@ bool ELFLoader::load(const std::string &filename, Memory &mem) {
 
 bool ELFLoader::load(const std::string &filename,
                      std::vector<Section> &sections, uint32_t &entry_point) {
-  // Simplified version - full implementation would parse section headers
   sections.clear();
   entry_point = 0;
   return false;

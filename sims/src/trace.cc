@@ -1,5 +1,5 @@
-#include "trace.h"
-#include <iomanip>
+#include "trace.hh"
+#include <iostream>
 
 void ExecutionTrace::add_entry(const TraceEntry &entry) {
   entries_.push_back(entry);

@@ -1,8 +1,6 @@
-#include "hex_loader.h"
+#include "hex_loader.hh"
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <sstream>
 
 bool HexLoader::load_intel_hex(const std::string &filename,
                                std::vector<uint8_t> &data,
@@ -22,12 +20,11 @@ bool HexLoader::load_intel_hex(const std::string &filename,
     if (line.empty() || line[0] != ':')
       continue;
 
-    // Parse Intel HEX record
     int byte_count = std::stoi(line.substr(1, 2), nullptr, 16);
     int address = std::stoi(line.substr(3, 4), nullptr, 16);
     int record_type = std::stoi(line.substr(7, 2), nullptr, 16);
 
-    if (record_type == 0x00) { // Data record
+    if (record_type == 0x00) {
       uint32_t full_addr = extended_addr + address;
       if (data.empty()) {
         base_addr = full_addr;
@@ -37,9 +34,9 @@ bool HexLoader::load_intel_hex(const std::string &filename,
         int byte_val = std::stoi(line.substr(9 + i * 2, 2), nullptr, 16);
         data.push_back(static_cast<uint8_t>(byte_val));
       }
-    } else if (record_type == 0x04) { // Extended linear address
+    } else if (record_type == 0x04) {
       extended_addr = std::stoi(line.substr(9, 4), nullptr, 16) << 16;
-    } else if (record_type == 0x01) { // End of file
+    } else if (record_type == 0x01) {
       break;
     }
   }
@@ -59,11 +56,9 @@ bool HexLoader::load_verilog_hex(const std::string &filename,
   std::string line;
 
   while (std::getline(file, line)) {
-    // Skip comments and empty lines
     if (line.empty() || line[0] == '/' || line[0] == '#')
       continue;
 
-    // Remove whitespace
     line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
 
     if (line.empty())
