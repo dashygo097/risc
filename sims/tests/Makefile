@@ -77,7 +77,7 @@ $(HEX_DIR)/%.hex: $(ELF_DIR)/%.elf
 
 $(DUMP_DIR)/%.dump: $(ELF_DIR)/%.elf
 	@echo "$(MAGENTA)Generating disassembly: $@$(RESET)"
-	$(OBJDUMP) -D -M no-aliases $< > $@
+	$(OBJDUMP) -d -M no-aliases $< > $@
 
 list:
 	@echo "$(CYAN)Available tests:$(RESET)"
