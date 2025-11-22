@@ -1,5 +1,6 @@
 package core
 
+import core.ex._
 import chisel3._
 import chisel3.util._
 import utils._
@@ -7,9 +8,16 @@ import utils._
 class RV32CPU extends Module {
   override def desiredName: String = s"rv32_cpu"
 
-  // Memory Interface
+// Memory Interface
   val imem_addr = IO(Output(UInt(32.W)))
   val imem_inst = IO(Input(UInt(32.W)))
+  
+  val dmem_read_en = IO(Output(Bool()))
+  val dmem_write_en = IO(Output(Bool()))
+  val dmem_addr = IO(Output(UInt(32.W)))
+  val dmem_write_data = IO(Output(UInt(32.W)))
+  val dmem_write_strb = IO(Output(UInt(4.W)))
+  val dmem_read_data = IO(Input(UInt(32.W)))
   
   // Debug
   val debug_pc = IO(Output(UInt(32.W)))
@@ -17,12 +25,11 @@ class RV32CPU extends Module {
   val debug_reg_write = IO(Output(Bool()))
   val debug_reg_addr = IO(Output(UInt(5.W)))
   val debug_reg_data = IO(Output(UInt(32.W)))
-
+  
   // Modules
   val alu = Module(new RV32ALU)
   val ctrl_unit = Module(new RV32GloblCtrlUnit)
   val regfile = Module(new RV32RegFile)
-  val data_mem = Module(new RV32GloblMem(32, 32, 1024, 0x80000000L))
 
   // PC
   val pc = RegInit(0.U(32.W))
@@ -67,7 +74,6 @@ class RV32CPU extends Module {
   val rs2_data = regfile.rs2_data
 
   // EX
-  
   val alu_src1 = MuxCase(rs1_data, Seq(
     (opcode === "b0010111".U) -> pc,  // AUIPC
     (opcode === "b1101111".U) -> pc,  // JAL
@@ -105,14 +111,38 @@ class RV32CPU extends Module {
   )) && (opcode === "b1100011".U)
 
   // MEM
-  data_mem.mem_ctrl := mem_ctrl
-  data_mem.write_addr := alu_result
-  data_mem.write_data := rs2_data
-  data_mem.read_addr := alu_result
-  val mem_data = data_mem.read_data
+  val is_load = (opcode === "b0000011".U)
+  val is_store = (opcode === "b0100011".U)
+
+  dmem_read_en := is_load
+  dmem_write_en := is_store
+  dmem_addr := alu_result
+
+  val byte_addr = alu_result(1, 0)
+  val aligned_write_data = MuxLookup(funct3, rs2_data)(Seq(
+    "b000".U -> (rs2_data << (byte_addr << 3)),  // SB
+    "b001".U -> (rs2_data << (byte_addr(1) << 4)), // SH
+    "b010".U -> rs2_data                           // SW
+  ))
+  dmem_write_data := aligned_write_data
+
+  dmem_write_strb := MuxLookup(funct3, 0.U)(Seq(
+    "b000".U -> ("b0001".U << byte_addr),      // SB
+    "b001".U -> ("b0011".U << (byte_addr(1) << 1)), // SH
+    "b010".U -> "b1111".U                      // SW
+  ))
+
+  val shifted_read_data = dmem_read_data >> (byte_addr << 3)
+  val mem_data = MuxLookup(funct3, 0.U)(Seq(
+    "b000".U -> Cat(Fill(24, shifted_read_data(7)), shifted_read_data(7, 0)),   // LB
+    "b001".U -> Cat(Fill(16, shifted_read_data(15)), shifted_read_data(15, 0)), // LH
+    "b010".U -> dmem_read_data,                                                  // LW
+    "b100".U -> Cat(Fill(24, 0.U), shifted_read_data(7, 0)),                    // LBU
+    "b101".U -> Cat(Fill(16, 0.U), shifted_read_data(15, 0))                    // LHU
+  ))
+
 
   // WB
-  
   val wb_data = MuxCase(alu_result, Seq(
     (opcode === "b0000011".U) -> mem_data,  // Load
     (opcode === "b0110111".U) -> imm,  // LUI

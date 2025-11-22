@@ -8,9 +8,9 @@ CPUSimulator::CPUSimulator(bool enable_trace)
     : _dut(new Vrv32_cpu), _imem(new Memory(256 * 1024, 0x00000000)),
       _dmem(new Memory(256 * 1024, 0x80000000)), trace_(new ExecutionTrace()),
       _time_counter(0), _cycle_count(0), _inst_count(0), _timeout(1000000),
-      verbose_(false), profiling_(false), trace_enabled_(enable_trace) {
+      _verbose(false), _profiling(false), _trace_enabled(enable_trace) {
 #ifdef ENABLE_TRACE
-  if (trace_enabled_) {
+  if (_trace_enabled) {
     Verilated::traceEverOn(true);
     _vcd = std::make_unique<VerilatedVcdC>();
     _dut->trace(_vcd.get(), 99);
@@ -37,15 +37,20 @@ bool CPUSimulator::load_elf(const std::string &filename) {
 
 void CPUSimulator::reset() {
   _dut->reset = 1;
+  _dut->clock = 0;
+  _dut->eval();
+
   clock_tick();
-  clock_tick();
+
   _dut->reset = 0;
-  clock_tick();
+  _dut->eval();
 
   _cycle_count = 0;
   _inst_count = 0;
-  register_values_.clear();
-  pc_histogram_.clear();
+
+  _register_values.clear();
+  _pc_histogram.clear();
+  trace_->clear();
 }
 
 void CPUSimulator::clock_tick() {
@@ -54,17 +59,30 @@ void CPUSimulator::clock_tick() {
   _dut->clock = 1;
   _dut->eval();
 
+  if (_dut->dmem_read_en) {
+    uint32_t aligned_addr = _dut->dmem_addr & ~0x3;
+    _dut->dmem_read_data = _dmem->read32(aligned_addr);
+    _dut->eval();
+  } else {
+    _dut->dmem_read_data = 0;
+  }
+
 #ifdef ENABLE_TRACE
   if (_vcd) {
     _vcd->dump(_time_counter++);
   }
 #endif
 
+  if (_dut->dmem_write_en) {
+    write_mem_with_strobe(_dut->dmem_addr, _dut->dmem_write_data,
+                          _dut->dmem_write_strb);
+  }
+
   if (_dut->debug_reg_write) {
-    register_values_[_dut->debug_reg_addr] = _dut->debug_reg_data;
+    _register_values[_dut->debug_reg_addr] = _dut->debug_reg_data;
     _inst_count++;
 
-    if (trace_enabled_) {
+    if (_trace_enabled) {
       TraceEntry entry;
       entry.cycle = _cycle_count;
       entry.pc = _dut->debug_pc;
@@ -79,11 +97,11 @@ void CPUSimulator::clock_tick() {
       trace_->add_entry(entry);
     }
 
-    if (profiling_) {
-      pc_histogram_[_dut->debug_pc]++;
+    if (_profiling) {
+      _pc_histogram[_dut->debug_pc]++;
     }
 
-    if (verbose_) {
+    if (_verbose) {
       std::cout << "Cycle " << std::dec << std::setw(6) << _cycle_count
                 << " | PC=0x" << std::hex << std::setw(8) << std::setfill('0')
                 << _dut->debug_pc << " | Inst=0x" << std::setw(8)
@@ -115,12 +133,12 @@ void CPUSimulator::step(int cycles) {
 void CPUSimulator::run(uint64_t max_cycles) {
   uint64_t target = max_cycles > 0 ? max_cycles : _timeout;
 
-  while (_cycle_count < target) {
+  while (_cycle_count < target && !_terminate) {
     clock_tick();
     check_termination();
   }
 
-  if (verbose_) {
+  if (_verbose) {
     std::cout << "\nSimulation completed after " << _cycle_count << " cycles\n";
   }
 }
@@ -136,8 +154,8 @@ uint32_t CPUSimulator::get_pc() const { return _dut->debug_pc; }
 uint32_t CPUSimulator::get_reg(uint8_t reg) const {
   if (reg == 0)
     return 0;
-  auto it = register_values_.find(reg);
-  return it != register_values_.end() ? it->second : 0;
+  auto it = _register_values.find(reg);
+  return it != _register_values.end() ? it->second : 0;
 }
 
 uint32_t CPUSimulator::read_mem(uint32_t addr) const {
@@ -183,11 +201,16 @@ void CPUSimulator::dump_memory(uint32_t start, uint32_t size) const {
 
   for (uint32_t addr = start; addr < start + size; addr += 16) {
     std::cout << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";
-    for (uint32_t i = 0; i < 16 && (addr + i) < (start + size); i++) {
-      if (i == 8)
+    for (uint32_t i = 0; i < 16 && (addr + i) < (start + size); i += 4) {
+      uint32_t word = read_mem(addr + i);
+
+      for (int j = 0; j < 4 && (i + j) < 16; j++) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0')
+                  << (int)((word >> (j * 8)) & 0xFF) << " ";
+      }
+
+      if (i == 4)
         std::cout << " ";
-      std::cout << std::hex << std::setw(2) << std::setfill('0')
-                << (int)((read_mem(addr + i) >> ((i % 4) * 8)) & 0xFF) << " ";
     }
     std::cout << std::endl;
   }
@@ -198,4 +221,35 @@ void CPUSimulator::save_trace(const std::string &filename) {
   trace_->save(filename);
 }
 
-void CPUSimulator::check_termination() {}
+void CPUSimulator::write_mem_with_strobe(uint32_t addr, uint32_t data,
+                                         uint8_t strb) {
+  uint32_t aligned_addr = addr & ~0x3;
+
+  uint32_t old_word = _dmem->read32(aligned_addr);
+  uint32_t new_word = old_word;
+
+  for (int i = 0; i < 4; i++) {
+    if (strb & (1 << i)) {
+      uint32_t byte_mask = 0xFF << (i * 8);
+      new_word = (new_word & ~byte_mask) | (data & byte_mask);
+    }
+  }
+
+  _dmem->write32(aligned_addr, new_word);
+
+  if (_verbose) {
+    std::cout << "  [MEM WRITE] addr=0x" << std::hex << addr << " aligned=0x"
+              << aligned_addr << " data=0x" << data << " strb=0x" << (int)strb
+              << " result=0x" << new_word << std::dec << std::endl;
+  }
+}
+
+void CPUSimulator::check_termination() {
+  if (_dut->debug_inst == 0x00100073) {
+    if (_verbose) {
+      std::cout << "\n[TERMINATION] EBREAK instruction at PC=0x" << std::hex
+                << _dut->debug_pc << std::dec << std::endl;
+    }
+    _terminate = true;
+  }
+}

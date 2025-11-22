@@ -35,9 +35,9 @@ public:
   uint64_t get_inst_count() const { return _inst_count; }
   double get_ipc() const;
 
-  void set_verbose(bool verbose) { verbose_ = verbose; }
+  void set_verbose(bool verbose) { _verbose = verbose; }
   void set_timeout(uint64_t timeout) { _timeout = timeout; }
-  void enable_profiling(bool enable) { profiling_ = enable; }
+  void enable_profiling(bool enable) { _profiling = enable; }
 
   void dump_registers() const;
   void dump_memory(uint32_t start, uint32_t size) const;
@@ -57,15 +57,17 @@ private:
   uint64_t _cycle_count;
   uint64_t _inst_count;
   uint64_t _timeout;
+  bool _terminate;
 
-  bool verbose_;
-  bool profiling_;
-  bool trace_enabled_;
+  bool _verbose;
+  bool _profiling;
+  bool _trace_enabled;
 
-  std::map<uint8_t, uint32_t> register_values_;
-  std::map<uint32_t, uint64_t> pc_histogram_;
+  std::map<uint8_t, uint32_t> _register_values;
+  std::map<uint32_t, uint64_t> _pc_histogram;
 
   void clock_tick();
   void update_stats();
+  void write_mem_with_strobe(uint32_t addr, uint32_t data, uint8_t strb);
   void check_termination();
 };

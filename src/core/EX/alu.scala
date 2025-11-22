@@ -1,21 +1,8 @@
-package core
+package core.ex
 
 import utils._
 import chisel3._
 import chisel3.util._
-
-object ALUOp {
-  val ADD  = 0x0.U
-  val SUB  = 0x1.U
-  val SLL  = 0x2.U
-  val SLT  = 0x3.U
-  val SLTU = 0x4.U
-  val XOR  = 0x5.U
-  val SRL  = 0x6.U
-  val SRA  = 0x7.U
-  val OR   = 0x8.U
-  val AND  = 0x9.U
-}
 
 class RV32ALU extends Module {
   override def desiredName: String = s"rv32_alu"
