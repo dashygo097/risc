@@ -82,8 +82,8 @@ int main(int argc, char **argv) {
   }
 
   CPUSimulator sim(enable_trace);
-  sim.set_verbose(verbose);
-  sim.enable_profiling(profile);
+  sim.verbose(verbose);
+  sim.profiling(profile);
 
   std::cout << "Loading program: " << program_file << std::endl;
 

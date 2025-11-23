@@ -6,7 +6,7 @@
 
 CPUSimulator::CPUSimulator(bool enable_trace)
     : _dut(new Vrv32_cpu), _imem(new Memory(256 * 1024, 0x00000000)),
-      _dmem(new Memory(256 * 1024, 0x80000000)), trace_(new ExecutionTrace()),
+      _dmem(new Memory(256 * 1024, 0x80000000)), _trace(new ExecutionTrace()),
       _time_counter(0), _cycle_count(0), _inst_count(0), _timeout(1000000),
       _verbose(false), _profiling(false), _trace_enabled(enable_trace) {
 #ifdef ENABLE_TRACE
@@ -50,7 +50,7 @@ void CPUSimulator::reset() {
 
   _register_values.clear();
   _pc_histogram.clear();
-  trace_->clear();
+  _trace->clear();
 }
 
 void CPUSimulator::clock_tick() {
@@ -94,7 +94,7 @@ void CPUSimulator::clock_tick() {
       Instruction inst(_dut->debug_inst);
       entry.disasm = inst.to_string();
 
-      trace_->add_entry(entry);
+      _trace->add_entry(entry);
     }
 
     if (_profiling) {
@@ -218,7 +218,7 @@ void CPUSimulator::dump_memory(uint32_t start, uint32_t size) const {
 }
 
 void CPUSimulator::save_trace(const std::string &filename) {
-  trace_->save(filename);
+  _trace->save(filename);
 }
 
 void CPUSimulator::write_mem_with_strobe(uint32_t addr, uint32_t data,
