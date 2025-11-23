@@ -18,27 +18,33 @@ public:
   CPUSimulator(bool enable_trace = false);
   ~CPUSimulator();
 
+  // Program loading
   bool load_bin(const std::string &filename, uint32_t base_addr = 0);
   bool load_elf(const std::string &filename);
 
+  // Simulation control
   void reset();
   void step(int cycles = 1);
   void run(uint64_t max_cycles = 0);
   void run_until(uint32_t pc);
 
+  // State accessors
   uint32_t get_pc() const;
   uint32_t get_reg(uint8_t reg) const;
   uint32_t read_mem(uint32_t addr) const;
   void write_mem(uint32_t addr, uint32_t data);
 
+  // Statistics
   uint64_t get_cycle_count() const { return _cycle_count; }
   uint64_t get_inst_count() const { return _inst_count; }
   double get_ipc() const;
 
-  void set_verbose(bool verbose) { _verbose = verbose; }
-  void set_timeout(uint64_t timeout) { _timeout = timeout; }
-  void enable_profiling(bool enable) { _profiling = enable; }
+  // Configuration
+  void verbose(bool verbose) { _verbose = verbose; }
+  void timeout(uint64_t timeout) { _timeout = timeout; }
+  void profiling(bool enable) { _profiling = enable; }
 
+  // Debugging and tracing
   void dump_registers() const;
   void dump_memory(uint32_t start, uint32_t size) const;
   void save_trace(const std::string &filename);
@@ -47,7 +53,7 @@ private:
   std::unique_ptr<Vrv32_cpu> _dut;
   std::unique_ptr<Memory> _imem;
   std::unique_ptr<Memory> _dmem;
-  std::unique_ptr<ExecutionTrace> trace_;
+  std::unique_ptr<ExecutionTrace> _trace;
 
 #ifdef ENABLE_TRACE
   std::unique_ptr<VerilatedVcdC> _vcd;
@@ -67,7 +73,10 @@ private:
   std::map<uint32_t, uint64_t> _pc_histogram;
 
   void clock_tick();
+
   void update_stats();
+
   void write_mem_with_strobe(uint32_t addr, uint32_t data, uint8_t strb);
+
   void check_termination();
 };
