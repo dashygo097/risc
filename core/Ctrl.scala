@@ -2,7 +2,6 @@ package core
 
 import ex._
 import mem._
-import utils._
 import chisel3._
 import chisel3.util._
 
@@ -68,8 +67,4 @@ class RV32GloblCtrlUnit extends Module {
       )
     )
   )
-}
-
-object RV32GloblCtrlUnit extends App {
-  VerilogEmitter.parse(new RV32GloblCtrlUnit, "rv32_globl_ctrl_unit.sv", info = true)
 }

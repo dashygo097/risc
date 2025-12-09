@@ -14,7 +14,7 @@ else
     BUILD_CMD = cmake --build $(BUILD_DIR)
 endif
 
-.PHONY: all config build clean reconfigure help
+.PHONY: all config build clean help
 
 all: build
 

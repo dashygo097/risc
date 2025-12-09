@@ -34,7 +34,3 @@ class RV32RegFile extends Module {
   rs1_data                     := dual_port_regfile.rs1_data
   rs2_data                     := dual_port_regfile.rs2_data
 }
-
-object RV32RegFile extends App {
-  VerilogEmitter.parse(new RV32RegFile, "rv32_regfile.sv", info = true)
-}

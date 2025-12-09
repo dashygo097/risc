@@ -1,6 +1,5 @@
 package core.ex
 
-import utils._
 import chisel3._
 import chisel3.util._
 
@@ -26,8 +25,4 @@ class RV32ALU extends Module {
       ALUOp.AND  -> (rs1 & rs2)
     )
   )
-}
-
-object RV32ALU extends App {
-  VerilogEmitter.parse(new RV32ALU, "rv32_alu.sv", info = true)
 }
