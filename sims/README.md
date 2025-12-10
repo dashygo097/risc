@@ -14,7 +14,7 @@
 make    # Ninja by default, and you can always change the generator
 ```
 
-or manually follow this by default:
+or manually follow this :
 
 ```bash
 mkdir -p build
