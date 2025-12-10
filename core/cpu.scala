@@ -8,7 +8,7 @@ import utils._
 class RV32CPU extends Module {
   override def desiredName: String = s"rv32_cpu"
 
-// Memory Interface
+  // Memory Interface
   val imem_addr = IO(Output(UInt(32.W)))
   val imem_inst = IO(Input(UInt(32.W)))
 
@@ -31,183 +31,322 @@ class RV32CPU extends Module {
   val ctrl_unit = Module(new RV32GloblCtrlUnit)
   val regfile   = Module(new RV32RegFile)
 
-  // PC
+  // Pipeline registers
+  val if_id  = Module(new IF_ID)
+  val id_ex  = Module(new ID_EX)
+  val ex_mem = Module(new EX_MEM)
+  val mem_wb = Module(new MEM_WB)
+
+  // Control signals
+  val stall = Wire(Bool())
+  val flush = Wire(Bool())
+
+  // ========== IF Stage ==========
   val pc      = RegInit(0.U(32.W))
   val next_pc = Wire(UInt(32.W))
 
-  // IF
   imem_addr := pc
-  val inst = imem_inst
+  val if_inst = imem_inst
 
-  // ID
-  val funct7 = inst(31, 25)
-  val rs2    = inst(24, 20)
-  val rs1    = inst(19, 15)
-  val funct3 = inst(14, 12)
-  val rd     = inst(11, 7)
-  val opcode = inst(6, 0)
+  // IF/ID pipeline register
+  if_id.stall   := stall
+  if_id.flush   := flush
+  if_id.if_pc   := pc
+  if_id.if_inst := if_inst
 
-  ctrl_unit.inst := inst
-  val alu_ctrl = ctrl_unit.alu_ctrl
-  val mem_ctrl = ctrl_unit.mem_ctrl
+  // ========== ID Stage ==========
+  val id_pc   = if_id.id_pc
+  val id_inst = if_id.id_inst
 
-  val imm_i = Cat(Fill(21, inst(31)), inst(30, 20))
-  val imm_s = Cat(Fill(21, inst(31)), inst(30, 25), inst(11, 7))
-  val imm_b = Cat(Fill(20, inst(31)), inst(7), inst(30, 25), inst(11, 8), 0.U(1.W))
-  val imm_u = Cat(inst(31, 12), Fill(12, 0.U))
-  val imm_j = Cat(Fill(12, inst(31)), inst(19, 12), inst(20), inst(30, 21), 0.U(1.W))
+  val id_opcode = id_inst(6, 0)
+  val id_rd     = id_inst(11, 7)
+  val id_funct3 = id_inst(14, 12)
+  val id_rs1    = id_inst(19, 15)
+  val id_rs2    = id_inst(24, 20)
+  val id_funct7 = id_inst(31, 25)
 
-  val imm = MuxCase(
+  // Control unit
+  ctrl_unit.inst := id_inst
+  val id_alu_ctrl = ctrl_unit.alu_ctrl
+  val id_mem_ctrl = ctrl_unit.mem_ctrl
+
+  // Immediate generation
+  val id_imm_i = Cat(Fill(21, id_inst(31)), id_inst(30, 20))
+  val id_imm_s = Cat(Fill(21, id_inst(31)), id_inst(30, 25), id_inst(11, 7))
+  val id_imm_b = Cat(Fill(20, id_inst(31)), id_inst(7), id_inst(30, 25), id_inst(11, 8), 0.U(1.W))
+  val id_imm_u = Cat(id_inst(31, 12), Fill(12, 0.U))
+  val id_imm_j = Cat(Fill(12, id_inst(31)), id_inst(19, 12), id_inst(20), id_inst(30, 21), 0.U(1.W))
+
+  val id_imm = MuxCase(
     0.U,
     Seq(
-      (opcode === "b0010011".U) -> imm_i, // I-type (ALU)
-      (opcode === "b0000011".U) -> imm_i, // I-type (Load)
-      (opcode === "b0100011".U) -> imm_s, // S-type
-      (opcode === "b1100011".U) -> imm_b, // B-type
-      (opcode === "b0110111".U) -> imm_u, // U-type (LUI)
-      (opcode === "b0010111".U) -> imm_u, // U-type (AUIPC)
-      (opcode === "b1101111".U) -> imm_j, // J-type (JAL)
-      (opcode === "b1100111".U) -> imm_i  // I-type (JALR)
+      (id_opcode === "b0010011".U) -> id_imm_i,
+      (id_opcode === "b0000011".U) -> id_imm_i,
+      (id_opcode === "b0100011".U) -> id_imm_s,
+      (id_opcode === "b1100011".U) -> id_imm_b,
+      (id_opcode === "b0110111".U) -> id_imm_u,
+      (id_opcode === "b0010111".U) -> id_imm_u,
+      (id_opcode === "b1101111".U) -> id_imm_j,
+      (id_opcode === "b1100111".U) -> id_imm_i
     )
   )
 
-  regfile.rs1_addr := rs1
-  regfile.rs2_addr := rs2
-  val rs1_data = regfile.rs1_data
-  val rs2_data = regfile.rs2_data
+  // Register file reads
+  regfile.rs1_addr := id_rs1
+  regfile.rs2_addr := id_rs2
 
-  // EX
-  val alu_src1 = MuxCase(
-    rs1_data,
+  // Forwarding and hazard detection (kept as in previous version)
+  val ex_forward_rs1  = id_ex.ex_reg_write && (id_ex.ex_rd =/= 0.U) && (id_ex.ex_rd === id_rs1)
+  val ex_forward_rs2  = id_ex.ex_reg_write && (id_ex.ex_rd =/= 0.U) && (id_ex.ex_rd === id_rs2)
+  val mem_forward_rs1 =
+    ex_mem.mem_reg_write && (ex_mem.mem_rd =/= 0.U) && (ex_mem.mem_rd === id_rs1)
+  val mem_forward_rs2 =
+    ex_mem.mem_reg_write && (ex_mem.mem_rd =/= 0.U) && (ex_mem.mem_rd === id_rs2)
+  val wb_forward_rs1  = mem_wb.wb_reg_write && (mem_wb.wb_rd =/= 0.U) && (mem_wb.wb_rd === id_rs1)
+  val wb_forward_rs2  = mem_wb.wb_reg_write && (mem_wb.wb_rd =/= 0.U) && (mem_wb.wb_rd === id_rs2)
+
+  // Load-use hazard detection
+  val load_use_hazard = id_ex.ex_mem_read &&
+    ((id_ex.ex_rd === id_rs1) || (id_ex.ex_rd === id_rs2)) &&
+    (id_ex.ex_rd =/= 0.U)
+
+  stall := load_use_hazard
+
+  // Branch/Jump control
+  val id_is_branch = id_opcode === "b1100011".U
+  val id_is_jal    = id_opcode === "b1101111".U
+  val id_is_jalr   = id_opcode === "b1100111".U
+
+  // Forwarded register values for branch comparison
+  val id_rs1_data_raw = regfile.rs1_data
+  val id_rs2_data_raw = regfile.rs2_data
+
+  val id_rs1_data = MuxCase(
+    id_rs1_data_raw,
     Seq(
-      (opcode === "b0010111".U) -> pc,      // AUIPC
-      (opcode === "b1101111".U) -> pc,      // JAL
-      (opcode === "b1100111".U) -> rs1_data // JALR
+      wb_forward_rs1  -> mem_wb.wb_wb_data,
+      mem_forward_rs1 -> ex_mem.mem_alu_result,
+      ex_forward_rs1  -> alu.rd
     )
   )
 
-  val alu_src2 = MuxCase(
-    rs2_data,
+  val id_rs2_data = MuxCase(
+    id_rs2_data_raw,
     Seq(
-      (opcode === "b0010011".U) -> imm, // I-type ALU
-      (opcode === "b0000011".U) -> imm, // Load
-      (opcode === "b0100011".U) -> imm, // Store
-      (opcode === "b0110111".U) -> 0.U, // LUI
-      (opcode === "b0010111".U) -> imm, // AUIPC
-      (opcode === "b1101111".U) -> 4.U, // JAL (save PC+4)
-      (opcode === "b1100111".U) -> 4.U  // JALR (save PC+4)
+      wb_forward_rs2  -> mem_wb.wb_wb_data,
+      mem_forward_rs2 -> ex_mem.mem_alu_result,
+      ex_forward_rs2  -> alu.rd
     )
   )
 
-  alu.rs1      := alu_src1
-  alu.rs2      := alu_src2
+  val id_branch_taken = MuxCase(
+    false.B,
+    Seq(
+      (id_funct3 === "b000".U) -> (id_rs1_data === id_rs2_data),
+      (id_funct3 === "b001".U) -> (id_rs1_data =/= id_rs2_data),
+      (id_funct3 === "b100".U) -> (id_rs1_data.asSInt < id_rs2_data.asSInt),
+      (id_funct3 === "b101".U) -> (id_rs1_data.asSInt >= id_rs2_data.asSInt),
+      (id_funct3 === "b110".U) -> (id_rs1_data < id_rs2_data),
+      (id_funct3 === "b111".U) -> (id_rs1_data >= id_rs2_data)
+    )
+  ) && id_is_branch
+
+  flush := id_branch_taken || id_is_jal || id_is_jalr
+
+  val id_reg_write = MuxCase(
+    false.B,
+    Seq(
+      (id_opcode === "b0110011".U) -> true.B,
+      (id_opcode === "b0010011".U) -> true.B,
+      (id_opcode === "b0000011".U) -> true.B,
+      (id_opcode === "b0110111".U) -> true.B,
+      (id_opcode === "b0010111".U) -> true.B,
+      (id_opcode === "b1101111".U) -> true.B,
+      (id_opcode === "b1100111".U) -> true.B
+    )
+  )
+
+  val id_mem_read  = id_opcode === "b0000011".U
+  val id_mem_write = id_opcode === "b0100011".U
+
+  // ID/EX pipeline register
+  id_ex.stall        := stall
+  id_ex.flush        := flush || stall
+  id_ex.id_alu_ctrl  := id_alu_ctrl
+  id_ex.id_mem_ctrl  := id_mem_ctrl
+  id_ex.id_reg_write := id_reg_write
+  id_ex.id_mem_read  := id_mem_read
+  id_ex.id_mem_write := id_mem_write
+  id_ex.id_pc        := id_pc
+  id_ex.id_inst      := id_inst
+  id_ex.id_rs1_data  := id_rs1_data
+  id_ex.id_rs2_data  := id_rs2_data
+  id_ex.id_imm       := id_imm
+  id_ex.id_rd        := id_rd
+  id_ex.id_rs1       := id_rs1
+  id_ex.id_rs2       := id_rs2
+  id_ex.id_funct3    := id_funct3
+  id_ex.id_opcode    := id_opcode
+
+  // ========== EX Stage ==========
+  val ex_opcode = id_ex.ex_opcode
+  val ex_pc     = id_ex.ex_pc
+  val ex_inst   = id_ex.ex_inst
+  val ex_imm    = id_ex.ex_imm
+
+  // ALU source selection with forwarding
+  val ex_rs1_data_forwarded = MuxCase(
+    id_ex.ex_rs1_data,
+    Seq(
+      (ex_mem.mem_reg_write && (ex_mem.mem_rd === id_ex.ex_rs1) && (ex_mem.mem_rd =/= 0.U)) -> ex_mem.mem_alu_result,
+      (mem_wb.wb_reg_write && (mem_wb.wb_rd === id_ex.ex_rs1) && (mem_wb.wb_rd =/= 0.U))    -> mem_wb.wb_wb_data
+    )
+  )
+
+  val ex_rs2_data_forwarded = MuxCase(
+    id_ex.ex_rs2_data,
+    Seq(
+      (ex_mem.mem_reg_write && (ex_mem.mem_rd === id_ex.ex_rs2) && (ex_mem.mem_rd =/= 0.U)) -> ex_mem.mem_alu_result,
+      (mem_wb.wb_reg_write && (mem_wb.wb_rd === id_ex.ex_rs2) && (mem_wb.wb_rd =/= 0.U))    -> mem_wb.wb_wb_data
+    )
+  )
+
+  val ex_alu_src1 = MuxCase(
+    ex_rs1_data_forwarded,
+    Seq(
+      (ex_opcode === "b0010111".U) -> ex_pc,
+      (ex_opcode === "b1101111".U) -> ex_pc,
+      (ex_opcode === "b1100111".U) -> ex_rs1_data_forwarded
+    )
+  )
+
+  val ex_alu_src2 = MuxCase(
+    ex_rs2_data_forwarded,
+    Seq(
+      (ex_opcode === "b0010011".U) -> ex_imm,
+      (ex_opcode === "b0000011".U) -> ex_imm,
+      (ex_opcode === "b0100011".U) -> ex_imm,
+      (ex_opcode === "b0110111".U) -> 0.U,
+      (ex_opcode === "b0010111".U) -> ex_imm,
+      (ex_opcode === "b1101111".U) -> 4.U,
+      (ex_opcode === "b1100111".U) -> 4.U
+    )
+  )
+
+  alu.rs1      := ex_alu_src1
+  alu.rs2      := ex_alu_src2
   alu.alu_ctrl := MuxCase(
-    alu_ctrl,
+    id_ex.ex_alu_ctrl,
     Seq(
-      (opcode === "b0110111".U) -> ALUOp.ADD, // LUI: just pass rs2 (imm)
-      (opcode === "b0010111".U) -> ALUOp.ADD, // AUIPC: PC + imm
-      (opcode === "b1101111".U) -> ALUOp.ADD, // JAL: PC + 4
-      (opcode === "b1100111".U) -> ALUOp.ADD  // JALR: PC + 4
+      (ex_opcode === "b0110111".U) -> ALUOp.ADD,
+      (ex_opcode === "b0010111".U) -> ALUOp.ADD,
+      (ex_opcode === "b1101111".U) -> ALUOp.ADD,
+      (ex_opcode === "b1100111".U) -> ALUOp.ADD
     )
   )
 
-  val alu_result = alu.rd
+  val ex_alu_result = alu.rd
 
-  val branch_taken = MuxCase(
-    false.B,
+  // EX/MEM pipeline register
+  ex_mem.stall         := false.B
+  ex_mem.flush         := false.B
+  ex_mem.ex_mem_ctrl   := id_ex.ex_mem_ctrl
+  ex_mem.ex_reg_write  := id_ex.ex_reg_write
+  ex_mem.ex_mem_read   := id_ex.ex_mem_read
+  ex_mem.ex_mem_write  := id_ex.ex_mem_write
+  ex_mem.ex_alu_result := ex_alu_result
+  ex_mem.ex_rs2_data   := ex_rs2_data_forwarded
+  ex_mem.ex_rd         := id_ex.ex_rd
+  ex_mem.ex_funct3     := id_ex.ex_funct3
+  ex_mem.ex_pc         := ex_pc
+  ex_mem.ex_opcode     := ex_opcode
+  ex_mem.ex_inst       := ex_inst
+
+  // ========== MEM Stage ==========
+  val mem_opcode     = ex_mem.mem_opcode
+  val mem_funct3     = ex_mem.mem_funct3
+  val mem_alu_result = ex_mem.mem_alu_result
+  val mem_rs2_data   = ex_mem.mem_rs2_data
+  val mem_inst       = ex_mem.mem_inst
+
+  dmem_read_en  := ex_mem.mem_mem_read
+  dmem_write_en := ex_mem.mem_mem_write
+  dmem_addr     := mem_alu_result
+
+  val mem_byte_addr          = mem_alu_result(1, 0)
+  val mem_aligned_write_data = MuxLookup(mem_funct3, mem_rs2_data)(
     Seq(
-      (funct3 === "b000".U) -> (rs1_data === rs2_data),              // BEQ
-      (funct3 === "b001".U) -> (rs1_data =/= rs2_data),              // BNE
-      (funct3 === "b100".U) -> (rs1_data.asSInt < rs2_data.asSInt),  // BLT
-      (funct3 === "b101".U) -> (rs1_data.asSInt >= rs2_data.asSInt), // BGE
-      (funct3 === "b110".U) -> (rs1_data < rs2_data),                // BLTU
-      (funct3 === "b111".U) -> (rs1_data >= rs2_data)                // BGEU
-    )
-  ) && (opcode === "b1100011".U)
-
-  // MEM
-  val is_load  = opcode === "b0000011".U
-  val is_store = opcode === "b0100011".U
-
-  dmem_read_en  := is_load
-  dmem_write_en := is_store
-  dmem_addr     := alu_result
-
-  val byte_addr          = alu_result(1, 0)
-  val aligned_write_data = MuxLookup(funct3, rs2_data)(
-    Seq(
-      "b000".U -> (rs2_data << (byte_addr << 3)),    // SB
-      "b001".U -> (rs2_data << (byte_addr(1) << 4)), // SH
-      "b010".U -> rs2_data                           // SW
-    )
-  )
-  dmem_write_data := aligned_write_data
-
-  dmem_write_strb := MuxLookup(funct3, 0.U)(
-    Seq(
-      "b000".U -> ("b0001".U << byte_addr),           // SB
-      "b001".U -> ("b0011".U << (byte_addr(1) << 1)), // SH
-      "b010".U -> "b1111".U                           // SW
+      "b000".U -> (mem_rs2_data << (mem_byte_addr << 3)),
+      "b001".U -> (mem_rs2_data << (mem_byte_addr(1) << 4)),
+      "b010".U -> mem_rs2_data
     )
   )
+  dmem_write_data := mem_aligned_write_data
 
-  val shifted_read_data = dmem_read_data >> (byte_addr << 3)
-  val mem_data          = MuxLookup(funct3, 0.U)(
+  dmem_write_strb := MuxLookup(mem_funct3, 0.U)(
     Seq(
-      "b000".U -> Cat(Fill(24, shifted_read_data(7)), shifted_read_data(7, 0)),   // LB
-      "b001".U -> Cat(Fill(16, shifted_read_data(15)), shifted_read_data(15, 0)), // LH
-      "b010".U -> dmem_read_data,                                                 // LW
-      "b100".U -> Cat(Fill(24, 0.U), shifted_read_data(7, 0)),                    // LBU
-      "b101".U -> Cat(Fill(16, 0.U), shifted_read_data(15, 0))                    // LHU
+      "b000".U -> ("b0001".U << mem_byte_addr),
+      "b001".U -> ("b0011".U << (mem_byte_addr(1) << 1)),
+      "b010".U -> "b1111".U
     )
   )
 
-  // WB
-  val wb_data = MuxCase(
-    alu_result,
+  val mem_shifted_read_data = dmem_read_data >> (mem_byte_addr << 3)
+  val mem_data              = MuxLookup(mem_funct3, 0.U)(
     Seq(
-      (opcode === "b0000011".U) -> mem_data,   // Load
-      (opcode === "b0110111".U) -> imm,        // LUI
-      (opcode === "b1101111".U) -> (pc + 4.U), // JAL
-      (opcode === "b1100111".U) -> (pc + 4.U)  // JALR
+      "b000".U -> Cat(Fill(24, mem_shifted_read_data(7)), mem_shifted_read_data(7, 0)),
+      "b001".U -> Cat(Fill(16, mem_shifted_read_data(15)), mem_shifted_read_data(15, 0)),
+      "b010".U -> dmem_read_data,
+      "b100".U -> Cat(Fill(24, 0.U), mem_shifted_read_data(7, 0)),
+      "b101".U -> Cat(Fill(16, 0.U), mem_shifted_read_data(15, 0))
     )
   )
 
-  val reg_write = MuxCase(
-    false.B,
+  val mem_wb_data = MuxCase(
+    mem_alu_result,
     Seq(
-      (opcode === "b0110011".U) -> true.B, // R-type
-      (opcode === "b0010011".U) -> true.B, // I-type ALU
-      (opcode === "b0000011".U) -> true.B, // Load
-      (opcode === "b0110111".U) -> true.B, // LUI
-      (opcode === "b0010111".U) -> true.B, // AUIPC
-      (opcode === "b1101111".U) -> true.B, // JAL
-      (opcode === "b1100111".U) -> true.B  // JALR
+      (mem_opcode === "b0000011".U) -> mem_data,
+      (mem_opcode === "b0110111".U) -> mem_alu_result,
+      (mem_opcode === "b1101111".U) -> (ex_mem.mem_pc + 4.U),
+      (mem_opcode === "b1100111".U) -> (ex_mem.mem_pc + 4.U)
     )
   )
 
-  regfile.rd_addr    := rd
-  regfile.write_data := wb_data
-  regfile.rd_we      := reg_write && (rd =/= 0.U)
+  // MEM/WB pipeline register
+  mem_wb.stall         := false.B
+  mem_wb.flush         := false.B
+  mem_wb.mem_reg_write := ex_mem.mem_reg_write
+  mem_wb.mem_wb_data   := mem_wb_data
+  mem_wb.mem_rd        := ex_mem.mem_rd
+  mem_wb.mem_pc        := ex_mem.mem_pc
+  mem_wb.mem_opcode    := mem_opcode
+  mem_wb.mem_inst      := mem_inst
 
-  // PC Update
+  // ========== WB Stage ==========
+  regfile.rd_addr    := mem_wb.wb_rd
+  regfile.write_data := mem_wb.wb_wb_data
+  regfile.rd_we      := mem_wb.wb_reg_write && (mem_wb.wb_rd =/= 0.U)
+
+  // ========== PC Update ==========
   next_pc := MuxCase(
     pc + 4.U,
     Seq(
-      branch_taken              -> (pc + imm),                        // Branch
-      (opcode === "b1101111".U) -> (pc + imm),                        // JAL
-      (opcode === "b1100111".U) -> ((rs1_data + imm) & "hfffffffe".U) // JALR
+      id_branch_taken -> (id_pc + id_imm),
+      id_is_jal       -> (id_pc + id_imm),
+      id_is_jalr      -> ((id_rs1_data + id_imm) & "hfffffffe".U)
     )
   )
 
-  pc := next_pc
+  when(!stall) {
+    pc := next_pc
+  }
 
-  // Debug Outputs
-  debug_pc        := pc
-  debug_inst      := inst
-  debug_reg_write := reg_write && (rd =/= 0.U)
-  debug_reg_addr  := rd
-  debug_reg_data  := wb_data
+  // ========== Debug Outputs ==========
+  debug_pc        := mem_wb.wb_pc
+  debug_inst      := mem_wb.wb_inst
+  debug_reg_write := mem_wb.wb_reg_write && (mem_wb.wb_rd =/= 0.U)
+  debug_reg_addr  := mem_wb.wb_rd
+  debug_reg_data  := mem_wb.wb_wb_data
 }
 
 object RV32CPU extends App {
