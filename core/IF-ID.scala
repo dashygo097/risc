@@ -1,7 +1,6 @@
 package core
 
 import chisel3._
-import chisel3.util._
 
 class IF_ID extends Module {
   override def desiredName: String = s"if_id"
@@ -22,7 +21,7 @@ class IF_ID extends Module {
 
   when(flush) {
     pc_reg   := 0.U
-    inst_reg := 0.U // NOP
+    inst_reg := 0.U
   }.elsewhen(!stall) {
     pc_reg   := if_pc
     inst_reg := if_inst

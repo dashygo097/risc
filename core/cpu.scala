@@ -41,20 +41,20 @@ class RV32CPU extends Module {
   val stall = Wire(Bool())
   val flush = Wire(Bool())
 
-  // ========== IF Stage ==========
+  // IF
   val pc      = RegInit(0.U(32.W))
   val next_pc = Wire(UInt(32.W))
 
   imem_addr := pc
   val if_inst = imem_inst
 
-  // IF/ID pipeline register
+  // IF/ID
   if_id.stall   := stall
   if_id.flush   := flush
   if_id.if_pc   := pc
   if_id.if_inst := if_inst
 
-  // ========== ID Stage ==========
+  // ID Stage
   val id_pc   = if_id.id_pc
   val id_inst = if_id.id_inst
 
@@ -169,7 +169,7 @@ class RV32CPU extends Module {
   val id_mem_read  = id_opcode === "b0000011".U
   val id_mem_write = id_opcode === "b0100011".U
 
-  // ID/EX pipeline register
+  // ID/EX
   id_ex.stall        := stall
   id_ex.flush        := flush || stall
   id_ex.id_alu_ctrl  := id_alu_ctrl
@@ -188,7 +188,7 @@ class RV32CPU extends Module {
   id_ex.id_funct3    := id_funct3
   id_ex.id_opcode    := id_opcode
 
-  // ========== EX Stage ==========
+  // EX Stage
   val ex_opcode = id_ex.ex_opcode
   val ex_pc     = id_ex.ex_pc
   val ex_inst   = id_ex.ex_inst
@@ -247,7 +247,7 @@ class RV32CPU extends Module {
 
   val ex_alu_result = alu.rd
 
-  // EX/MEM pipeline register
+  // EX/MEM
   ex_mem.stall         := false.B
   ex_mem.flush         := false.B
   ex_mem.ex_mem_ctrl   := id_ex.ex_mem_ctrl
@@ -262,7 +262,7 @@ class RV32CPU extends Module {
   ex_mem.ex_opcode     := ex_opcode
   ex_mem.ex_inst       := ex_inst
 
-  // ========== MEM Stage ==========
+  // MEM Stage
   val mem_opcode     = ex_mem.mem_opcode
   val mem_funct3     = ex_mem.mem_funct3
   val mem_alu_result = ex_mem.mem_alu_result
@@ -312,7 +312,7 @@ class RV32CPU extends Module {
     )
   )
 
-  // MEM/WB pipeline register
+  // MEM/WB
   mem_wb.stall         := false.B
   mem_wb.flush         := false.B
   mem_wb.mem_reg_write := ex_mem.mem_reg_write
@@ -322,12 +322,12 @@ class RV32CPU extends Module {
   mem_wb.mem_opcode    := mem_opcode
   mem_wb.mem_inst      := mem_inst
 
-  // ========== WB Stage ==========
+  // WB Stage
   regfile.rd_addr    := mem_wb.wb_rd
   regfile.write_data := mem_wb.wb_wb_data
   regfile.rd_we      := mem_wb.wb_reg_write && (mem_wb.wb_rd =/= 0.U)
 
-  // ========== PC Update ==========
+  // PC Update
   next_pc := MuxCase(
     pc + 4.U,
     Seq(
@@ -341,7 +341,7 @@ class RV32CPU extends Module {
     pc := next_pc
   }
 
-  // ========== Debug Outputs ==========
+  // Debug
   debug_pc        := mem_wb.wb_pc
   debug_inst      := mem_wb.wb_inst
   debug_reg_write := mem_wb.wb_reg_write && (mem_wb.wb_rd =/= 0.U)

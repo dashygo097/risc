@@ -182,7 +182,9 @@ void CPUSimulator::dump_registers() const {
   std::cout << "Register Dump\n";
   std::cout << "========================================\n";
 
-  for (int i = 0; i < 32; i++) {
+  std::cout << "x00" << " = 0x" << std::hex << std::setw(8) << std::setfill('0')
+            << get_reg(0) << "  ";
+  for (int i = 1; i < 32; i++) {
     std::cout << "x" << std::dec << std::setw(2) << i << " = 0x" << std::hex
               << std::setw(8) << std::setfill('0') << get_reg(i);
     if (i % 4 == 3)
