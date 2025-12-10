@@ -54,17 +54,17 @@ void CPUSimulator::reset() {
 }
 
 void CPUSimulator::clock_tick() {
-  _dut->imem_inst = _imem->read32(_dut->imem_addr);
+  _dut->IMEM_INST = _imem->read32(_dut->IMEM_ADDR);
 
   _dut->clock = 1;
   _dut->eval();
 
-  if (_dut->dmem_read_en) {
-    uint32_t aligned_addr = _dut->dmem_addr & ~0x3;
-    _dut->dmem_read_data = _dmem->read32(aligned_addr);
+  if (_dut->DMEM_READ_EN) {
+    uint32_t aligned_addr = _dut->DMEM_ADDR & ~0x3;
+    _dut->DMEM_READ_DATA = _dmem->read32(aligned_addr);
     _dut->eval();
   } else {
-    _dut->dmem_read_data = 0;
+    _dut->DMEM_READ_DATA = 0;
   }
 
 #ifdef ENABLE_TRACE
@@ -73,41 +73,41 @@ void CPUSimulator::clock_tick() {
   }
 #endif
 
-  if (_dut->dmem_write_en) {
-    write_mem_with_strobe(_dut->dmem_addr, _dut->dmem_write_data,
-                          _dut->dmem_write_strb);
+  if (_dut->DMEM_WRITE_EN) {
+    write_mem_with_strobe(_dut->DMEM_ADDR, _dut->DMEM_WRITE_DATA,
+                          _dut->DMEM_WRITE_STRB);
   }
 
-  if (_dut->debug_reg_write) {
-    _register_values[_dut->debug_reg_addr] = _dut->debug_reg_data;
+  if (_dut->DEBUG_REG_WE) {
+    _register_values[_dut->DEBUG_REG_ADDR] = _dut->DEBUG_REG_DATA;
     _inst_count++;
 
     if (_trace_enabled) {
       TraceEntry entry;
       entry.cycle = _cycle_count;
-      entry.pc = _dut->debug_pc;
-      entry.inst = _dut->debug_inst;
-      entry.rd = _dut->debug_reg_addr;
-      entry.rd_val = _dut->debug_reg_data;
+      entry.pc = _dut->DEBUG_PC;
+      entry.inst = _dut->DEBUG_INST;
+      entry.rd = _dut->DEBUG_REG_ADDR;
+      entry.rd_val = _dut->DEBUG_REG_DATA;
       entry.rd_written = true;
 
-      Instruction inst(_dut->debug_inst);
+      Instruction inst(_dut->DEBUG_INST);
       entry.disasm = inst.to_string();
 
       _trace->add_entry(entry);
     }
 
     if (_profiling) {
-      _pc_histogram[_dut->debug_pc]++;
+      _pc_histogram[_dut->DEBUG_PC]++;
     }
 
     if (_verbose) {
       std::cout << "Cycle " << std::dec << std::setw(6) << _cycle_count
                 << " | PC=0x" << std::hex << std::setw(8) << std::setfill('0')
-                << _dut->debug_pc << " | Inst=0x" << std::setw(8)
-                << _dut->debug_inst << " | x" << std::dec
-                << (int)_dut->debug_reg_addr << "=0x" << std::hex
-                << std::setw(8) << _dut->debug_reg_data << std::dec
+                << _dut->DEBUG_PC << " | Inst=0x" << std::setw(8)
+                << _dut->DEBUG_INST << " | x" << std::dec
+                << (int)_dut->DEBUG_REG_ADDR << "=0x" << std::hex
+                << std::setw(8) << _dut->DEBUG_REG_DATA << std::dec
                 << std::endl;
     }
   }
@@ -144,12 +144,12 @@ void CPUSimulator::run(uint64_t max_cycles) {
 }
 
 void CPUSimulator::run_until(uint32_t pc) {
-  while (_dut->debug_pc != pc && _cycle_count < _timeout) {
+  while (_dut->DEBUG_PC != pc && _cycle_count < _timeout) {
     clock_tick();
   }
 }
 
-uint32_t CPUSimulator::get_pc() const { return _dut->debug_pc; }
+uint32_t CPUSimulator::get_pc() const { return _dut->DEBUG_PC; }
 
 uint32_t CPUSimulator::get_reg(uint8_t reg) const {
   if (reg == 0)
@@ -247,10 +247,10 @@ void CPUSimulator::write_mem_with_strobe(uint32_t addr, uint32_t data,
 }
 
 void CPUSimulator::check_termination() {
-  if (_dut->debug_inst == 0x00100073) {
+  if (_dut->DEBUG_INST == 0x00100073) {
     if (_verbose) {
       std::cout << "\n[TERMINATION] EBREAK instruction at PC=0x" << std::hex
-                << _dut->debug_pc << std::dec << std::endl;
+                << _dut->DEBUG_PC << std::dec << std::endl;
     }
     _terminate = true;
   }

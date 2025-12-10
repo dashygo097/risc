@@ -1,40 +1,40 @@
 package core
-
 import chisel3._
-
 class EX_MEM extends Module {
   override def desiredName: String = s"ex_mem"
 
-  val stall = IO(Input(Bool()))
-  val flush = IO(Input(Bool()))
+  val STALL = IO(Input(Bool()))
+  val FLUSH = IO(Input(Bool()))
 
   // Control signals
-  val ex_mem_ctrl  = IO(Input(UInt(3.W)))
-  val ex_reg_write = IO(Input(Bool()))
-  val ex_mem_read  = IO(Input(Bool()))
-  val ex_mem_write = IO(Input(Bool()))
+  val EX_MEM_CTRL  = IO(Input(UInt(3.W)))
+  val EX_REG_WRITE = IO(Input(Bool()))
+  val EX_MEM_READ  = IO(Input(Bool()))
+  val EX_MEM_WRITE = IO(Input(Bool()))
 
   // Data
-  val ex_alu_result = IO(Input(UInt(32.W)))
-  val ex_rs2_data   = IO(Input(UInt(32.W)))
-  val ex_rd         = IO(Input(UInt(5.W)))
-  val ex_funct3     = IO(Input(UInt(3.W)))
-  val ex_pc         = IO(Input(UInt(32.W)))
-  val ex_opcode     = IO(Input(UInt(7.W)))
-  val ex_inst       = IO(Input(UInt(32.W)))
+  val EX_ALU_RESULT = IO(Input(UInt(32.W)))
+  val EX_RS2_DATA   = IO(Input(UInt(32.W)))
+  val EX_RD         = IO(Input(UInt(5.W)))
+  val EX_FUNCT3     = IO(Input(UInt(3.W)))
+  val EX_PC         = IO(Input(UInt(32.W)))
+  val EX_OPCODE     = IO(Input(UInt(7.W)))
+  val EX_INST       = IO(Input(UInt(32.W)))
+  val EX_IMM        = IO(Input(UInt(32.W)))
 
   // Outputs to MEM stage
-  val mem_mem_ctrl   = IO(Output(UInt(3.W)))
-  val mem_reg_write  = IO(Output(Bool()))
-  val mem_mem_read   = IO(Output(Bool()))
-  val mem_mem_write  = IO(Output(Bool()))
-  val mem_alu_result = IO(Output(UInt(32.W)))
-  val mem_rs2_data   = IO(Output(UInt(32.W)))
-  val mem_rd         = IO(Output(UInt(5.W)))
-  val mem_funct3     = IO(Output(UInt(3.W)))
-  val mem_pc         = IO(Output(UInt(32.W)))
-  val mem_opcode     = IO(Output(UInt(7.W)))
-  val mem_inst       = IO(Output(UInt(32.W)))
+  val MEM_MEM_CTRL   = IO(Output(UInt(3.W)))
+  val MEM_REG_WRITE  = IO(Output(Bool()))
+  val MEM_MEM_READ   = IO(Output(Bool()))
+  val MEM_MEM_WRITE  = IO(Output(Bool()))
+  val MEM_ALU_RESULT = IO(Output(UInt(32.W)))
+  val MEM_RS2_DATA   = IO(Output(UInt(32.W)))
+  val MEM_RD         = IO(Output(UInt(5.W)))
+  val MEM_FUNCT3     = IO(Output(UInt(3.W)))
+  val MEM_PC         = IO(Output(UInt(32.W)))
+  val MEM_OPCODE     = IO(Output(UInt(7.W)))
+  val MEM_INST       = IO(Output(UInt(32.W)))
+  val MEM_IMM        = IO(Output(UInt(32.W)))
 
   // Registers
   val mem_ctrl_reg   = RegInit(0.U(3.W))
@@ -48,8 +48,9 @@ class EX_MEM extends Module {
   val pc_reg         = RegInit(0.U(32.W))
   val opcode_reg     = RegInit(0.U(7.W))
   val inst_reg       = RegInit(0.U(32.W))
+  val imm_reg        = RegInit(0.U(32.W))
 
-  when(flush) {
+  when(FLUSH) {
     mem_ctrl_reg   := 0.U
     reg_write_reg  := false.B
     mem_read_reg   := false.B
@@ -61,29 +62,32 @@ class EX_MEM extends Module {
     pc_reg         := 0.U
     opcode_reg     := 0.U
     inst_reg       := 0.U
-  }.elsewhen(!stall) {
-    mem_ctrl_reg   := ex_mem_ctrl
-    reg_write_reg  := ex_reg_write
-    mem_read_reg   := ex_mem_read
-    mem_write_reg  := ex_mem_write
-    alu_result_reg := ex_alu_result
-    rs2_data_reg   := ex_rs2_data
-    rd_reg         := ex_rd
-    funct3_reg     := ex_funct3
-    pc_reg         := ex_pc
-    opcode_reg     := ex_opcode
-    inst_reg       := ex_inst
+    imm_reg        := 0.U
+  }.elsewhen(!STALL) {
+    mem_ctrl_reg   := EX_MEM_CTRL
+    reg_write_reg  := EX_REG_WRITE
+    mem_read_reg   := EX_MEM_READ
+    mem_write_reg  := EX_MEM_WRITE
+    alu_result_reg := EX_ALU_RESULT
+    rs2_data_reg   := EX_RS2_DATA
+    rd_reg         := EX_RD
+    funct3_reg     := EX_FUNCT3
+    pc_reg         := EX_PC
+    opcode_reg     := EX_OPCODE
+    inst_reg       := EX_INST
+    imm_reg        := EX_IMM
   }
 
-  mem_mem_ctrl   := mem_ctrl_reg
-  mem_reg_write  := reg_write_reg
-  mem_mem_read   := mem_read_reg
-  mem_mem_write  := mem_write_reg
-  mem_alu_result := alu_result_reg
-  mem_rs2_data   := rs2_data_reg
-  mem_rd         := rd_reg
-  mem_funct3     := funct3_reg
-  mem_pc         := pc_reg
-  mem_opcode     := opcode_reg
-  mem_inst       := inst_reg
+  MEM_MEM_CTRL   := mem_ctrl_reg
+  MEM_REG_WRITE  := reg_write_reg
+  MEM_MEM_READ   := mem_read_reg
+  MEM_MEM_WRITE  := mem_write_reg
+  MEM_ALU_RESULT := alu_result_reg
+  MEM_RS2_DATA   := rs2_data_reg
+  MEM_RD         := rd_reg
+  MEM_FUNCT3     := funct3_reg
+  MEM_PC         := pc_reg
+  MEM_OPCODE     := opcode_reg
+  MEM_INST       := inst_reg
+  MEM_IMM        := imm_reg
 }

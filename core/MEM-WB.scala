@@ -4,27 +4,26 @@ import chisel3._
 
 class MEM_WB extends Module {
   override def desiredName: String = s"mem_wb"
-
-  val stall = IO(Input(Bool()))
-  val flush = IO(Input(Bool()))
+  val STALL                        = IO(Input(Bool()))
+  val FLUSH                        = IO(Input(Bool()))
 
   // Control signals
-  val mem_reg_write = IO(Input(Bool()))
+  val MEM_REG_WRITE = IO(Input(Bool()))
 
   // Data
-  val mem_wb_data = IO(Input(UInt(32.W)))
-  val mem_rd      = IO(Input(UInt(5.W)))
-  val mem_pc      = IO(Input(UInt(32.W)))
-  val mem_opcode  = IO(Input(UInt(7.W)))
-  val mem_inst    = IO(Input(UInt(32.W)))
+  val MEM_WB_DATA = IO(Input(UInt(32.W)))
+  val MEM_RD      = IO(Input(UInt(5.W)))
+  val MEM_PC      = IO(Input(UInt(32.W)))
+  val MEM_OPCODE  = IO(Input(UInt(7.W)))
+  val MEM_INST    = IO(Input(UInt(32.W)))
 
   // Outputs to WB stage
-  val wb_reg_write = IO(Output(Bool()))
-  val wb_wb_data   = IO(Output(UInt(32.W)))
-  val wb_rd        = IO(Output(UInt(5.W)))
-  val wb_pc        = IO(Output(UInt(32.W)))
-  val wb_opcode    = IO(Output(UInt(7.W)))
-  val wb_inst      = IO(Output(UInt(32.W)))
+  val WB_REG_WRITE = IO(Output(Bool()))
+  val WB_DATA      = IO(Output(UInt(32.W)))
+  val WB_RD        = IO(Output(UInt(5.W)))
+  val WB_PC        = IO(Output(UInt(32.W)))
+  val WB_OPCODE    = IO(Output(UInt(7.W)))
+  val WB_INST      = IO(Output(UInt(32.W)))
 
   // Registers
   val reg_write_reg = RegInit(false.B)
@@ -34,26 +33,26 @@ class MEM_WB extends Module {
   val opcode_reg    = RegInit(0.U(7.W))
   val inst_reg      = RegInit(0.U(32.W))
 
-  when(flush) {
+  when(FLUSH) {
     reg_write_reg := false.B
     wb_data_reg   := 0.U
     rd_reg        := 0.U
     pc_reg        := 0.U
     opcode_reg    := 0.U
     inst_reg      := 0.U
-  }.elsewhen(!stall) {
-    reg_write_reg := mem_reg_write
-    wb_data_reg   := mem_wb_data
-    rd_reg        := mem_rd
-    pc_reg        := mem_pc
-    opcode_reg    := mem_opcode
-    inst_reg      := mem_inst
+  }.elsewhen(!STALL) {
+    reg_write_reg := MEM_REG_WRITE
+    wb_data_reg   := MEM_WB_DATA
+    rd_reg        := MEM_RD
+    pc_reg        := MEM_PC
+    opcode_reg    := MEM_OPCODE
+    inst_reg      := MEM_INST
   }
 
-  wb_reg_write := reg_write_reg
-  wb_wb_data   := wb_data_reg
-  wb_rd        := rd_reg
-  wb_pc        := pc_reg
-  wb_opcode    := opcode_reg
-  wb_inst      := inst_reg
+  WB_REG_WRITE := reg_write_reg
+  WB_DATA      := wb_data_reg
+  WB_RD        := rd_reg
+  WB_PC        := pc_reg
+  WB_OPCODE    := opcode_reg
+  WB_INST      := inst_reg
 }
