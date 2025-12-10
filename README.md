@@ -2,7 +2,7 @@
 
 #### A toy RISCV CPU impled with chisel scala with a riscv cpu simulator.
 
-###### NOTE: THIS REPO IS STILL UNDER DEVELOPMENT AND ONLY WORKS UNDER UNIX-LIKE OS.
+###### NOTE: THIS REPO IS STILL UNDER DEVELOPMENT.
 
 ## Prerequisite
 
