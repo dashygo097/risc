@@ -4,7 +4,7 @@ BUILD_DIR = $(PROJECT_DIR)/build
 TESTS_DIR = $(PROJECT_DIR)/tests
 
 # Build configuration
-BUILD_TYPE ?= Debug
+BUILD_TYPE ?= Release 
 GENERATOR ?= Ninja 
 
 # Detect generator command

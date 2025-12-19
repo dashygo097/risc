@@ -12,6 +12,7 @@ OBJCOPY := $(CROSS_PREFIX)objcopy
 OBJDUMP := $(CROSS_PREFIX)objdump
 CC      := $(CROSS_PREFIX)gcc
 
+CFLAGS := -march=rv32i -mabi=ilp32 -static -nostartfiles -nostdlib
 ASFLAGS := -march=rv32i -mabi=ilp32
 LDFLAGS := -m elf32lriscv -T $(LINKER_SCRIPT)
 
@@ -23,13 +24,15 @@ MAGENTA := \033[1;35m
 CYAN    := \033[1;36m
 RESET   := \033[0m
 
+C_SOURCES := $(wildcard $(ASM_DIR)/*.c)
 ASM_SOURCES := $(wildcard $(ASM_DIR)/*.asm)
 S_SOURCES   := $(wildcard $(ASM_DIR)/*.S) 
 
+C_TESTS   := $(patsubst $(ASM_DIR)/%.c,%,$(C_SOURCES))
 ASM_TESTS := $(patsubst $(ASM_DIR)/%.asm,%,$(ASM_SOURCES))
 S_TESTS   := $(patsubst $(ASM_DIR)/%.S,%,$(S_SOURCES))
 
-ALL_TESTS := $(ASM_TESTS) $(S_TESTS)
+ALL_TESTS := $(C_TESTS) $(ASM_TESTS) $(S_TESTS)
 
 ELF_FILES  := $(addprefix $(ELF_DIR)/,$(addsuffix .elf,$(ALL_TESTS)))
 BIN_FILES  := $(addprefix $(BIN_DIR)/,$(addsuffix .bin,$(ALL_TESTS)))
@@ -54,6 +57,12 @@ check:
 $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
 	@echo "$(CYAN)Created $(BIN_DIR) directory$(RESET)"
+
+$(ELF_DIR)/%.elf: $(ASM_DIR)/%.c $(LINKER_SCRIPT)
+	@echo "$(BLUE)Building $@$(RESET)"
+	$(CC) $(CFLAGS) -c $< -o $(BIN_DIR)/$*.o
+	$(LD) $(LDFLAGS) $(BIN_DIR)/$*.o -o $@
+	@rm -f $(BIN_DIR)/$*.o
 
 $(ELF_DIR)/%.elf: $(ASM_DIR)/%.asm $(LINKER_SCRIPT)
 	@echo "$(BLUE)Building $@$(RESET)"
