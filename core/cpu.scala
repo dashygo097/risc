@@ -70,39 +70,6 @@ class RV32CPU extends Module {
   val id_mem_ctrl = ctrl_unit.mem_ctrl
 
   // Immediate generation
-  // val id_imm_i = Cat(Fill(21, if_id.ID_INST(31)), if_id.ID_INST(30, 20))
-  // val id_imm_s = Cat(Fill(21, if_id.ID_INST(31)), if_id.ID_INST(30, 25), if_id.ID_INST(11, 7))
-  // val id_imm_b =
-  //   Cat(
-  //     Fill(20, if_id.ID_INST(31)),
-  //     if_id.ID_INST(7),
-  //     if_id.ID_INST(30, 25),
-  //     if_id.ID_INST(11, 8),
-  //     0.U(1.W)
-  //   )
-  // val id_imm_u = Cat(if_id.ID_INST(31, 12), Fill(12, 0.U))
-  // val id_imm_j =
-  //   Cat(
-  //     Fill(12, if_id.ID_INST(31)),
-  //     if_id.ID_INST(19, 12),
-  //     if_id.ID_INST(20),
-  //     if_id.ID_INST(30, 21),
-  //     0.U(1.W)
-  //   )
-  //
-  // val id_imm = MuxCase(
-  //   0.U,
-  //   Seq(
-  //     (id_opcode === "b0010011".U) -> id_imm_i,
-  //     (id_opcode === "b0000011".U) -> id_imm_i,
-  //     (id_opcode === "b0100011".U) -> id_imm_s,
-  //     (id_opcode === "b1100011".U) -> id_imm_b,
-  //     (id_opcode === "b0110111".U) -> id_imm_u,
-  //     (id_opcode === "b0010111".U) -> id_imm_u,
-  //     (id_opcode === "b1101111".U) -> id_imm_j,
-  //     (id_opcode === "b1100111".U) -> id_imm_i
-  //   )
-  // )
   imm_gen.inst := if_id.ID_INST
   val id_imm = imm_gen.imm
 
@@ -120,37 +87,48 @@ class RV32CPU extends Module {
   val wb_forward_rs1  = mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U) && (mem_wb.WB_RD === id_rs1)
   val wb_forward_rs2  = mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U) && (mem_wb.WB_RD === id_rs2)
 
-  // Load-use hazard detection
-  val load_use_hazard = id_ex.EX_MEM_READ &&
-    ((id_ex.EX_RD === id_rs1) || (id_ex.EX_RD === id_rs2)) &&
-    (id_ex.EX_RD =/= 0.U)
-
-  stall := load_use_hazard
-
   // Branch/Jump control
   val id_is_branch = id_opcode === "b1100011".U
   val id_is_jal    = id_opcode === "b1101111".U
   val id_is_jalr   = id_opcode === "b1100111".U
 
+  // Load-use hazard detection
+  val load_use_hazard    = id_ex.EX_MEM_READ &&
+    ((id_ex.EX_RD === id_rs1) || (id_ex.EX_RD === id_rs2)) &&
+    (id_ex.EX_RD =/= 0.U)
+  val branch_load_hazard = (id_is_branch || id_is_jalr) &&
+    id_ex.EX_MEM_READ &&
+    ((id_ex.EX_RD === id_rs1) || (id_ex.EX_RD === id_rs2)) &&
+    (id_ex.EX_RD =/= 0.U)
+  val branch_ex_hazard   = (id_is_branch || id_is_jalr) &&
+    id_ex.EX_REG_WRITE &&
+    !id_ex.EX_MEM_READ &&
+    ((id_ex.EX_RD === id_rs1) || (id_is_branch && id_ex.EX_RD === id_rs2)) &&
+    (id_ex.EX_RD =/= 0.U)
+
+  stall := load_use_hazard || branch_load_hazard || branch_ex_hazard
+
   // Forwarded register values for branch comparison
   val id_rs1_data_raw = regfile.rs1_data
   val id_rs2_data_raw = regfile.rs2_data
 
-  val id_rs1_data = MuxCase(
-    id_rs1_data_raw,
-    Seq(
-      wb_forward_rs1  -> mem_wb.WB_DATA,
-      mem_forward_rs1 -> ex_mem.MEM_ALU_RESULT,
-      ex_forward_rs1  -> alu.rd
+  val id_rs1_data = Mux(
+    mem_forward_rs1,
+    ex_mem.MEM_ALU_RESULT,
+    Mux(
+      wb_forward_rs1,
+      mem_wb.WB_DATA,
+      id_rs1_data_raw
     )
   )
 
-  val id_rs2_data = MuxCase(
-    id_rs2_data_raw,
-    Seq(
-      wb_forward_rs2  -> mem_wb.WB_DATA,
-      mem_forward_rs2 -> ex_mem.MEM_ALU_RESULT,
-      ex_forward_rs2  -> alu.rd
+  val id_rs2_data = Mux(
+    mem_forward_rs2,
+    ex_mem.MEM_ALU_RESULT,
+    Mux(
+      wb_forward_rs2,
+      mem_wb.WB_DATA,
+      id_rs2_data_raw
     )
   )
 
@@ -213,16 +191,16 @@ class RV32CPU extends Module {
   val ex_rs1_data_forwarded = MuxCase(
     id_ex.EX_RS1_DATA,
     Seq(
+      (mem_wb.WB_REG_WRITE && (mem_wb.WB_RD === id_ex.EX_RS1) && (mem_wb.WB_RD =/= 0.U))    -> mem_wb.WB_DATA,
       (ex_mem.MEM_REG_WRITE && (ex_mem.MEM_RD === id_ex.EX_RS1) && (ex_mem.MEM_RD =/= 0.U)) -> ex_mem.MEM_ALU_RESULT,
-      (mem_wb.WB_REG_WRITE && (mem_wb.WB_RD === id_ex.EX_RS1) && (mem_wb.WB_RD =/= 0.U))    -> mem_wb.WB_DATA
     )
   )
 
   val ex_rs2_data_forwarded = MuxCase(
     id_ex.EX_RS2_DATA,
     Seq(
+      (mem_wb.WB_REG_WRITE && (mem_wb.WB_RD === id_ex.EX_RS2) && (mem_wb.WB_RD =/= 0.U))    -> mem_wb.WB_DATA,
       (ex_mem.MEM_REG_WRITE && (ex_mem.MEM_RD === id_ex.EX_RS2) && (ex_mem.MEM_RD =/= 0.U)) -> ex_mem.MEM_ALU_RESULT,
-      (mem_wb.WB_REG_WRITE && (mem_wb.WB_RD === id_ex.EX_RS2) && (mem_wb.WB_RD =/= 0.U))    -> mem_wb.WB_DATA
     )
   )
 

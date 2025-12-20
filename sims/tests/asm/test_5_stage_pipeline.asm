@@ -33,20 +33,19 @@ test_raw_multiple:
     addi x7, x0, 100      # x7 = 100
     addi x8, x7, 50       # x8 = 150 (depends on x7)
     add x9, x7, x8        # x9 = 250 (depends on both x7 and x8)
-    sub x10, x9, x7       # x10 = 150 (depends on x9 and x7)
-    # Expected: x7=100, x8=150, x9=250, x10=150
+    sub x11, x9, x7       # x11 = 150 (depends on x9 and x7)
+    # Expected: x7=100, x8=150, x9=250, x11=150
 
 #==============================================================================
 # Test 4: Load-Use Hazard (requires 1 cycle stall)
 #==============================================================================
 test_load_use:
     # Setup: store value to memory first
-    addi x11, x0, 0x100   # x11 = memory address 0x100
     addi x12, x0, 42      # x12 = 42
-    sw x12, 0(x11)        # store 42 to memory[0x100]
+    sw x12, 0x100(x10)    # store 42 to memory[base+0x100]
     
     # Load-Use hazard test
-    lw x13, 0(x11)        # x13 = load from memory (takes extra cycle)
+    lw x13, 0x100(x10)    # x13 = load from memory (takes extra cycle)
     addi x14, x13, 8      # x14 = x13 + 8 (MUST STALL - load-use hazard)
     add x15, x14, x13     # x15 = x14 + x13
     # Expected: x13=42, x14=50, x15=92
@@ -55,29 +54,27 @@ test_load_use:
 # Test 5: Load-Use with Forwarding (no stall needed)
 #==============================================================================
 test_load_no_stall:
-    addi x16, x0, 0x104   # x16 = address
-    addi x17, x0, 99      # x17 = 99
-    sw x17, 0(x16)        # store to memory
+    addi x16, x0, 99      # x16 = 99
+    sw x16, 0x104(x10)    # store to memory
     
-    lw x18, 0(x16)        # x18 = load
+    lw x17, 0x104(x10)    # x17 = load
     nop                   # insert nop to avoid load-use
-    addi x19, x18, 1      # x19 = x18 + 1 (no stall, forwarding from MEM)
-    # Expected: x18=99, x19=100
+    addi x18, x17, 1      # x18 = x17 + 1 (no stall, forwarding from MEM)
+    # Expected: x17=99, x18=100
 
 #==============================================================================
 # Test 6: Back-to-back Loads (Load-Use chain)
 #==============================================================================
 test_load_chain:
-    addi x20, x0, 0x108   # base address
-    addi x21, x0, 111     
-    addi x22, x0, 222
-    sw x21, 0(x20)        # store 111
-    sw x22, 4(x20)        # store 222
+    addi x19, x0, 111     
+    addi x20, x0, 222
+    sw x19, 0x108(x10)    # store 111
+    sw x20, 0x10C(x10)    # store 222
     
-    lw x23, 0(x20)        # load 111
-    lw x24, 4(x20)        # load 222 (independent)
-    add x25, x23, x24     # x25 = 333 (both loads must complete)
-    # Expected: x23=111, x24=222, x25=333
+    lw x21, 0x108(x10)    # load 111
+    lw x22, 0x10C(x10)    # load 222 (independent)
+    add x23, x21, x22     # x23 = 333 (both loads must complete)
+    # Expected: x21=111, x22=222, x23=333
 
 #==============================================================================
 # Test 7: WAW (Write After Write) - Register Renaming Test
@@ -85,22 +82,22 @@ test_load_chain:
 # But we test sequential writes to same register
 #==============================================================================
 test_waw:
-    addi x26, x0, 1       # x26 = 1
-    addi x26, x0, 2       # x26 = 2 (overwrites)
-    addi x26, x0, 3       # x26 = 3 (overwrites again)
-    addi x27, x26, 7      # x27 = 10 (should get final value 3)
-    # Expected: x26=3, x27=10
+    addi x24, x0, 1       # x24 = 1
+    addi x24, x0, 2       # x24 = 2 (overwrites)
+    addi x24, x0, 3       # x24 = 3 (overwrites again)
+    addi x25, x24, 7      # x25 = 10 (should get final value 3)
+    # Expected: x24=3, x25=10
 
 #==============================================================================
 # Test 8: WAR (Write After Read) - Should not be an issue in in-order pipeline
 # But test register reuse patterns
 #==============================================================================
 test_war:
-    addi x28, x0, 50      # x28 = 50
-    addi x29, x28, 10     # x29 = 60 (reads x28)
-    addi x28, x0, 100     # x28 = 100 (writes x28 after read)
-    add x30, x28, x29     # x30 = 160 (should use new x28=100)
-    # Expected: x28=100, x29=60, x30=160
+    addi x26, x0, 50      # x26 = 50
+    addi x27, x26, 10     # x27 = 60 (reads x26)
+    addi x26, x0, 100     # x26 = 100 (writes x26 after read)
+    add x28, x26, x27     # x28 = 160 (should use new x26=100)
+    # Expected: x26=100, x27=60, x28=160
 
 #==============================================================================
 # Test 9: Control Hazard - Branch Not Taken
@@ -136,15 +133,15 @@ branch_target2:
 # Test 11: Branch with RAW Hazard
 #==============================================================================
 test_branch_raw:
-    addi x8, x0, 25       # x8 = 25
-    addi x9, x8, 25       # x9 = 50 (RAW on x8)
-    beq x8, x9, skip1     # not taken (25 != 50), but needs forwarded values
-    addi x10, x0, 1       # x10 = 1
+    addi x29, x0, 25       # x29 = 25
+    addi x30, x29, 25      # x30 = 50 (RAW on x29)
+    beq x29, x30, skip1    # not taken (25 != 50), but needs forwarded values
+    addi x31, x0, 1        # x31 = 1
 skip1:
-    bne x8, x9, skip2     # taken (25 != 50)
-    addi x10, x0, 99      # should NOT execute
+    bne x29, x30, skip2    # taken (25 != 50)
+    addi x31, x0, 99       # should NOT execute
 skip2:
-    # Expected: x8=25, x9=50, x10=1
+    # Expected: x29=25, x30=50, x31=1
 
 #==============================================================================
 # Test 12: JAL/JALR Control Hazard
@@ -162,44 +159,42 @@ jal_target:
 # Test 13: Load followed by Branch (Load-Branch hazard)
 #==============================================================================
 test_load_branch:
-    addi x15, x0, 0x110   # address
-    addi x16, x0, 100
-    sw x16, 0(x15)        # store 100
+    addi x11, x0, 100
+    sw x11, 0x110(x10)    # store 100
     
-    lw x17, 0(x15)        # x17 = 100
-    addi x18, x0, 100     # x18 = 100
-    beq x17, x18, lb_target  # branch depends on loaded value (needs stall)
-    addi x19, x0, 99      # should NOT execute
+    lw x12, 0x110(x10)    # x12 = 100
+    addi x13, x0, 100     # x13 = 100
+    beq x12, x13, lb_target  # branch depends on loaded value (needs stall)
+    addi x14, x0, 99      # should NOT execute
     j lb_after
 lb_target:
-    addi x19, x0, 200     # x19 = 200
+    addi x14, x0, 200     # x14 = 200
 lb_after:
-    # Expected: x17=100, x18=100, x19=200
+    # Expected: x12=100, x13=100, x14=200
 
 #==============================================================================
 # Test 14: Store followed by Load (potential forwarding)
 #==============================================================================
 test_store_load:
-    addi x20, x0, 0x120   # address
-    addi x21, x0, 123     # value
-    sw x21, 0(x20)        # store 123
-    lw x22, 0(x20)        # load same location (may need forwarding)
-    addi x23, x22, 7      # x23 = 130
-    # Expected: x21=123, x22=123, x23=130
+    addi x15, x0, 123     # value
+    sw x15, 0x120(x10)    # store 123
+    lw x16, 0x120(x10)    # load same location (may need forwarding)
+    addi x17, x16, 7      # x17 = 130
+    # Expected: x15=123, x16=123, x17=130
 
 #==============================================================================
 # Test 15: Complex Dependency Chain
 #==============================================================================
 test_complex_chain:
-    addi x24, x0, 1       # x24 = 1
-    addi x25, x24, 2      # x25 = 3
-    add x26, x24, x25     # x26 = 4
-    sub x27, x26, x24     # x27 = 3
-    and x28, x27, x25     # x28 = 3
-    or x29, x28, x26      # x29 = 7
-    xor x30, x29, x27     # x30 = 4
+    addi x18, x0, 1       # x18 = 1
+    addi x19, x18, 2      # x19 = 3
+    add x20, x18, x19     # x20 = 4
+    sub x21, x20, x18     # x21 = 3
+    and x22, x21, x19     # x22 = 3
+    or x23, x22, x20      # x23 = 7
+    xor x24, x23, x21     # x24 = 4
     # Long dependency chain testing all forwarding paths
-    # Expected: x24=1, x25=3, x26=4, x27=3, x28=3, x29=7, x30=4
+    # Expected: x18=1, x19=3, x20=4, x21=3, x22=3, x23=7, x24=4
 
 #==============================================================================
 # Test 16: Load with multiple consumers
@@ -219,39 +214,39 @@ test_load_multiple_use:
 # Test 17: Branch prediction flushing test
 #==============================================================================
 test_branch_flush:
-    addi x7, x0, 5
-    addi x8, x0, 5
-    addi x9, x0, 1        # These should execute
-    addi x10, x0, 2       # These should execute
-    beq x7, x8, flush_target  # taken
-    addi x9, x0, 99       # should be flushed
-    addi x10, x0, 99      # should be flushed
-    addi x11, x0, 99      # should be flushed
+    addi x25, x0, 5
+    addi x26, x0, 5
+    addi x27, x0, 1        # These should execute
+    addi x28, x0, 2        # These should execute
+    beq x25, x26, flush_target  # taken
+    addi x27, x0, 99       # should be flushed
+    addi x28, x0, 99       # should be flushed
+    addi x29, x0, 99       # should be flushed
 flush_target:
-    # Expected: x9=1, x10=2 (not 99)
+    # Expected: x27=1, x28=2 (not 99)
 
 #==============================================================================
 # Test 18: Back-to-back branches
 #==============================================================================
 test_double_branch:
-    addi x12, x0, 10
-    addi x13, x0, 20
-    blt x12, x13, db1     # taken (10 < 20)
-    addi x14, x0, 99
+    addi x29, x0, 10
+    addi x30, x0, 20
+    blt x29, x30, db1     # taken (10 < 20)
+    addi x31, x0, 99
 db1:
-    addi x14, x0, 30      # x14 = 30
-    bge x13, x12, db2     # taken (20 >= 10)
-    addi x15, x0, 99
+    addi x31, x0, 30      # x31 = 30
+    bge x30, x29, db2     # taken (20 >= 10)
+    addi x1, x0, 99
 db2:
-    addi x15, x0, 40      # x15 = 40
-    # Expected: x14=30, x15=40
+    addi x1, x0, 40       # x1 = 40
+    # Expected: x31=30, x1=40
 
 #==============================================================================
 # Test Complete - Loop Forever
 #==============================================================================
 test_end:
-    ebreak              
-    j test_end       
+    ebreak                # breakpoint for simulation
+    j test_end            # infinite loop
 
 .section .data
 # Data section for memory operations

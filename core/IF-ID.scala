@@ -18,7 +18,7 @@ class IF_ID extends Module {
 
   when(FLUSH) {
     pc_reg   := 0.U
-    inst_reg := 0.U
+    inst_reg := 0x00000013.U // NOP instruction
   }.elsewhen(!STALL) {
     pc_reg   := IF_PC
     inst_reg := IF_INST
