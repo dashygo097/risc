@@ -1,6 +1,7 @@
 package core
 
 import common._
+import id._
 import ex._
 import utils._
 import chisel3._
@@ -29,6 +30,7 @@ class RV32CPU extends Module {
 
   // Modules
   val alu       = Module(new RV32ALU)
+  val imm_gen   = Module(new RV32ImmGen)
   val ctrl_unit = Module(new RV32GloblCtrlUnit)
   val regfile   = Module(new RV32RegFile)
 
@@ -68,39 +70,41 @@ class RV32CPU extends Module {
   val id_mem_ctrl = ctrl_unit.mem_ctrl
 
   // Immediate generation
-  val id_imm_i = Cat(Fill(21, if_id.ID_INST(31)), if_id.ID_INST(30, 20))
-  val id_imm_s = Cat(Fill(21, if_id.ID_INST(31)), if_id.ID_INST(30, 25), if_id.ID_INST(11, 7))
-  val id_imm_b =
-    Cat(
-      Fill(20, if_id.ID_INST(31)),
-      if_id.ID_INST(7),
-      if_id.ID_INST(30, 25),
-      if_id.ID_INST(11, 8),
-      0.U(1.W)
-    )
-  val id_imm_u = Cat(if_id.ID_INST(31, 12), Fill(12, 0.U))
-  val id_imm_j =
-    Cat(
-      Fill(12, if_id.ID_INST(31)),
-      if_id.ID_INST(19, 12),
-      if_id.ID_INST(20),
-      if_id.ID_INST(30, 21),
-      0.U(1.W)
-    )
-
-  val id_imm = MuxCase(
-    0.U,
-    Seq(
-      (id_opcode === "b0010011".U) -> id_imm_i,
-      (id_opcode === "b0000011".U) -> id_imm_i,
-      (id_opcode === "b0100011".U) -> id_imm_s,
-      (id_opcode === "b1100011".U) -> id_imm_b,
-      (id_opcode === "b0110111".U) -> id_imm_u,
-      (id_opcode === "b0010111".U) -> id_imm_u,
-      (id_opcode === "b1101111".U) -> id_imm_j,
-      (id_opcode === "b1100111".U) -> id_imm_i
-    )
-  )
+  // val id_imm_i = Cat(Fill(21, if_id.ID_INST(31)), if_id.ID_INST(30, 20))
+  // val id_imm_s = Cat(Fill(21, if_id.ID_INST(31)), if_id.ID_INST(30, 25), if_id.ID_INST(11, 7))
+  // val id_imm_b =
+  //   Cat(
+  //     Fill(20, if_id.ID_INST(31)),
+  //     if_id.ID_INST(7),
+  //     if_id.ID_INST(30, 25),
+  //     if_id.ID_INST(11, 8),
+  //     0.U(1.W)
+  //   )
+  // val id_imm_u = Cat(if_id.ID_INST(31, 12), Fill(12, 0.U))
+  // val id_imm_j =
+  //   Cat(
+  //     Fill(12, if_id.ID_INST(31)),
+  //     if_id.ID_INST(19, 12),
+  //     if_id.ID_INST(20),
+  //     if_id.ID_INST(30, 21),
+  //     0.U(1.W)
+  //   )
+  //
+  // val id_imm = MuxCase(
+  //   0.U,
+  //   Seq(
+  //     (id_opcode === "b0010011".U) -> id_imm_i,
+  //     (id_opcode === "b0000011".U) -> id_imm_i,
+  //     (id_opcode === "b0100011".U) -> id_imm_s,
+  //     (id_opcode === "b1100011".U) -> id_imm_b,
+  //     (id_opcode === "b0110111".U) -> id_imm_u,
+  //     (id_opcode === "b0010111".U) -> id_imm_u,
+  //     (id_opcode === "b1101111".U) -> id_imm_j,
+  //     (id_opcode === "b1100111".U) -> id_imm_i
+  //   )
+  // )
+  imm_gen.inst := if_id.ID_INST
+  val id_imm = imm_gen.imm
 
   // Register file reads
   regfile.rs1_addr := id_rs1
