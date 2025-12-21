@@ -143,16 +143,29 @@ class RV32CPU extends Module {
   id_ex.ID_REG_WRITE  := decoder.reg_write
   id_ex.ID_MEM_READ   := decoder.mem_read
   id_ex.ID_MEM_WRITE  := decoder.mem_write
-  id_ex.ID_PC         := if_id.ID_PC
-  id_ex.ID_INST       := if_id.ID_INST
-  id_ex.ID_RS1_DATA   := id_rs1_data
-  id_ex.ID_RS2_DATA   := id_rs2_data
-  id_ex.ID_IMM        := id_imm
-  id_ex.ID_RD         := decoder.rd
-  id_ex.ID_RS1        := decoder.rs1
-  id_ex.ID_RS2        := decoder.rs2
-  id_ex.ID_FUNCT3     := decoder.funct3
-  id_ex.ID_OPCODE     := decoder.opcode
+
+  id_ex.ID_IS_ALU     := decoder.is_alu
+  id_ex.ID_IS_ALU_IMM := decoder.is_alu_imm
+  id_ex.ID_IS_LOAD    := decoder.is_load
+  id_ex.ID_IS_STORE   := decoder.is_store
+  id_ex.ID_IS_BRANCH  := decoder.is_branch
+  id_ex.ID_IS_JAL     := decoder.is_jal
+  id_ex.ID_IS_JALR    := decoder.is_jalr
+  id_ex.ID_IS_LUI     := decoder.is_lui
+  id_ex.ID_IS_AUIPC   := decoder.is_auipc
+  id_ex.ID_IS_SYSTEM  := decoder.is_system
+  id_ex.ID_IS_FENCE   := decoder.is_fence
+
+  id_ex.ID_PC       := if_id.ID_PC
+  id_ex.ID_INST     := if_id.ID_INST
+  id_ex.ID_RS1_DATA := id_rs1_data
+  id_ex.ID_RS2_DATA := id_rs2_data
+  id_ex.ID_IMM      := id_imm
+  id_ex.ID_RD       := decoder.rd
+  id_ex.ID_RS1      := decoder.rs1
+  id_ex.ID_RS2      := decoder.rs2
+  id_ex.ID_FUNCT3   := decoder.funct3
+  id_ex.ID_OPCODE   := decoder.opcode
 
   // EX Stage
   val ex_opcode = id_ex.EX_OPCODE
@@ -180,22 +193,22 @@ class RV32CPU extends Module {
   val ex_alu_src1 = MuxCase(
     ex_rs1_data_forwarded,
     Seq(
-      (ex_opcode === "b0010111".U) -> ex_pc,                // AUIPC
-      (ex_opcode === "b1101111".U) -> ex_pc,                // JAL
-      (ex_opcode === "b1100111".U) -> ex_rs1_data_forwarded // JALR
+      id_ex.EX_IS_AUIPC -> ex_pc,
+      id_ex.EX_IS_JAL   -> ex_pc,
+      id_ex.EX_IS_JALR  -> ex_rs1_data_forwarded
     )
   )
 
   val ex_alu_src2 = MuxCase(
     ex_rs2_data_forwarded,
     Seq(
-      (ex_opcode === "b0010011".U) -> ex_imm, // I-type ALU
-      (ex_opcode === "b0000011".U) -> ex_imm, // Load
-      (ex_opcode === "b0100011".U) -> ex_imm, // Store
-      (ex_opcode === "b0110111".U) -> 0.U,    // LUI
-      (ex_opcode === "b0010111".U) -> ex_imm, // AUIPC
-      (ex_opcode === "b1101111".U) -> 4.U,    // JAL
-      (ex_opcode === "b1100111".U) -> 4.U     // JALR
+      id_ex.EX_IS_ALU_IMM -> ex_imm,
+      id_ex.EX_IS_LOAD    -> ex_imm,
+      id_ex.EX_IS_STORE   -> ex_imm,
+      id_ex.EX_IS_LUI     -> 0.U,
+      id_ex.EX_IS_AUIPC   -> ex_imm,
+      id_ex.EX_IS_JAL     -> 4.U,
+      id_ex.EX_IS_JALR    -> 4.U
     )
   )
 
@@ -204,10 +217,10 @@ class RV32CPU extends Module {
   alu.alu_op_r   := MuxCase(
     id_ex.EX_ALU_OP_R,
     Seq(
-      (ex_opcode === "b0110111".U) -> ALUOp.ADD, // LUI
-      (ex_opcode === "b0010111".U) -> ALUOp.ADD, // AUIPC
-      (ex_opcode === "b1101111".U) -> ALUOp.ADD, // JAL
-      (ex_opcode === "b1100111".U) -> ALUOp.ADD  // JALR
+      id_ex.EX_IS_LUI   -> ALUOp.ADD,
+      id_ex.EX_IS_AUIPC -> ALUOp.ADD,
+      id_ex.EX_IS_JAL   -> ALUOp.ADD,
+      id_ex.EX_IS_JALR  -> ALUOp.ADD
     )
   )
   alu.is_alu_sub := id_ex.EX_ALU_IS_SUB
