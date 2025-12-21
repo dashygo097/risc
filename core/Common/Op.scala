@@ -19,26 +19,23 @@ object OpCode {
 }
 
 object ALUOp extends ChiselEnum {
-  val ADD  = 0.U(4.W)
-  val SUB  = 1.U(4.W)
-  val SLL  = 2.U(4.W)
-  val SLT  = 3.U(4.W)
-  val SLTU = 4.U(4.W)
-  val XOR  = 5.U(4.W)
-  val SRL  = 6.U(4.W)
-  val SRA  = 7.U(4.W)
-  val OR   = 8.U(4.W)
-  val AND  = 9.U(4.W)
-  val COPY = 10.U(4.W)
+  val ADD  = "b000".U(3.W)
+  val SLL  = "b001".U(3.W)
+  val SLT  = "b010".U(3.W)
+  val SLTU = "b011".U(3.W)
+  val XOR  = "b100".U(3.W)
+  val SRL  = "b101".U(3.W)
+  val OR   = "b110".U(3.W)
+  val AND  = "b111".U(3.W)
 }
 
 object BranchOp extends ChiselEnum {
-  val BEQ  = 0.U(3.W)
-  val BNE  = 1.U(3.W)
-  val BLT  = 4.U(3.W)
-  val BGE  = 5.U(3.W)
-  val BLTU = 6.U(3.W)
-  val BGEU = 7.U(3.W)
+  val BEQ  = "b000".U(3.W)
+  val BNE  = "b001".U(3.W)
+  val BLT  = "b100".U(3.W)
+  val BGE  = "b101".U(3.W)
+  val BLTU = "b110".U(3.W)
+  val BGEU = "b111".U(3.W)
 }
 
 object MemOp extends ChiselEnum {

@@ -1,8 +1,6 @@
 package core.id
 
-import core.common._
 import chisel3._
-import chisel3.util._
 
 class RV32Decoder extends Module {
   override def desiredName: String = "rv32_decoder"
@@ -40,19 +38,21 @@ class RV32Decoder extends Module {
   val is_fence   = IO(Output(Bool())).suggestName("IS_FENCE")
 
   // control signals
-  val alu_ctrl = Output(UInt(4.W))
+  val alu_op_r   = IO(Output(UInt(3.W)))
+  val alu_is_sub = IO(Output(Bool()))
+  val alu_is_sra = IO(Output(Bool()))
 
-  val mem_ctrl     = Output(UInt(3.W))
-  val mem_width    = Output(UInt(2.W))
-  val mem_sign_ext = Output(Bool())
+  val mem_ctrl     = IO(Output(UInt(3.W)))
+  val mem_width    = IO(Output(UInt(2.W)))
+  val mem_sign_ext = IO(Output(Bool()))
 
-  val branch_op = Output(UInt(3.W))
+  val branch_op = IO(Output(UInt(3.W)))
 
-  val reg_write = Output(Bool())
-  val mem_read  = Output(Bool())
-  val mem_write = Output(Bool())
-  val alu_src   = Output(Bool())
-  val pc_src    = Output(Bool())
+  val reg_write = IO(Output(Bool()))
+  val mem_read  = IO(Output(Bool()))
+  val mem_write = IO(Output(Bool()))
+  val alu_src   = IO(Output(Bool()))
+  val pc_src    = IO(Output(Bool()))
 
   // Decode instruction segments
   opcode := inst(6, 0)
@@ -93,6 +93,7 @@ class RV32Decoder extends Module {
   is_lui     := opcode_decoder.is_lui
   is_auipc   := opcode_decoder.is_auipc
   is_system  := opcode_decoder.is_system
+  is_fence   := opcode_decoder.is_fence
 
   // funct3 decoder
   funct3_decoder.opcode := opcode
@@ -110,18 +111,7 @@ class RV32Decoder extends Module {
   funct7_decoder.funct7 := funct7
 
   // ALU control signal
-  alu_ctrl := MuxCase(
-    ALUOp.ADD,
-    Seq(
-      is_alu     -> funct7_decoder.alu_op_r,   // R-type
-      is_alu_imm -> funct3_decoder.alu_op_imm, // I-type
-      is_lui     -> ALUOp.COPY,                // LUI
-      is_auipc   -> ALUOp.ADD,                 // AUIPC
-      is_load    -> ALUOp.ADD,                 // Load
-      is_store   -> ALUOp.ADD,                 // Store
-      is_branch  -> ALUOp.ADD,                 // Branch
-      is_jal     -> ALUOp.ADD,                 // JAL
-      is_jalr    -> ALUOp.ADD                  // JALR
-    )
-  )
+  alu_op_r   := funct7_decoder.alu_op_r
+  alu_is_sub := funct7_decoder.alu_is_sub
+  alu_is_sra := funct7_decoder.alu_is_sra
 }

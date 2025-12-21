@@ -29,10 +29,10 @@ class RV32CPU extends Module {
   val DEBUG_REG_DATA = IO(Output(UInt(32.W)))
 
   // Modules
-  val alu       = Module(new RV32ALU)
-  val imm_gen   = Module(new RV32ImmGen)
-  val ctrl_unit = Module(new RV32GloblCtrlUnit)
-  val regfile   = Module(new RV32RegFile)
+  val alu     = Module(new RV32ALU)
+  val decoder = Module(new RV32Decoder)
+  val imm_gen = Module(new RV32ImmGen)
+  val regfile = Module(new RV32RegFile)
 
   // Pipeline
   val if_id  = Module(new IF_ID)
@@ -57,53 +57,40 @@ class RV32CPU extends Module {
   if_id.IF_INST := IMEM_INST
 
   // ID Stage
-  val id_opcode = if_id.ID_INST(6, 0)
-  val id_rd     = if_id.ID_INST(11, 7)
-  val id_funct3 = if_id.ID_INST(14, 12)
-  val id_rs1    = if_id.ID_INST(19, 15)
-  val id_rs2    = if_id.ID_INST(24, 20)
-  val id_funct7 = if_id.ID_INST(31, 25)
-
-  // Control unit
-  ctrl_unit.inst := if_id.ID_INST
-  val id_alu_ctrl = ctrl_unit.alu_ctrl
-  val id_mem_ctrl = ctrl_unit.mem_ctrl
+  decoder.inst := if_id.ID_INST
 
   // Immediate generation
   imm_gen.inst := if_id.ID_INST
   val id_imm = imm_gen.imm
 
   // Register file reads
-  regfile.rs1_addr := id_rs1
-  regfile.rs2_addr := id_rs2
+  regfile.rs1_addr := decoder.rs1
+  regfile.rs2_addr := decoder.rs2
 
   // Forwarding and hazard detection
-  val ex_forward_rs1  = id_ex.EX_REG_WRITE && (id_ex.EX_RD =/= 0.U) && (id_ex.EX_RD === id_rs1)
-  val ex_forward_rs2  = id_ex.EX_REG_WRITE && (id_ex.EX_RD =/= 0.U) && (id_ex.EX_RD === id_rs2)
+  val ex_forward_rs1  = id_ex.EX_REG_WRITE && (id_ex.EX_RD =/= 0.U) && (id_ex.EX_RD === decoder.rs1)
+  val ex_forward_rs2  = id_ex.EX_REG_WRITE && (id_ex.EX_RD =/= 0.U) && (id_ex.EX_RD === decoder.rs2)
   val mem_forward_rs1 =
-    ex_mem.MEM_REG_WRITE && (ex_mem.MEM_RD =/= 0.U) && (ex_mem.MEM_RD === id_rs1)
+    ex_mem.MEM_REG_WRITE && (ex_mem.MEM_RD =/= 0.U) && (ex_mem.MEM_RD === decoder.rs1)
   val mem_forward_rs2 =
-    ex_mem.MEM_REG_WRITE && (ex_mem.MEM_RD =/= 0.U) && (ex_mem.MEM_RD === id_rs2)
-  val wb_forward_rs1  = mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U) && (mem_wb.WB_RD === id_rs1)
-  val wb_forward_rs2  = mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U) && (mem_wb.WB_RD === id_rs2)
-
-  // Branch/Jump control
-  val id_is_branch = id_opcode === OpCode.BRANCH // Branch
-  val id_is_jal    = id_opcode === OpCode.JAL    // JAL
-  val id_is_jalr   = id_opcode === OpCode.JALR   // JALR
+    ex_mem.MEM_REG_WRITE && (ex_mem.MEM_RD =/= 0.U) && (ex_mem.MEM_RD === decoder.rs2)
+  val wb_forward_rs1  =
+    mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U) && (mem_wb.WB_RD === decoder.rs1)
+  val wb_forward_rs2  =
+    mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U) && (mem_wb.WB_RD === decoder.rs2)
 
   // Load-use hazard detection
   val load_use_hazard    = id_ex.EX_MEM_READ &&
-    ((id_ex.EX_RD === id_rs1) || (id_ex.EX_RD === id_rs2)) &&
+    ((id_ex.EX_RD === decoder.rs1) || (id_ex.EX_RD === decoder.rs2)) &&
     (id_ex.EX_RD =/= 0.U)
-  val branch_load_hazard = (id_is_branch || id_is_jalr) &&
+  val branch_load_hazard = (decoder.is_branch || decoder.is_jalr) &&
     id_ex.EX_MEM_READ &&
-    ((id_ex.EX_RD === id_rs1) || (id_ex.EX_RD === id_rs2)) &&
+    ((id_ex.EX_RD === decoder.rs1) || (id_ex.EX_RD === decoder.rs2)) &&
     (id_ex.EX_RD =/= 0.U)
-  val branch_ex_hazard   = (id_is_branch || id_is_jalr) &&
+  val branch_ex_hazard   = (decoder.is_branch || decoder.is_jalr) &&
     id_ex.EX_REG_WRITE &&
     !id_ex.EX_MEM_READ &&
-    ((id_ex.EX_RD === id_rs1) || (id_is_branch && id_ex.EX_RD === id_rs2)) &&
+    ((id_ex.EX_RD === decoder.rs1) || (decoder.is_branch && id_ex.EX_RD === decoder.rs2)) &&
     (id_ex.EX_RD =/= 0.U)
 
   stall := load_use_hazard || branch_load_hazard || branch_ex_hazard
@@ -135,51 +122,37 @@ class RV32CPU extends Module {
   val id_branch_taken = MuxCase(
     false.B,
     Seq(
-      (id_funct3 === "b000".U) -> (id_rs1_data === id_rs2_data),              // BEQ
-      (id_funct3 === "b001".U) -> (id_rs1_data =/= id_rs2_data),              // BNE
-      (id_funct3 === "b100".U) -> (id_rs1_data.asSInt < id_rs2_data.asSInt),  // BLT
-      (id_funct3 === "b101".U) -> (id_rs1_data.asSInt >= id_rs2_data.asSInt), // BGE
-      (id_funct3 === "b110".U) -> (id_rs1_data < id_rs2_data),                // BLTU
-      (id_funct3 === "b111".U) -> (id_rs1_data >= id_rs2_data)                // BGEU
+      (decoder.funct3 === BranchOp.BEQ)  -> (id_rs1_data === id_rs2_data),
+      (decoder.funct3 === BranchOp.BNE)  -> (id_rs1_data =/= id_rs2_data),
+      (decoder.funct3 === BranchOp.BLT)  -> (id_rs1_data.asSInt < id_rs2_data.asSInt),
+      (decoder.funct3 === BranchOp.BGE)  -> (id_rs1_data.asSInt >= id_rs2_data.asSInt),
+      (decoder.funct3 === BranchOp.BLTU) -> (id_rs1_data < id_rs2_data),
+      (decoder.funct3 === BranchOp.BGEU) -> (id_rs1_data >= id_rs2_data)
     )
-  ) && id_is_branch
+  ) && decoder.is_branch
 
-  flush := id_branch_taken || id_is_jal || id_is_jalr
-
-  val id_reg_write = MuxCase(
-    false.B,
-    Seq(
-      (id_opcode === "b0110011".U) -> true.B, // R-type
-      (id_opcode === "b0010011".U) -> true.B, // I-type ALU
-      (id_opcode === "b0000011".U) -> true.B, // Load
-      (id_opcode === "b0110111".U) -> true.B, // LUI
-      (id_opcode === "b0010111".U) -> true.B, // AUIPC
-      (id_opcode === "b1101111".U) -> true.B, // JAL
-      (id_opcode === "b1100111".U) -> true.B  // JALR
-    )
-  )
-
-  val id_mem_read  = id_opcode === "b0000011".U // Load
-  val id_mem_write = id_opcode === "b0100011".U // Store
+  flush := id_branch_taken || decoder.is_jal || decoder.is_jalr
 
   // ID/EX
-  id_ex.STALL        := stall
-  id_ex.FLUSH        := flush || stall
-  id_ex.ID_ALU_CTRL  := id_alu_ctrl
-  id_ex.ID_MEM_CTRL  := id_mem_ctrl
-  id_ex.ID_REG_WRITE := id_reg_write
-  id_ex.ID_MEM_READ  := id_mem_read
-  id_ex.ID_MEM_WRITE := id_mem_write
-  id_ex.ID_PC        := if_id.ID_PC
-  id_ex.ID_INST      := if_id.ID_INST
-  id_ex.ID_RS1_DATA  := id_rs1_data
-  id_ex.ID_RS2_DATA  := id_rs2_data
-  id_ex.ID_IMM       := id_imm
-  id_ex.ID_RD        := id_rd
-  id_ex.ID_RS1       := id_rs1
-  id_ex.ID_RS2       := id_rs2
-  id_ex.ID_FUNCT3    := id_funct3
-  id_ex.ID_OPCODE    := id_opcode
+  id_ex.STALL         := stall
+  id_ex.FLUSH         := flush || stall
+  id_ex.ID_ALU_OP_R   := decoder.alu_op_r
+  id_ex.ID_ALU_IS_SUB := decoder.alu_is_sub
+  id_ex.ID_ALU_IS_SRA := decoder.alu_is_sra
+  id_ex.ID_MEM_CTRL   := decoder.mem_ctrl
+  id_ex.ID_REG_WRITE  := decoder.reg_write
+  id_ex.ID_MEM_READ   := decoder.mem_read
+  id_ex.ID_MEM_WRITE  := decoder.mem_write
+  id_ex.ID_PC         := if_id.ID_PC
+  id_ex.ID_INST       := if_id.ID_INST
+  id_ex.ID_RS1_DATA   := id_rs1_data
+  id_ex.ID_RS2_DATA   := id_rs2_data
+  id_ex.ID_IMM        := id_imm
+  id_ex.ID_RD         := decoder.rd
+  id_ex.ID_RS1        := decoder.rs1
+  id_ex.ID_RS2        := decoder.rs2
+  id_ex.ID_FUNCT3     := decoder.funct3
+  id_ex.ID_OPCODE     := decoder.opcode
 
   // EX Stage
   val ex_opcode = id_ex.EX_OPCODE
@@ -226,10 +199,10 @@ class RV32CPU extends Module {
     )
   )
 
-  alu.rs1      := ex_alu_src1
-  alu.rs2      := ex_alu_src2
-  alu.alu_ctrl := MuxCase(
-    id_ex.EX_ALU_CTRL,
+  alu.rs1        := ex_alu_src1
+  alu.rs2        := ex_alu_src2
+  alu.alu_op_r   := MuxCase(
+    id_ex.EX_ALU_OP_R,
     Seq(
       (ex_opcode === "b0110111".U) -> ALUOp.ADD, // LUI
       (ex_opcode === "b0010111".U) -> ALUOp.ADD, // AUIPC
@@ -237,6 +210,8 @@ class RV32CPU extends Module {
       (ex_opcode === "b1100111".U) -> ALUOp.ADD  // JALR
     )
   )
+  alu.is_alu_sub := id_ex.EX_ALU_IS_SUB
+  alu.is_alu_sra := id_ex.EX_ALU_IS_SRA
 
   val ex_alu_result = alu.rd
 
@@ -326,8 +301,8 @@ class RV32CPU extends Module {
     pc + 4.U,
     Seq(
       id_branch_taken -> (if_id.ID_PC + id_imm),
-      id_is_jal       -> (if_id.ID_PC + id_imm),
-      id_is_jalr      -> ((id_rs1_data + id_imm) & "hfffffffe".U)
+      decoder.is_jal  -> (if_id.ID_PC + id_imm),
+      decoder.is_jalr -> ((id_rs1_data + id_imm) & "hfffffffe".U)
     )
   )
 
