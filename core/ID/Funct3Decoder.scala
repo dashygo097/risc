@@ -20,18 +20,7 @@ class RV32Funct3Decoder extends Module {
     IO(Output(Bool())).suggestName("MEM_SING_EXT") // 0: zero extend, 1: sign extend
 
   // I-type ALU
-  alu_op_imm := MuxLookup(funct3, ALUOp.ADD)(
-    Seq(
-      "b000".U -> ALUOp.ADD,                           // ADDI
-      "b010".U -> ALUOp.SLT,                           // SLTI
-      "b011".U -> ALUOp.SLTU,                          // SLTIU
-      "b100".U -> ALUOp.XOR,                           // XORI
-      "b110".U -> ALUOp.OR,                            // ORI
-      "b111".U -> ALUOp.AND,                           // ANDI
-      "b001".U -> ALUOp.SLL,                           // SLLI
-      "b101".U -> Mux(funct7(5), ALUOp.SRA, ALUOp.SRL) // SRLI/SRAI
-    )
-  )
+  alu_op_imm := funct3
 
   // Branch
   branch_op := funct3
