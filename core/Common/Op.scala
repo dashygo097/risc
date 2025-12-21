@@ -32,6 +32,15 @@ object ALUOp extends ChiselEnum {
   val COPY = 10.U(4.W)
 }
 
+object BranchOp extends ChiselEnum {
+  val BEQ  = 0.U(3.W)
+  val BNE  = 1.U(3.W)
+  val BLT  = 4.U(3.W)
+  val BGE  = 5.U(3.W)
+  val BLTU = 6.U(3.W)
+  val BGEU = 7.U(3.W)
+}
+
 object MemOp extends ChiselEnum {
   val LB  = 0.U(3.W)
   val LH  = 1.U(3.W)
