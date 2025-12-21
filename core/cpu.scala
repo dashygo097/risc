@@ -88,9 +88,9 @@ class RV32CPU extends Module {
   val wb_forward_rs2  = mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U) && (mem_wb.WB_RD === id_rs2)
 
   // Branch/Jump control
-  val id_is_branch = id_opcode === "b1100011".U // Branch
-  val id_is_jal    = id_opcode === "b1101111".U // JAL
-  val id_is_jalr   = id_opcode === "b1100111".U // JALR
+  val id_is_branch = id_opcode === OpCode.BRANCH // Branch
+  val id_is_jal    = id_opcode === OpCode.JAL    // JAL
+  val id_is_jalr   = id_opcode === OpCode.JALR   // JALR
 
   // Load-use hazard detection
   val load_use_hazard    = id_ex.EX_MEM_READ &&
