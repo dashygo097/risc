@@ -29,10 +29,11 @@ class RV32CPU extends Module {
   val DEBUG_REG_DATA = IO(Output(UInt(32.W)))
 
   // Modules
-  val alu     = Module(new RV32ALU)
-  val decoder = Module(new RV32Decoder)
-  val imm_gen = Module(new RV32ImmGen)
-  val regfile = Module(new RV32RegFile)
+  val alu                = Module(new RV32ALU)
+  val decoder            = Module(new RV32Decoder)
+  val imm_gen            = Module(new RV32ImmGen)
+  val regfile            = Module(new RV32RegFile)
+  val id_forwarding_unit = Module(new RV32IDForwardingUnit)
 
   // Pipeline
   val if_id  = Module(new IF_ID)
@@ -68,16 +69,14 @@ class RV32CPU extends Module {
   regfile.rs2_addr := decoder.rs2
 
   // Forwarding and hazard detection
-  val ex_forward_rs1  = id_ex.EX_REG_WRITE && (id_ex.EX_RD =/= 0.U) && (id_ex.EX_RD === decoder.rs1)
-  val ex_forward_rs2  = id_ex.EX_REG_WRITE && (id_ex.EX_RD =/= 0.U) && (id_ex.EX_RD === decoder.rs2)
-  val mem_forward_rs1 =
-    ex_mem.MEM_REG_WRITE && (ex_mem.MEM_RD =/= 0.U) && (ex_mem.MEM_RD === decoder.rs1)
-  val mem_forward_rs2 =
-    ex_mem.MEM_REG_WRITE && (ex_mem.MEM_RD =/= 0.U) && (ex_mem.MEM_RD === decoder.rs2)
-  val wb_forward_rs1  =
-    mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U) && (mem_wb.WB_RD === decoder.rs1)
-  val wb_forward_rs2  =
-    mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U) && (mem_wb.WB_RD === decoder.rs2)
+  id_forwarding_unit.id_rs1        := decoder.rs1
+  id_forwarding_unit.id_rs2        := decoder.rs2
+  id_forwarding_unit.ex_rd         := id_ex.EX_RD
+  id_forwarding_unit.ex_reg_write  := id_ex.EX_REG_WRITE
+  id_forwarding_unit.mem_rd        := ex_mem.MEM_RD
+  id_forwarding_unit.mem_reg_write := ex_mem.MEM_REG_WRITE
+  id_forwarding_unit.wb_rd         := mem_wb.WB_RD
+  id_forwarding_unit.wb_reg_write  := mem_wb.WB_REG_WRITE
 
   // Load-use hazard detection
   val load_use_hazard    = id_ex.EX_MEM_READ &&
@@ -96,26 +95,18 @@ class RV32CPU extends Module {
   stall := load_use_hazard || branch_load_hazard || branch_ex_hazard
 
   // Forwarded register values for branch comparison
-  val id_rs1_data_raw = regfile.rs1_data
-  val id_rs2_data_raw = regfile.rs2_data
-
-  val id_rs1_data = Mux(
-    mem_forward_rs1,
-    ex_mem.MEM_ALU_RESULT,
-    Mux(
-      wb_forward_rs1,
-      mem_wb.WB_DATA,
-      id_rs1_data_raw
+  val id_rs1_data = MuxCase(
+    regfile.rs1_data,
+    Seq(
+      (id_forwarding_unit.forward_rs1 === ForwardingStage.MEM) -> ex_mem.MEM_ALU_RESULT,
+      (id_forwarding_unit.forward_rs1 === ForwardingStage.WB)  -> mem_wb.WB_DATA
     )
   )
-
-  val id_rs2_data = Mux(
-    mem_forward_rs2,
-    ex_mem.MEM_ALU_RESULT,
-    Mux(
-      wb_forward_rs2,
-      mem_wb.WB_DATA,
-      id_rs2_data_raw
+  val id_rs2_data = MuxCase(
+    regfile.rs2_data,
+    Seq(
+      (id_forwarding_unit.forward_rs2 === ForwardingStage.MEM) -> ex_mem.MEM_ALU_RESULT,
+      (id_forwarding_unit.forward_rs2 === ForwardingStage.WB)  -> mem_wb.WB_DATA
     )
   )
 

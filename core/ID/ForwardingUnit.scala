@@ -4,7 +4,9 @@ import core.common._
 import chisel3._
 import chisel3.util._
 
-class IDForwardingUnit extends Module {
+class RV32IDForwardingUnit extends Module {
+  override def desiredName: String = "rv32_id_forwarding_unit"
+
   val id_rs1        = IO(Input(UInt(5.W))).suggestName("ID_RS1")
   val id_rs2        = IO(Input(UInt(5.W))).suggestName("ID_RS2")
   val ex_rd         = IO(Input(UInt(5.W))).suggestName("EX_RD")
@@ -18,20 +20,20 @@ class IDForwardingUnit extends Module {
   val forward_rs2 = IO(Output(UInt(2.W))).suggestName("FORWARD_RS2")
 
   forward_rs1 := MuxCase(
-    ForwardingStages.NONE,
+    ForwardingStage.NONE,
     Seq(
-      (ex_reg_write && (ex_rd =/= 0.U) && (ex_rd === id_rs1))    -> ForwardingStages.EX,
-      (mem_reg_write && (mem_rd =/= 0.U) && (mem_rd === id_rs1)) -> ForwardingStages.MEM,
-      (wb_reg_write && (wb_rd =/= 0.U) && (wb_rd === id_rs1))    -> ForwardingStages.WB
+      (ex_reg_write && (ex_rd =/= 0.U) && (ex_rd === id_rs1))    -> ForwardingStage.EX,
+      (mem_reg_write && (mem_rd =/= 0.U) && (mem_rd === id_rs1)) -> ForwardingStage.MEM,
+      (wb_reg_write && (wb_rd =/= 0.U) && (wb_rd === id_rs1))    -> ForwardingStage.WB
     )
   )
 
   forward_rs2 := MuxCase(
-    ForwardingStages.NONE,
+    ForwardingStage.NONE,
     Seq(
-      (ex_reg_write && (ex_rd =/= 0.U) && (ex_rd === id_rs2))    -> ForwardingStages.EX,
-      (mem_reg_write && (mem_rd =/= 0.U) && (mem_rd === id_rs2)) -> ForwardingStages.MEM,
-      (wb_reg_write && (wb_rd =/= 0.U) && (wb_rd === id_rs2))    -> ForwardingStages.WB
+      (ex_reg_write && (ex_rd =/= 0.U) && (ex_rd === id_rs2))    -> ForwardingStage.EX,
+      (mem_reg_write && (mem_rd =/= 0.U) && (mem_rd === id_rs2)) -> ForwardingStage.MEM,
+      (wb_reg_write && (wb_rd =/= 0.U) && (wb_rd === id_rs2))    -> ForwardingStage.WB
     )
   )
 }
