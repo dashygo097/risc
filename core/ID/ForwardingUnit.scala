@@ -14,8 +14,8 @@ class IDForwardingUnit extends Module {
   val wb_rd         = IO(Input(UInt(5.W))).suggestName("WB_RD")
   val wb_reg_write  = IO(Input(Bool())).suggestName("WB_RegWrite")
 
-  val forward_rs1 = IO(Output(ForwardingStages())).suggestName("FORWARD_RS1")
-  val forward_rs2 = IO(Output(ForwardingStages())).suggestName("FORWARD_RS2")
+  val forward_rs1 = IO(Output(UInt(2.W))).suggestName("FORWARD_RS1")
+  val forward_rs2 = IO(Output(UInt(2.W))).suggestName("FORWARD_RS2")
 
   forward_rs1 := MuxCase(
     ForwardingStages.NONE,
