@@ -27,17 +27,17 @@ class RV32Decoder extends Module {
   val is_j_type = IO(Output(Bool())).suggestName("IS_J_TYPE")
 
   // operation type signals
-  val is_alu     = IO(Output(Bool())).suggestName("IS_ALU")
-  val is_alu_imm = IO(Output(Bool())).suggestName("IS_ALU_IMM")
-  val is_load    = IO(Output(Bool())).suggestName("IS_LOAD")
-  val is_store   = IO(Output(Bool())).suggestName("IS_STORE")
-  val is_branch  = IO(Output(Bool())).suggestName("IS_BRANCH")
-  val is_jal     = IO(Output(Bool())).suggestName("IS_JAL")
-  val is_jalr    = IO(Output(Bool())).suggestName("IS_JALR")
-  val is_lui     = IO(Output(Bool())).suggestName("IS_LUI")
-  val is_auipc   = IO(Output(Bool())).suggestName("IS_AUIPC")
-  val is_system  = IO(Output(Bool())).suggestName("IS_SYSTEM")
-  val is_fence   = IO(Output(Bool())).suggestName("IS_FENCE")
+  val is_op     = IO(Output(Bool())).suggestName("IS_OP")
+  val is_op_imm = IO(Output(Bool())).suggestName("IS_OP_IMM")
+  val is_load   = IO(Output(Bool())).suggestName("IS_LOAD")
+  val is_store  = IO(Output(Bool())).suggestName("IS_STORE")
+  val is_branch = IO(Output(Bool())).suggestName("IS_BRANCH")
+  val is_jal    = IO(Output(Bool())).suggestName("IS_JAL")
+  val is_jalr   = IO(Output(Bool())).suggestName("IS_JALR")
+  val is_lui    = IO(Output(Bool())).suggestName("IS_LUI")
+  val is_auipc  = IO(Output(Bool())).suggestName("IS_AUIPC")
+  val is_system = IO(Output(Bool())).suggestName("IS_SYSTEM")
+  val is_fence  = IO(Output(Bool())).suggestName("IS_FENCE")
 
   // control signals
   val alu_op     = IO(Output(UInt(3.W))).suggestName("ALU_OP")
@@ -85,17 +85,17 @@ class RV32Decoder extends Module {
   is_u_type := opcode_decoder.is_u_type
   is_j_type := opcode_decoder.is_j_type
 
-  is_alu     := opcode_decoder.is_alu
-  is_alu_imm := opcode_decoder.is_alu_imm
-  is_load    := opcode_decoder.is_load
-  is_store   := opcode_decoder.is_store
-  is_branch  := opcode_decoder.is_branch
-  is_jal     := opcode_decoder.is_jal
-  is_jalr    := opcode_decoder.is_jalr
-  is_lui     := opcode_decoder.is_lui
-  is_auipc   := opcode_decoder.is_auipc
-  is_system  := opcode_decoder.is_system
-  is_fence   := opcode_decoder.is_fence
+  is_op     := opcode_decoder.is_op
+  is_op_imm := opcode_decoder.is_op_imm
+  is_load   := opcode_decoder.is_load
+  is_store  := opcode_decoder.is_store
+  is_branch := opcode_decoder.is_branch
+  is_jal    := opcode_decoder.is_jal
+  is_jalr   := opcode_decoder.is_jalr
+  is_lui    := opcode_decoder.is_lui
+  is_auipc  := opcode_decoder.is_auipc
+  is_system := opcode_decoder.is_system
+  is_fence  := opcode_decoder.is_fence
 
   // funct3 decoder
   funct3_decoder.opcode := opcode
@@ -104,14 +104,14 @@ class RV32Decoder extends Module {
   alu_op       := MuxCase(
     ALUOp.ADD,
     Seq(
-      is_alu     -> funct3,
-      is_alu_imm -> funct3,
-      is_load    -> ALUOp.ADD,
-      is_store   -> ALUOp.ADD,
-      is_lui     -> ALUOp.ADD,
-      is_auipc   -> ALUOp.ADD,
-      is_jal     -> ALUOp.ADD,
-      is_jalr    -> ALUOp.ADD
+      is_op     -> funct3,
+      is_op_imm -> funct3,
+      is_load   -> ALUOp.ADD,
+      is_store  -> ALUOp.ADD,
+      is_lui    -> ALUOp.ADD,
+      is_auipc  -> ALUOp.ADD,
+      is_jal    -> ALUOp.ADD,
+      is_jalr   -> ALUOp.ADD
     )
   )
   branch_op    := funct3

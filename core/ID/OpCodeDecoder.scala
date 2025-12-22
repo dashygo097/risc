@@ -17,17 +17,17 @@ class RV32OpCodeDecoder extends Module {
   val is_j_type = IO(Output(Bool())).suggestName("IS_J_TYPE")
 
   // operation type signals
-  val is_alu     = IO(Output(Bool())).suggestName("IS_ALU")
-  val is_alu_imm = IO(Output(Bool())).suggestName("IS_ALU_IMM")
-  val is_load    = IO(Output(Bool())).suggestName("IS_LOAD")
-  val is_store   = IO(Output(Bool())).suggestName("IS_STORE")
-  val is_branch  = IO(Output(Bool())).suggestName("IS_BRANCH")
-  val is_jal     = IO(Output(Bool())).suggestName("IS_JAL")
-  val is_jalr    = IO(Output(Bool())).suggestName("IS_JALR")
-  val is_lui     = IO(Output(Bool())).suggestName("IS_LUI")
-  val is_auipc   = IO(Output(Bool())).suggestName("IS_AUIPC")
-  val is_system  = IO(Output(Bool())).suggestName("IS_SYSTEM")
-  val is_fence   = IO(Output(Bool())).suggestName("IS_FENCE")
+  val is_op     = IO(Output(Bool())).suggestName("IS_OP")
+  val is_op_imm = IO(Output(Bool())).suggestName("IS_OP_IMM")
+  val is_load   = IO(Output(Bool())).suggestName("IS_LOAD")
+  val is_store  = IO(Output(Bool())).suggestName("IS_STORE")
+  val is_branch = IO(Output(Bool())).suggestName("IS_BRANCH")
+  val is_jal    = IO(Output(Bool())).suggestName("IS_JAL")
+  val is_jalr   = IO(Output(Bool())).suggestName("IS_JALR")
+  val is_lui    = IO(Output(Bool())).suggestName("IS_LUI")
+  val is_auipc  = IO(Output(Bool())).suggestName("IS_AUIPC")
+  val is_system = IO(Output(Bool())).suggestName("IS_SYSTEM")
+  val is_fence  = IO(Output(Bool())).suggestName("IS_FENCE")
 
   // control signals
   val reg_write = IO(Output(Bool())).suggestName("REG_WRITE")
@@ -46,17 +46,17 @@ class RV32OpCodeDecoder extends Module {
   is_u_type := (opcode === OpCode.LUI) || (opcode === OpCode.AUIPC)
   is_j_type := opcode === OpCode.JAL
 
-  is_alu     := opcode === OpCode.OP
-  is_alu_imm := opcode === OpCode.OP_IMM
-  is_load    := opcode === OpCode.LOAD
-  is_store   := opcode === OpCode.STORE
-  is_branch  := opcode === OpCode.BRANCH
-  is_jal     := opcode === OpCode.JAL
-  is_jalr    := opcode === OpCode.JALR
-  is_lui     := opcode === OpCode.LUI
-  is_auipc   := opcode === OpCode.AUIPC
-  is_system  := opcode === OpCode.SYSTEM
-  is_fence   := opcode === OpCode.MISC_MEM
+  is_op     := opcode === OpCode.OP
+  is_op_imm := opcode === OpCode.OP_IMM
+  is_load   := opcode === OpCode.LOAD
+  is_store  := opcode === OpCode.STORE
+  is_branch := opcode === OpCode.BRANCH
+  is_jal    := opcode === OpCode.JAL
+  is_jalr   := opcode === OpCode.JALR
+  is_lui    := opcode === OpCode.LUI
+  is_auipc  := opcode === OpCode.AUIPC
+  is_system := opcode === OpCode.SYSTEM
+  is_fence  := opcode === OpCode.MISC_MEM
 
   reg_write := is_r_type || is_i_type || is_u_type ||
     is_j_type || is_load

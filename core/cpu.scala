@@ -114,12 +114,12 @@ class RV32CPU extends Module {
   val id_branch_taken = MuxCase(
     false.B,
     Seq(
-      (decoder.funct3 === BranchOp.BEQ)  -> (id_rs1_data === id_rs2_data),
-      (decoder.funct3 === BranchOp.BNE)  -> (id_rs1_data =/= id_rs2_data),
-      (decoder.funct3 === BranchOp.BLT)  -> (id_rs1_data.asSInt < id_rs2_data.asSInt),
-      (decoder.funct3 === BranchOp.BGE)  -> (id_rs1_data.asSInt >= id_rs2_data.asSInt),
-      (decoder.funct3 === BranchOp.BLTU) -> (id_rs1_data < id_rs2_data),
-      (decoder.funct3 === BranchOp.BGEU) -> (id_rs1_data >= id_rs2_data)
+      (decoder.branch_op === BranchOp.BEQ)  -> (id_rs1_data === id_rs2_data),
+      (decoder.branch_op === BranchOp.BNE)  -> (id_rs1_data =/= id_rs2_data),
+      (decoder.branch_op === BranchOp.BLT)  -> (id_rs1_data.asSInt < id_rs2_data.asSInt),
+      (decoder.branch_op === BranchOp.BGE)  -> (id_rs1_data.asSInt >= id_rs2_data.asSInt),
+      (decoder.branch_op === BranchOp.BLTU) -> (id_rs1_data < id_rs2_data),
+      (decoder.branch_op === BranchOp.BGEU) -> (id_rs1_data >= id_rs2_data)
     )
   ) && decoder.is_branch
 
@@ -136,17 +136,17 @@ class RV32CPU extends Module {
   id_ex.ID_MEM_READ   := decoder.mem_read
   id_ex.ID_MEM_WRITE  := decoder.mem_write
 
-  id_ex.ID_IS_ALU     := decoder.is_alu
-  id_ex.ID_IS_ALU_IMM := decoder.is_alu_imm
-  id_ex.ID_IS_LOAD    := decoder.is_load
-  id_ex.ID_IS_STORE   := decoder.is_store
-  id_ex.ID_IS_BRANCH  := decoder.is_branch
-  id_ex.ID_IS_JAL     := decoder.is_jal
-  id_ex.ID_IS_JALR    := decoder.is_jalr
-  id_ex.ID_IS_LUI     := decoder.is_lui
-  id_ex.ID_IS_AUIPC   := decoder.is_auipc
-  id_ex.ID_IS_SYSTEM  := decoder.is_system
-  id_ex.ID_IS_FENCE   := decoder.is_fence
+  id_ex.ID_IS_OP     := decoder.is_op
+  id_ex.ID_IS_OP_IMM := decoder.is_op_imm
+  id_ex.ID_IS_LOAD   := decoder.is_load
+  id_ex.ID_IS_STORE  := decoder.is_store
+  id_ex.ID_IS_BRANCH := decoder.is_branch
+  id_ex.ID_IS_JAL    := decoder.is_jal
+  id_ex.ID_IS_JALR   := decoder.is_jalr
+  id_ex.ID_IS_LUI    := decoder.is_lui
+  id_ex.ID_IS_AUIPC  := decoder.is_auipc
+  id_ex.ID_IS_SYSTEM := decoder.is_system
+  id_ex.ID_IS_FENCE  := decoder.is_fence
 
   id_ex.ID_PC       := if_id.ID_PC
   id_ex.ID_INST     := if_id.ID_INST
@@ -197,13 +197,13 @@ class RV32CPU extends Module {
   val alu_rs2_data = MuxCase(
     ex_rs2_data,
     Seq(
-      id_ex.EX_IS_ALU_IMM -> id_ex.EX_IMM,
-      id_ex.EX_IS_LOAD    -> id_ex.EX_IMM,
-      id_ex.EX_IS_STORE   -> id_ex.EX_IMM,
-      id_ex.EX_IS_LUI     -> 0.U,
-      id_ex.EX_IS_AUIPC   -> id_ex.EX_IMM,
-      id_ex.EX_IS_JAL     -> 4.U,
-      id_ex.EX_IS_JALR    -> 4.U
+      id_ex.EX_IS_OP_IMM -> id_ex.EX_IMM,
+      id_ex.EX_IS_LOAD   -> id_ex.EX_IMM,
+      id_ex.EX_IS_STORE  -> id_ex.EX_IMM,
+      id_ex.EX_IS_LUI    -> 0.U,
+      id_ex.EX_IS_AUIPC  -> id_ex.EX_IMM,
+      id_ex.EX_IS_JAL    -> 4.U,
+      id_ex.EX_IS_JALR   -> 4.U
     )
   )
 
