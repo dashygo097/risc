@@ -181,7 +181,7 @@ class RV32CPU extends Module {
     )
   )
 
-  val ex_alu_src1 = MuxCase(
+  val alu_rs1_data = MuxCase(
     ex_rs1_data_forwarded,
     Seq(
       id_ex.EX_IS_AUIPC -> id_ex.EX_PC,
@@ -190,7 +190,7 @@ class RV32CPU extends Module {
     )
   )
 
-  val ex_alu_src2 = MuxCase(
+  val alu_rs2_data = MuxCase(
     ex_rs2_data_forwarded,
     Seq(
       id_ex.EX_IS_ALU_IMM -> id_ex.EX_IMM,
@@ -203,13 +203,11 @@ class RV32CPU extends Module {
     )
   )
 
-  alu.rs1        := ex_alu_src1
-  alu.rs2        := ex_alu_src2
+  alu.rs1_data   := alu_rs1_data
+  alu.rs2_data   := alu_rs2_data
   alu.alu_op     := id_ex.EX_ALU_OP
   alu.is_alu_sub := id_ex.EX_ALU_IS_SUB
   alu.is_alu_sra := id_ex.EX_ALU_IS_SRA
-
-  val ex_alu_result = alu.rd
 
   // EX/MEM
   ex_mem.STALL         := false.B
@@ -218,7 +216,7 @@ class RV32CPU extends Module {
   ex_mem.EX_REG_WRITE  := id_ex.EX_REG_WRITE
   ex_mem.EX_MEM_READ   := id_ex.EX_MEM_READ
   ex_mem.EX_MEM_WRITE  := id_ex.EX_MEM_WRITE
-  ex_mem.EX_ALU_RESULT := ex_alu_result
+  ex_mem.EX_ALU_RESULT := alu.rd_data
   ex_mem.EX_RS2_DATA   := ex_rs2_data_forwarded
   ex_mem.EX_RD         := id_ex.EX_RD
   ex_mem.EX_FUNCT3     := id_ex.EX_FUNCT3
