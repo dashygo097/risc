@@ -104,7 +104,7 @@ class RV32Decoder extends Module {
   alu_op       := MuxCase(
     ALUOp.ADD,
     Seq(
-      is_alu     -> funct3_decoder.alu_op,
+      is_alu     -> funct3,
       is_alu_imm -> funct3,
       is_load    -> ALUOp.ADD,
       is_store   -> ALUOp.ADD,
@@ -114,8 +114,8 @@ class RV32Decoder extends Module {
       is_jalr    -> ALUOp.ADD
     )
   )
-  branch_op    := funct3_decoder.branch_op
-  mem_op       := funct3_decoder.mem_op
+  branch_op    := funct3
+  mem_op       := funct3
   mem_width    := funct3_decoder.mem_width
   mem_sign_ext := funct3_decoder.mem_sign_ext
 
