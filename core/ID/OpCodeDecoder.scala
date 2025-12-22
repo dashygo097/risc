@@ -27,7 +27,6 @@ class RV32OpCodeDecoder extends Module {
   val is_lui    = IO(Output(Bool())).suggestName("IS_LUI")
   val is_auipc  = IO(Output(Bool())).suggestName("IS_AUIPC")
   val is_system = IO(Output(Bool())).suggestName("IS_SYSTEM")
-  val is_fence  = IO(Output(Bool())).suggestName("IS_FENCE")
 
   // control signals
   val reg_write = IO(Output(Bool())).suggestName("REG_WRITE")
@@ -56,7 +55,6 @@ class RV32OpCodeDecoder extends Module {
   is_lui    := opcode === OpCode.LUI
   is_auipc  := opcode === OpCode.AUIPC
   is_system := opcode === OpCode.SYSTEM
-  is_fence  := opcode === OpCode.MISC_MEM
 
   reg_write := is_r_type || is_i_type || is_u_type ||
     is_j_type || is_load

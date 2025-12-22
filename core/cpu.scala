@@ -126,8 +126,9 @@ class RV32CPU extends Module {
   flush := id_branch_taken || decoder.is_jal || decoder.is_jalr
 
   // ID/EX
-  id_ex.STALL         := stall
-  id_ex.FLUSH         := flush || stall
+  id_ex.STALL := stall
+  id_ex.FLUSH := flush || stall
+
   id_ex.ID_ALU_OP     := decoder.alu_op
   id_ex.ID_ALU_IS_SUB := decoder.alu_is_sub
   id_ex.ID_ALU_IS_SRA := decoder.alu_is_sra
@@ -146,7 +147,6 @@ class RV32CPU extends Module {
   id_ex.ID_IS_LUI    := decoder.is_lui
   id_ex.ID_IS_AUIPC  := decoder.is_auipc
   id_ex.ID_IS_SYSTEM := decoder.is_system
-  id_ex.ID_IS_FENCE  := decoder.is_fence
 
   id_ex.ID_PC       := if_id.ID_PC
   id_ex.ID_INST     := if_id.ID_INST
@@ -214,12 +214,19 @@ class RV32CPU extends Module {
   alu.is_alu_sra := id_ex.EX_ALU_IS_SRA
 
   // EX/MEM
-  ex_mem.STALL         := false.B
-  ex_mem.FLUSH         := false.B
-  ex_mem.EX_MEM_CTRL   := id_ex.EX_MEM_OP
-  ex_mem.EX_REG_WRITE  := id_ex.EX_REG_WRITE
-  ex_mem.EX_MEM_READ   := id_ex.EX_MEM_READ
-  ex_mem.EX_MEM_WRITE  := id_ex.EX_MEM_WRITE
+  ex_mem.STALL := false.B
+  ex_mem.FLUSH := false.B
+
+  ex_mem.EX_MEM_OP    := id_ex.EX_MEM_OP
+  ex_mem.EX_REG_WRITE := id_ex.EX_REG_WRITE
+  ex_mem.EX_MEM_READ  := id_ex.EX_MEM_READ
+  ex_mem.EX_MEM_WRITE := id_ex.EX_MEM_WRITE
+
+  ex_mem.EX_IS_LOAD := id_ex.EX_IS_LOAD
+  ex_mem.EX_IS_LUI  := id_ex.EX_IS_LUI
+  ex_mem.EX_IS_JAL  := id_ex.EX_IS_JAL
+  ex_mem.EX_IS_JALR := id_ex.EX_IS_JALR
+
   ex_mem.EX_ALU_RESULT := alu.rd_data
   ex_mem.EX_RS2_DATA   := ex_rs2_data
   ex_mem.EX_RD         := id_ex.EX_RD
@@ -266,10 +273,10 @@ class RV32CPU extends Module {
   val mem_wb_data = MuxCase(
     ex_mem.MEM_ALU_RESULT,
     Seq(
-      (ex_mem.MEM_OPCODE === "b0000011".U) -> mem_data,              // Load
-      (ex_mem.MEM_OPCODE === "b0110111".U) -> ex_mem.MEM_IMM,        // LUI
-      (ex_mem.MEM_OPCODE === "b1101111".U) -> (ex_mem.MEM_PC + 4.U), // JAL
-      (ex_mem.MEM_OPCODE === "b1100111".U) -> (ex_mem.MEM_PC + 4.U)  // JALR
+      ex_mem.MEM_IS_LOAD -> mem_data,              // Load
+      ex_mem.MEM_IS_LUI  -> ex_mem.MEM_IMM,        // LUI
+      ex_mem.MEM_IS_JAL  -> (ex_mem.MEM_PC + 4.U), // JAL
+      ex_mem.MEM_IS_JALR -> (ex_mem.MEM_PC + 4.U)  // JALR
     )
   )
 

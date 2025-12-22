@@ -26,7 +26,6 @@ class ID_EX extends Module {
   val ID_IS_LUI    = IO(Input(Bool()))
   val ID_IS_AUIPC  = IO(Input(Bool()))
   val ID_IS_SYSTEM = IO(Input(Bool()))
-  val ID_IS_FENCE  = IO(Input(Bool()))
 
   // Data
   val ID_PC       = IO(Input(UInt(32.W)))
@@ -59,7 +58,6 @@ class ID_EX extends Module {
   val EX_IS_LUI    = IO(Output(Bool()))
   val EX_IS_AUIPC  = IO(Output(Bool()))
   val EX_IS_SYSTEM = IO(Output(Bool()))
-  val EX_IS_FENCE  = IO(Output(Bool()))
 
   val EX_PC       = IO(Output(UInt(32.W)))
   val EX_INST     = IO(Output(UInt(32.W)))
@@ -91,7 +89,6 @@ class ID_EX extends Module {
   val is_lui_reg    = RegInit(false.B)
   val is_auipc_reg  = RegInit(false.B)
   val is_system_reg = RegInit(false.B)
-  val is_fence_reg  = RegInit(false.B)
 
   val pc_reg       = RegInit(0.U(32.W))
   val inst_reg     = RegInit(0.U(32.W))
@@ -123,7 +120,6 @@ class ID_EX extends Module {
     is_lui_reg    := false.B
     is_auipc_reg  := false.B
     is_system_reg := false.B
-    is_fence_reg  := false.B
 
     pc_reg       := 0.U
     inst_reg     := 0.U
@@ -155,7 +151,6 @@ class ID_EX extends Module {
     is_lui_reg    := ID_IS_LUI
     is_auipc_reg  := ID_IS_AUIPC
     is_system_reg := ID_IS_SYSTEM
-    is_fence_reg  := ID_IS_FENCE
 
     pc_reg       := ID_PC
     inst_reg     := ID_INST
@@ -187,7 +182,6 @@ class ID_EX extends Module {
   EX_IS_LUI    := is_lui_reg
   EX_IS_AUIPC  := is_auipc_reg
   EX_IS_SYSTEM := is_system_reg
-  EX_IS_FENCE  := is_fence_reg
 
   EX_PC       := pc_reg
   EX_INST     := inst_reg

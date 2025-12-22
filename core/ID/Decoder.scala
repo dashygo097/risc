@@ -37,23 +37,22 @@ class RV32Decoder extends Module {
   val is_lui    = IO(Output(Bool())).suggestName("IS_LUI")
   val is_auipc  = IO(Output(Bool())).suggestName("IS_AUIPC")
   val is_system = IO(Output(Bool())).suggestName("IS_SYSTEM")
-  val is_fence  = IO(Output(Bool())).suggestName("IS_FENCE")
 
   // control signals
   val alu_op     = IO(Output(UInt(3.W))).suggestName("ALU_OP")
   val alu_is_sub = IO(Output(Bool())).suggestName("ALU_IS_SUB")
   val alu_is_sra = IO(Output(Bool())).suggestName("ALU_IS_SRA")
-
-  val mem_op       = IO(Output(UInt(3.W))).suggestName("MEM_OP")
-  val mem_width    = IO(Output(UInt(2.W))).suggestName("MEM_WIDTH")
-  val mem_sign_ext = IO(Output(Bool())).suggestName("MEM_SIGN_EXT")
+  val alu_src    = IO(Output(Bool())).suggestName("ALU_SRC")
 
   val branch_op = IO(Output(UInt(3.W))).suggestName("BRANCH_OP")
 
+  val mem_op       = IO(Output(UInt(3.W))).suggestName("MEM_OP")
+  val mem_read     = IO(Output(Bool())).suggestName("MEM_READ")
+  val mem_write    = IO(Output(Bool())).suggestName("MEM_WRITE")
+  val mem_width    = IO(Output(UInt(2.W))).suggestName("MEM_WIDTH")
+  val mem_sign_ext = IO(Output(Bool())).suggestName("MEM_SIGN_EXT")
+
   val reg_write = IO(Output(Bool())).suggestName("REG_WRITE")
-  val mem_read  = IO(Output(Bool())).suggestName("MEM_READ")
-  val mem_write = IO(Output(Bool())).suggestName("MEM_WRITE")
-  val alu_src   = IO(Output(Bool())).suggestName("ALU_SRC")
   val pc_src    = IO(Output(Bool())).suggestName("PC_SRC")
 
   // Decode instruction segments
@@ -95,7 +94,6 @@ class RV32Decoder extends Module {
   is_lui    := opcode_decoder.is_lui
   is_auipc  := opcode_decoder.is_auipc
   is_system := opcode_decoder.is_system
-  is_fence  := opcode_decoder.is_fence
 
   // funct3 decoder
   funct3_decoder.opcode := opcode
