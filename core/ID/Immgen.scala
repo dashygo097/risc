@@ -39,13 +39,11 @@ class RV32ImmGen extends Module {
     0.U,
     Seq(
       (opcode === OpCode.LOAD)     -> imm_i,
-      (opcode === OpCode.LOAD_FP)  -> imm_i,
       (opcode === OpCode.MISC_MEM) -> imm_i,
       (opcode === OpCode.OP_IMM)   -> imm_i,
       (opcode === OpCode.JALR)     -> imm_i,
       (opcode === OpCode.SYSTEM)   -> imm_i,
       (opcode === OpCode.STORE)    -> imm_s,
-      (opcode === OpCode.STORE_FP) -> imm_s,
       (opcode === OpCode.BRANCH)   -> imm_b,
       (opcode === OpCode.LUI)      -> imm_u,
       (opcode === OpCode.AUIPC)    -> imm_u,
