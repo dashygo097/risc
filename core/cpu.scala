@@ -237,27 +237,21 @@ class RV32CPU extends Module {
   ex_mem.EX_IMM        := id_ex.EX_IMM
 
   // MEM Stage
-  val mem_opcode     = ex_mem.MEM_OPCODE
-  val mem_funct3     = ex_mem.MEM_FUNCT3
-  val mem_alu_result = ex_mem.MEM_ALU_RESULT
-  val mem_rs2_data   = ex_mem.MEM_RS2_DATA
-  val mem_inst       = ex_mem.MEM_INST
-
   DMEM_READ_EN  := ex_mem.MEM_MEM_READ
   DMEM_WRITE_EN := ex_mem.MEM_MEM_WRITE
-  DMEM_ADDR     := mem_alu_result
+  DMEM_ADDR     := ex_mem.MEM_ALU_RESULT
 
-  val mem_byte_addr          = mem_alu_result(1, 0)
-  val mem_aligned_write_data = MuxLookup(mem_funct3, mem_rs2_data)(
+  val mem_byte_addr          = ex_mem.MEM_ALU_RESULT(1, 0)
+  val mem_aligned_write_data = MuxLookup(ex_mem.MEM_FUNCT3, ex_mem.MEM_RS2_DATA)(
     Seq(
-      StoreOp.SB -> (mem_rs2_data << (mem_byte_addr << 3)),
-      StoreOp.SH -> (mem_rs2_data << (mem_byte_addr(1) << 4)),
-      StoreOp.SW -> mem_rs2_data
+      StoreOp.SB -> (ex_mem.MEM_RS2_DATA << (mem_byte_addr << 3)),
+      StoreOp.SH -> (ex_mem.MEM_RS2_DATA << (mem_byte_addr(1) << 4)),
+      StoreOp.SW -> ex_mem.MEM_RS2_DATA
     )
   )
   DMEM_WRITE_DATA := mem_aligned_write_data
 
-  DMEM_WRITE_STRB := MuxLookup(mem_funct3, 0.U)(
+  DMEM_WRITE_STRB := MuxLookup(ex_mem.MEM_FUNCT3, 0.U)(
     Seq(
       StoreOp.SB -> ("b0001".U << mem_byte_addr),
       StoreOp.SH -> ("b0011".U << (mem_byte_addr(1) << 1)),
@@ -266,7 +260,7 @@ class RV32CPU extends Module {
   )
 
   val mem_shifted_read_data = DMEM_READ_DATA >> (mem_byte_addr << 3)
-  val mem_data              = MuxLookup(mem_funct3, 0.U)(
+  val mem_data              = MuxLookup(ex_mem.MEM_FUNCT3, 0.U)(
     Seq(
       LoadOp.LB  -> Cat(Fill(24, mem_shifted_read_data(7)), mem_shifted_read_data(7, 0)),
       LoadOp.LH  -> Cat(Fill(16, mem_shifted_read_data(15)), mem_shifted_read_data(15, 0)),
@@ -277,12 +271,12 @@ class RV32CPU extends Module {
   )
 
   val mem_wb_data = MuxCase(
-    mem_alu_result,
+    ex_mem.MEM_ALU_RESULT,
     Seq(
-      (mem_opcode === "b0000011".U) -> mem_data,              // Load
-      (mem_opcode === "b0110111".U) -> ex_mem.MEM_IMM,        // LUI
-      (mem_opcode === "b1101111".U) -> (ex_mem.MEM_PC + 4.U), // JAL
-      (mem_opcode === "b1100111".U) -> (ex_mem.MEM_PC + 4.U)  // JALR
+      (ex_mem.MEM_OPCODE === "b0000011".U) -> mem_data,              // Load
+      (ex_mem.MEM_OPCODE === "b0110111".U) -> ex_mem.MEM_IMM,        // LUI
+      (ex_mem.MEM_OPCODE === "b1101111".U) -> (ex_mem.MEM_PC + 4.U), // JAL
+      (ex_mem.MEM_OPCODE === "b1100111".U) -> (ex_mem.MEM_PC + 4.U)  // JALR
     )
   )
 
@@ -293,8 +287,8 @@ class RV32CPU extends Module {
   mem_wb.MEM_WB_DATA   := mem_wb_data
   mem_wb.MEM_RD        := ex_mem.MEM_RD
   mem_wb.MEM_PC        := ex_mem.MEM_PC
-  mem_wb.MEM_OPCODE    := mem_opcode
-  mem_wb.MEM_INST      := mem_inst
+  mem_wb.MEM_OPCODE    := ex_mem.MEM_OPCODE
+  mem_wb.MEM_INST      := ex_mem.MEM_INST
 
   // WB Stage
   regfile.write_addr := mem_wb.WB_RD
