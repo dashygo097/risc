@@ -273,10 +273,10 @@ class RV32CPU extends Module {
   val mem_wb_data = MuxCase(
     ex_mem.MEM_ALU_RESULT,
     Seq(
-      ex_mem.MEM_IS_LOAD -> mem_data,              // Load
-      ex_mem.MEM_IS_LUI  -> ex_mem.MEM_IMM,        // LUI
-      ex_mem.MEM_IS_JAL  -> (ex_mem.MEM_PC + 4.U), // JAL
-      ex_mem.MEM_IS_JALR -> (ex_mem.MEM_PC + 4.U)  // JALR
+      ex_mem.MEM_IS_LOAD -> mem_data,
+      ex_mem.MEM_IS_LUI  -> ex_mem.MEM_IMM,
+      ex_mem.MEM_IS_JAL  -> (ex_mem.MEM_PC + 4.U),
+      ex_mem.MEM_IS_JALR -> (ex_mem.MEM_PC + 4.U)
     )
   )
 

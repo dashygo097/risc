@@ -32,8 +32,6 @@ class RV32OpCodeDecoder extends Module {
   val reg_write = IO(Output(Bool())).suggestName("REG_WRITE")
   val mem_read  = IO(Output(Bool())).suggestName("MEM_READ")
   val mem_write = IO(Output(Bool())).suggestName("MEM_WRITE")
-  val alu_src   = IO(Output(Bool())).suggestName("ALU_SRC") // 0: rs2, 1: imm
-  val pc_src    = IO(Output(Bool())).suggestName("PC_SRC")  // 0: PC+4, 1: branch/jump
 
   is_r_type := opcode === OpCode.OP
   is_i_type := (opcode === OpCode.OP_IMM) ||
@@ -61,8 +59,4 @@ class RV32OpCodeDecoder extends Module {
 
   mem_read  := is_load
   mem_write := is_store
-
-  alu_src := is_i_type || is_s_type || is_u_type
-
-  pc_src := is_branch || is_jal || is_jalr
 }
