@@ -28,12 +28,12 @@ class RV32CPU extends Module {
   val DEBUG_REG_DATA = IO(Output(UInt(32.W)))
 
   // Modules
-  val alu                 = Module(new RV32ALU)
-  val decoder             = Module(new RV32Decoder)
-  val imm_gen             = Module(new RV32ImmGen)
-  val regfile             = Module(new RV32RegFile)
-  val id_forwarding_unit  = Module(new RV32IDForwardingUnit)
-  val exe_forwarding_unit = Module(new RV32EXForwardingUnit)
+  val alu         = Module(new RV32ALU)
+  val decoder     = Module(new RV32Decoder)
+  val imm_gen     = Module(new RV32ImmGen)
+  val regfile     = Module(new RV32RegFile)
+  val id_fwd_unit = Module(new RV32IDForwardingUnit)
+  val ex_fwd_unit = Module(new RV32EXForwardingUnit)
 
   // Pipeline
   val if_id  = Module(new IF_ID)
@@ -69,16 +69,16 @@ class RV32CPU extends Module {
   regfile.rs2_addr := decoder.rs2
 
   // Data forwarding
-  id_forwarding_unit.id_rs1        := decoder.rs1
-  id_forwarding_unit.id_rs2        := decoder.rs2
-  id_forwarding_unit.ex_rd         := id_ex.EX_RD
-  id_forwarding_unit.ex_reg_write  := id_ex.EX_REG_WRITE
-  id_forwarding_unit.mem_rd        := ex_mem.MEM_RD
-  id_forwarding_unit.mem_reg_write := ex_mem.MEM_REG_WRITE
-  id_forwarding_unit.wb_rd         := mem_wb.WB_RD
-  id_forwarding_unit.wb_reg_write  := mem_wb.WB_REG_WRITE
+  id_fwd_unit.id_rs1        := decoder.rs1
+  id_fwd_unit.id_rs2        := decoder.rs2
+  id_fwd_unit.ex_rd         := id_ex.EX_RD
+  id_fwd_unit.ex_reg_write  := id_ex.EX_REG_WRITE
+  id_fwd_unit.mem_rd        := ex_mem.MEM_RD
+  id_fwd_unit.mem_reg_write := ex_mem.MEM_REG_WRITE
+  id_fwd_unit.wb_rd         := mem_wb.WB_RD
+  id_fwd_unit.wb_reg_write  := mem_wb.WB_REG_WRITE
 
-  val id_rs1_data = MuxLookup(id_forwarding_unit.forward_rs1, 0.U(32.W))(
+  val id_rs1_data = MuxLookup(id_fwd_unit.forward_rs1, 0.U(32.W))(
     Seq(
       ForwardingStage.SAFE -> regfile.rs1_data,
       ForwardingStage.EX   -> alu.result,
@@ -86,7 +86,7 @@ class RV32CPU extends Module {
       ForwardingStage.WB   -> mem_wb.WB_DATA
     )
   )
-  val id_rs2_data = MuxLookup(id_forwarding_unit.forward_rs2, 0.U(32.W))(
+  val id_rs2_data = MuxLookup(id_fwd_unit.forward_rs2, 0.U(32.W))(
     Seq(
       ForwardingStage.SAFE -> regfile.rs2_data,
       ForwardingStage.EX   -> alu.result,
@@ -166,14 +166,14 @@ class RV32CPU extends Module {
   // EX Stage
 
   // Data forwarding
-  exe_forwarding_unit.ex_rs1        := id_ex.EX_RS1
-  exe_forwarding_unit.ex_rs2        := id_ex.EX_RS2
-  exe_forwarding_unit.mem_rd        := ex_mem.MEM_RD
-  exe_forwarding_unit.mem_reg_write := ex_mem.MEM_REG_WRITE
-  exe_forwarding_unit.wb_rd         := mem_wb.WB_RD
-  exe_forwarding_unit.wb_reg_write  := mem_wb.WB_REG_WRITE
+  ex_fwd_unit.ex_rs1        := id_ex.EX_RS1
+  ex_fwd_unit.ex_rs2        := id_ex.EX_RS2
+  ex_fwd_unit.mem_rd        := ex_mem.MEM_RD
+  ex_fwd_unit.mem_reg_write := ex_mem.MEM_REG_WRITE
+  ex_fwd_unit.wb_rd         := mem_wb.WB_RD
+  ex_fwd_unit.wb_reg_write  := mem_wb.WB_REG_WRITE
 
-  val ex_rs1_data = MuxLookup(exe_forwarding_unit.forward_rs1, 0.U(32.W))(
+  val ex_rs1_data = MuxLookup(ex_fwd_unit.forward_rs1, 0.U(32.W))(
     Seq(
       ForwardingStage.SAFE -> id_ex.EX_RS1_DATA,
       ForwardingStage.MEM  -> ex_mem.MEM_ALU_RESULT,
@@ -181,7 +181,7 @@ class RV32CPU extends Module {
     )
   )
 
-  val ex_rs2_data = MuxLookup(exe_forwarding_unit.forward_rs2, 0.U(32.W))(
+  val ex_rs2_data = MuxLookup(ex_fwd_unit.forward_rs2, 0.U(32.W))(
     Seq(
       ForwardingStage.SAFE -> id_ex.EX_RS2_DATA,
       ForwardingStage.MEM  -> ex_mem.MEM_ALU_RESULT,
