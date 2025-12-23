@@ -22,6 +22,7 @@ class RV32IDForwardingUnit extends Module {
   forward_rs1 := MuxCase(
     ForwardingStage.SAFE,
     Seq(
+      (ex_reg_write && (ex_rd =/= 0.U) && (ex_rd === id_rs1))    -> ForwardingStage.EX,
       (mem_reg_write && (mem_rd =/= 0.U) && (mem_rd === id_rs1)) -> ForwardingStage.MEM,
       (wb_reg_write && (wb_rd =/= 0.U) && (wb_rd === id_rs1))    -> ForwardingStage.WB
     )
@@ -30,6 +31,7 @@ class RV32IDForwardingUnit extends Module {
   forward_rs2 := MuxCase(
     ForwardingStage.SAFE,
     Seq(
+      (ex_reg_write && (ex_rd =/= 0.U) && (ex_rd === id_rs2))    -> ForwardingStage.EX,
       (mem_reg_write && (mem_rd =/= 0.U) && (mem_rd === id_rs2)) -> ForwardingStage.MEM,
       (wb_reg_write && (wb_rd =/= 0.U) && (wb_rd === id_rs2))    -> ForwardingStage.WB
     )

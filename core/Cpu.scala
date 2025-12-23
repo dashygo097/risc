@@ -82,6 +82,7 @@ class RV32CPU extends Module {
   val id_rs1_data = MuxLookup(id_forwarding_unit.forward_rs1, 0.U(32.W))(
     Seq(
       ForwardingStage.SAFE -> regfile.rs1_data,
+      ForwardingStage.EX   -> alu.result,
       ForwardingStage.MEM  -> ex_mem.MEM_ALU_RESULT,
       ForwardingStage.WB   -> mem_wb.WB_DATA
     )
@@ -89,6 +90,7 @@ class RV32CPU extends Module {
   val id_rs2_data = MuxLookup(id_forwarding_unit.forward_rs2, 0.U(32.W))(
     Seq(
       ForwardingStage.SAFE -> regfile.rs2_data,
+      ForwardingStage.EX   -> alu.result,
       ForwardingStage.MEM  -> ex_mem.MEM_ALU_RESULT,
       ForwardingStage.WB   -> mem_wb.WB_DATA
     )
@@ -102,13 +104,13 @@ class RV32CPU extends Module {
     id_ex.EX_MEM_READ &&
     ((id_ex.EX_RD === decoder.rs1) || (id_ex.EX_RD === decoder.rs2)) &&
     (id_ex.EX_RD =/= 0.U)
-  val branch_ex_hazard   = (decoder.is_branch || decoder.is_jalr) &&
-    id_ex.EX_REG_WRITE &&
-    !id_ex.EX_MEM_READ &&
-    ((id_ex.EX_RD === decoder.rs1) || (decoder.is_branch && id_ex.EX_RD === decoder.rs2)) &&
-    (id_ex.EX_RD =/= 0.U)
+  // val branch_ex_hazard   = (decoder.is_branch || decoder.is_jalr) &&
+  //   id_ex.EX_REG_WRITE &&
+  //   !id_ex.EX_MEM_READ &&
+  //   ((id_ex.EX_RD === decoder.rs1) || (decoder.is_branch && id_ex.EX_RD === decoder.rs2)) &&
+  //   (id_ex.EX_RD =/= 0.U)
 
-  stall := load_use_hazard || branch_load_hazard || branch_ex_hazard
+  stall := load_use_hazard || branch_load_hazard
 
   // Branch decision
   val id_branch_taken = MuxCase(
