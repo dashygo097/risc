@@ -17,7 +17,7 @@ class RV32EXForwardingUnit extends Module {
   val forward_rs2 = IO(Output(UInt(2.W))).suggestName("FORWARD_RS2")
 
   forward_rs1 := MuxCase(
-    ForwardingStage.NONE,
+    ForwardingStage.SAFE,
     Seq(
       (mem_reg_write && (mem_rd =/= 0.U) && (mem_rd === ex_rs1)) -> ForwardingStage.MEM,
       (wb_reg_write && (wb_rd =/= 0.U) && (wb_rd === ex_rs1))    -> ForwardingStage.WB
@@ -25,7 +25,7 @@ class RV32EXForwardingUnit extends Module {
   )
 
   forward_rs2 := MuxCase(
-    ForwardingStage.NONE,
+    ForwardingStage.SAFE,
     Seq(
       (mem_reg_write && (mem_rd =/= 0.U) && (mem_rd === ex_rs2)) -> ForwardingStage.MEM,
       (wb_reg_write && (wb_rd =/= 0.U) && (wb_rd === ex_rs2))    -> ForwardingStage.WB

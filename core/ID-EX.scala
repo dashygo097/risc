@@ -12,9 +12,12 @@ class ID_EX extends Module {
   val ID_ALU_IS_SUB = IO(Input(Bool()))
   val ID_ALU_IS_SRA = IO(Input(Bool()))
   val ID_MEM_OP     = IO(Input(UInt(3.W)))
-  val ID_REG_WRITE  = IO(Input(Bool()))
-  val ID_MEM_READ   = IO(Input(Bool()))
-  val ID_MEM_WRITE  = IO(Input(Bool()))
+
+  val ID_ALU_RS1_SEL = IO(Input(UInt(2.W)))
+  val ID_ALU_RS2_SEL = IO(Input(UInt(2.W)))
+  val ID_REG_WRITE   = IO(Input(Bool()))
+  val ID_MEM_READ    = IO(Input(Bool()))
+  val ID_MEM_WRITE   = IO(Input(Bool()))
 
   val ID_IS_OP     = IO(Input(Bool()))
   val ID_IS_OP_IMM = IO(Input(Bool()))
@@ -44,9 +47,12 @@ class ID_EX extends Module {
   val EX_ALU_IS_SUB = IO(Output(Bool()))
   val EX_ALU_IS_SRA = IO(Output(Bool()))
   val EX_MEM_OP     = IO(Output(UInt(3.W)))
-  val EX_REG_WRITE  = IO(Output(Bool()))
-  val EX_MEM_READ   = IO(Output(Bool()))
-  val EX_MEM_WRITE  = IO(Output(Bool()))
+
+  val EX_ALU_RS1_SEL = IO(Output(UInt(2.W)))
+  val EX_ALU_RS2_SEL = IO(Output(UInt(2.W)))
+  val EX_REG_WRITE   = IO(Output(Bool()))
+  val EX_MEM_READ    = IO(Output(Bool()))
+  val EX_MEM_WRITE   = IO(Output(Bool()))
 
   val EX_IS_OP     = IO(Output(Bool()))
   val EX_IS_OP_IMM = IO(Output(Bool()))
@@ -75,9 +81,12 @@ class ID_EX extends Module {
   val alu_is_sub_reg = RegInit(false.B)
   val alu_is_sra_reg = RegInit(false.B)
   val mem_op_reg     = RegInit(0.U(3.W))
-  val reg_write_reg  = RegInit(false.B)
-  val mem_read_reg   = RegInit(false.B)
-  val mem_write_reg  = RegInit(false.B)
+
+  val alu_rs1_sel_reg = RegInit(0.U(2.W))
+  val alu_rs2_sel_reg = RegInit(0.U(2.W))
+  val reg_write_reg   = RegInit(false.B)
+  val mem_read_reg    = RegInit(false.B)
+  val mem_write_reg   = RegInit(false.B)
 
   val is_op_reg     = RegInit(false.B)
   val is_op_imm_reg = RegInit(false.B)
@@ -106,9 +115,12 @@ class ID_EX extends Module {
     alu_is_sub_reg := false.B
     alu_is_sra_reg := false.B
     mem_op_reg     := 0.U
-    reg_write_reg  := false.B
-    mem_read_reg   := false.B
-    mem_write_reg  := false.B
+
+    alu_rs1_sel_reg := 0.U
+    alu_rs2_sel_reg := 0.U
+    reg_write_reg   := false.B
+    mem_read_reg    := false.B
+    mem_write_reg   := false.B
 
     is_op_reg     := false.B
     is_op_imm_reg := false.B
@@ -137,9 +149,12 @@ class ID_EX extends Module {
     alu_is_sub_reg := ID_ALU_IS_SUB
     alu_is_sra_reg := ID_ALU_IS_SRA
     mem_op_reg     := ID_MEM_OP
-    reg_write_reg  := ID_REG_WRITE
-    mem_read_reg   := ID_MEM_READ
-    mem_write_reg  := ID_MEM_WRITE
+
+    alu_rs1_sel_reg := ID_ALU_RS1_SEL
+    alu_rs2_sel_reg := ID_ALU_RS2_SEL
+    reg_write_reg   := ID_REG_WRITE
+    mem_read_reg    := ID_MEM_READ
+    mem_write_reg   := ID_MEM_WRITE
 
     is_op_reg     := ID_IS_OP
     is_op_imm_reg := ID_IS_OP_IMM
@@ -168,9 +183,12 @@ class ID_EX extends Module {
   EX_ALU_IS_SUB := alu_is_sub_reg
   EX_ALU_IS_SRA := alu_is_sra_reg
   EX_MEM_OP     := mem_op_reg
-  EX_REG_WRITE  := reg_write_reg
-  EX_MEM_READ   := mem_read_reg
-  EX_MEM_WRITE  := mem_write_reg
+
+  EX_ALU_RS1_SEL := alu_rs1_sel_reg
+  EX_ALU_RS2_SEL := alu_rs2_sel_reg
+  EX_REG_WRITE   := reg_write_reg
+  EX_MEM_READ    := mem_read_reg
+  EX_MEM_WRITE   := mem_write_reg
 
   EX_IS_OP     := is_op_reg
   EX_IS_OP_IMM := is_op_imm_reg

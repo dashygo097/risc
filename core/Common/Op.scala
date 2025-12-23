@@ -2,7 +2,7 @@ package core.common
 
 import chisel3._
 
-object OpCode {
+object OpCode extends ChiselEnum {
   val LOAD     = "b0000011".U(7.W)
   val MISC_MEM = "b0001111".U(7.W)
   val OP_IMM   = "b0010011".U(7.W)

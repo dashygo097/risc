@@ -2,6 +2,7 @@ package core.id
 
 import core.common._
 import chisel3._
+import chisel3.util._
 
 class RV32OpCodeDecoder extends Module {
   override def desiredName: String = "rv32_opcode_decoder"
@@ -29,9 +30,12 @@ class RV32OpCodeDecoder extends Module {
   val is_system = IO(Output(Bool())).suggestName("IS_SYSTEM")
 
   // control signals
-  val reg_write = IO(Output(Bool())).suggestName("REG_WRITE")
-  val mem_read  = IO(Output(Bool())).suggestName("MEM_READ")
-  val mem_write = IO(Output(Bool())).suggestName("MEM_WRITE")
+  val reg_write   = IO(Output(Bool())).suggestName("REG_WRITE")
+  val mem_read    = IO(Output(Bool())).suggestName("MEM_READ")
+  val mem_write   = IO(Output(Bool())).suggestName("MEM_WRITE")
+  val alu_rs1_sel = IO(Output(UInt(2.W))).suggestName("ALU_RS1_SEL") // [0]: 0: 0, [1]: rs1, [2]: PC
+  val alu_rs2_sel =
+    IO(Output(UInt(2.W))).suggestName("ALU_RS2_SEL") // [0]: 0, [1]: rs2, [2]: imm, [3]: 4
 
   is_r_type := opcode === OpCode.OP
   is_i_type := (opcode === OpCode.OP_IMM) ||
@@ -59,4 +63,33 @@ class RV32OpCodeDecoder extends Module {
 
   mem_read  := is_load
   mem_write := is_store
+
+  alu_rs1_sel := MuxLookup(opcode, 0.U(2.W))(
+    Seq(
+      OpCode.LUI    -> 0.U, // 0
+      OpCode.OP     -> 1.U, // rs1
+      OpCode.OP_IMM -> 1.U, // rs1
+      OpCode.LOAD   -> 1.U, // rs1
+      OpCode.STORE  -> 1.U, // rs1
+      OpCode.BRANCH -> 1.U, // rs1
+      OpCode.JALR   -> 1.U, // rs1
+      OpCode.AUIPC  -> 2.U, // PC
+      OpCode.JAL    -> 2.U, // PC
+    )
+  )
+
+  alu_rs2_sel := MuxLookup(opcode, 0.U(2.W))(
+    Seq(
+      OpCode.OP     -> 1.U, // rs2
+      OpCode.OP_IMM -> 2.U, // imm
+      OpCode.LOAD   -> 2.U, // imm
+      OpCode.STORE  -> 2.U, // imm
+      OpCode.BRANCH -> 2.U, // imm
+      OpCode.LUI    -> 2.U, // imm
+      OpCode.AUIPC  -> 2.U, // imm
+      OpCode.JAL    -> 3.U, // 4
+      OpCode.JALR   -> 3.U  // 4
+    )
+  )
+
 }

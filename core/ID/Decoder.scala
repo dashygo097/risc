@@ -37,9 +37,11 @@ class RV32Decoder extends Module {
   val is_auipc  = IO(Output(Bool())).suggestName("IS_AUIPC")
   val is_system = IO(Output(Bool())).suggestName("IS_SYSTEM")
 
-  val reg_write = IO(Output(Bool())).suggestName("REG_WRITE")
-  val mem_read  = IO(Output(Bool())).suggestName("MEM_READ")
-  val mem_write = IO(Output(Bool())).suggestName("MEM_WRITE")
+  val alu_rs1_sel = IO(Output(UInt(2.W))).suggestName("ALU_RS1_SEL")
+  val alu_rs2_sel = IO(Output(UInt(2.W))).suggestName("ALU_RS2_SEL")
+  val reg_write   = IO(Output(Bool())).suggestName("REG_WRITE")
+  val mem_read    = IO(Output(Bool())).suggestName("MEM_READ")
+  val mem_write   = IO(Output(Bool())).suggestName("MEM_WRITE")
 
   // funct3
   val alu_op    = IO(Output(UInt(3.W))).suggestName("ALU_OP")
@@ -82,9 +84,11 @@ class RV32Decoder extends Module {
   is_auipc  := opcode_decoder.is_auipc
   is_system := opcode_decoder.is_system
 
-  reg_write := opcode_decoder.reg_write
-  mem_read  := opcode_decoder.mem_read
-  mem_write := opcode_decoder.mem_write
+  alu_rs1_sel := opcode_decoder.alu_rs1_sel
+  alu_rs2_sel := opcode_decoder.alu_rs2_sel
+  reg_write   := opcode_decoder.reg_write
+  mem_read    := opcode_decoder.mem_read
+  mem_write   := opcode_decoder.mem_write
 
   // funct3 decoder
   alu_op    := MuxCase(
