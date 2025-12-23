@@ -28,12 +28,13 @@ class RV32CPU extends Module {
   val DEBUG_REG_DATA = IO(Output(UInt(32.W)))
 
   // Modules
-  val alu         = Module(new RV32ALU)
   val decoder     = Module(new RV32Decoder)
   val imm_gen     = Module(new RV32ImmGen)
   val regfile     = Module(new RV32RegFile)
   val id_fwd_unit = Module(new RV32IDForwardingUnit)
   val ex_fwd_unit = Module(new RV32EXForwardingUnit)
+  val alu         = Module(new RV32ALU)
+  // val lsu         = Module(new RV32LSU)
 
   // Pipeline
   val if_id  = Module(new IF_ID)
