@@ -9,10 +9,15 @@ class EX_MEM extends Module {
   val FLUSH = IO(Input(Bool()))
 
   // Control signals
-  val EX_MEM_CTRL  = IO(Input(UInt(3.W)))
+  val EX_MEM_OP    = IO(Input(UInt(3.W)))
   val EX_REG_WRITE = IO(Input(Bool()))
   val EX_MEM_READ  = IO(Input(Bool()))
   val EX_MEM_WRITE = IO(Input(Bool()))
+
+  val EX_IS_LOAD = IO(Input(Bool()))
+  val EX_IS_LUI  = IO(Input(Bool()))
+  val EX_IS_JAL  = IO(Input(Bool()))
+  val EX_IS_JALR = IO(Input(Bool()))
 
   // Data
   val EX_ALU_RESULT = IO(Input(UInt(32.W)))
@@ -25,10 +30,16 @@ class EX_MEM extends Module {
   val EX_IMM        = IO(Input(UInt(32.W)))
 
   // Outputs to MEM stage
-  val MEM_MEM_CTRL   = IO(Output(UInt(3.W)))
-  val MEM_REG_WRITE  = IO(Output(Bool()))
-  val MEM_MEM_READ   = IO(Output(Bool()))
-  val MEM_MEM_WRITE  = IO(Output(Bool()))
+  val MEM_MEM_OP    = IO(Output(UInt(3.W)))
+  val MEM_REG_WRITE = IO(Output(Bool()))
+  val MEM_MEM_READ  = IO(Output(Bool()))
+  val MEM_MEM_WRITE = IO(Output(Bool()))
+
+  val MEM_IS_LOAD = IO(Output(Bool()))
+  val MEM_IS_LUI  = IO(Output(Bool()))
+  val MEM_IS_JAL  = IO(Output(Bool()))
+  val MEM_IS_JALR = IO(Output(Bool()))
+
   val MEM_ALU_RESULT = IO(Output(UInt(32.W)))
   val MEM_RS2_DATA   = IO(Output(UInt(32.W)))
   val MEM_RD         = IO(Output(UInt(5.W)))
@@ -39,10 +50,16 @@ class EX_MEM extends Module {
   val MEM_IMM        = IO(Output(UInt(32.W)))
 
   // Registers
-  val mem_ctrl_reg   = RegInit(0.U(3.W))
-  val reg_write_reg  = RegInit(false.B)
-  val mem_read_reg   = RegInit(false.B)
-  val mem_write_reg  = RegInit(false.B)
+  val mem_op_reg    = RegInit(0.U(3.W))
+  val reg_write_reg = RegInit(false.B)
+  val mem_read_reg  = RegInit(false.B)
+  val mem_write_reg = RegInit(false.B)
+
+  val is_load_reg = RegInit(false.B)
+  val is_lui_reg  = RegInit(false.B)
+  val is_jal_reg  = RegInit(false.B)
+  val is_jalr_reg = RegInit(false.B)
+
   val alu_result_reg = RegInit(0.U(32.W))
   val rs2_data_reg   = RegInit(0.U(32.W))
   val rd_reg         = RegInit(0.U(5.W))
@@ -53,10 +70,16 @@ class EX_MEM extends Module {
   val imm_reg        = RegInit(0.U(32.W))
 
   when(FLUSH) {
-    mem_ctrl_reg   := 0.U
-    reg_write_reg  := false.B
-    mem_read_reg   := false.B
-    mem_write_reg  := false.B
+    mem_op_reg    := 0.U
+    reg_write_reg := false.B
+    mem_read_reg  := false.B
+    mem_write_reg := false.B
+
+    is_load_reg := false.B
+    is_lui_reg  := false.B
+    is_jal_reg  := false.B
+    is_jalr_reg := false.B
+
     alu_result_reg := 0.U
     rs2_data_reg   := 0.U
     rd_reg         := 0.U
@@ -66,10 +89,16 @@ class EX_MEM extends Module {
     inst_reg       := 0.U
     imm_reg        := 0.U
   }.elsewhen(!STALL) {
-    mem_ctrl_reg   := EX_MEM_CTRL
-    reg_write_reg  := EX_REG_WRITE
-    mem_read_reg   := EX_MEM_READ
-    mem_write_reg  := EX_MEM_WRITE
+    mem_op_reg    := EX_MEM_OP
+    reg_write_reg := EX_REG_WRITE
+    mem_read_reg  := EX_MEM_READ
+    mem_write_reg := EX_MEM_WRITE
+
+    is_load_reg := EX_IS_LOAD
+    is_lui_reg  := EX_IS_LUI
+    is_jal_reg  := EX_IS_JAL
+    is_jalr_reg := EX_IS_JALR
+
     alu_result_reg := EX_ALU_RESULT
     rs2_data_reg   := EX_RS2_DATA
     rd_reg         := EX_RD
@@ -80,10 +109,16 @@ class EX_MEM extends Module {
     imm_reg        := EX_IMM
   }
 
-  MEM_MEM_CTRL   := mem_ctrl_reg
-  MEM_REG_WRITE  := reg_write_reg
-  MEM_MEM_READ   := mem_read_reg
-  MEM_MEM_WRITE  := mem_write_reg
+  MEM_MEM_OP    := mem_op_reg
+  MEM_REG_WRITE := reg_write_reg
+  MEM_MEM_READ  := mem_read_reg
+  MEM_MEM_WRITE := mem_write_reg
+
+  MEM_IS_LOAD := is_load_reg
+  MEM_IS_LUI  := is_lui_reg
+  MEM_IS_JAL  := is_jal_reg
+  MEM_IS_JALR := is_jalr_reg
+
   MEM_ALU_RESULT := alu_result_reg
   MEM_RS2_DATA   := rs2_data_reg
   MEM_RD         := rd_reg

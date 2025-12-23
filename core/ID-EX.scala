@@ -16,17 +16,16 @@ class ID_EX extends Module {
   val ID_MEM_READ   = IO(Input(Bool()))
   val ID_MEM_WRITE  = IO(Input(Bool()))
 
-  val ID_IS_ALU     = IO(Input(Bool()))
-  val ID_IS_ALU_IMM = IO(Input(Bool()))
-  val ID_IS_LOAD    = IO(Input(Bool()))
-  val ID_IS_STORE   = IO(Input(Bool()))
-  val ID_IS_BRANCH  = IO(Input(Bool()))
-  val ID_IS_JAL     = IO(Input(Bool()))
-  val ID_IS_JALR    = IO(Input(Bool()))
-  val ID_IS_LUI     = IO(Input(Bool()))
-  val ID_IS_AUIPC   = IO(Input(Bool()))
-  val ID_IS_SYSTEM  = IO(Input(Bool()))
-  val ID_IS_FENCE   = IO(Input(Bool()))
+  val ID_IS_OP     = IO(Input(Bool()))
+  val ID_IS_OP_IMM = IO(Input(Bool()))
+  val ID_IS_LOAD   = IO(Input(Bool()))
+  val ID_IS_STORE  = IO(Input(Bool()))
+  val ID_IS_BRANCH = IO(Input(Bool()))
+  val ID_IS_JAL    = IO(Input(Bool()))
+  val ID_IS_JALR   = IO(Input(Bool()))
+  val ID_IS_LUI    = IO(Input(Bool()))
+  val ID_IS_AUIPC  = IO(Input(Bool()))
+  val ID_IS_SYSTEM = IO(Input(Bool()))
 
   // Data
   val ID_PC       = IO(Input(UInt(32.W)))
@@ -49,17 +48,16 @@ class ID_EX extends Module {
   val EX_MEM_READ   = IO(Output(Bool()))
   val EX_MEM_WRITE  = IO(Output(Bool()))
 
-  val EX_IS_ALU     = IO(Output(Bool()))
-  val EX_IS_ALU_IMM = IO(Output(Bool()))
-  val EX_IS_LOAD    = IO(Output(Bool()))
-  val EX_IS_STORE   = IO(Output(Bool()))
-  val EX_IS_BRANCH  = IO(Output(Bool()))
-  val EX_IS_JAL     = IO(Output(Bool()))
-  val EX_IS_JALR    = IO(Output(Bool()))
-  val EX_IS_LUI     = IO(Output(Bool()))
-  val EX_IS_AUIPC   = IO(Output(Bool()))
-  val EX_IS_SYSTEM  = IO(Output(Bool()))
-  val EX_IS_FENCE   = IO(Output(Bool()))
+  val EX_IS_OP     = IO(Output(Bool()))
+  val EX_IS_OP_IMM = IO(Output(Bool()))
+  val EX_IS_LOAD   = IO(Output(Bool()))
+  val EX_IS_STORE  = IO(Output(Bool()))
+  val EX_IS_BRANCH = IO(Output(Bool()))
+  val EX_IS_JAL    = IO(Output(Bool()))
+  val EX_IS_JALR   = IO(Output(Bool()))
+  val EX_IS_LUI    = IO(Output(Bool()))
+  val EX_IS_AUIPC  = IO(Output(Bool()))
+  val EX_IS_SYSTEM = IO(Output(Bool()))
 
   val EX_PC       = IO(Output(UInt(32.W)))
   val EX_INST     = IO(Output(UInt(32.W)))
@@ -81,17 +79,16 @@ class ID_EX extends Module {
   val mem_read_reg   = RegInit(false.B)
   val mem_write_reg  = RegInit(false.B)
 
-  val is_alu_reg     = RegInit(false.B)
-  val is_alu_imm_reg = RegInit(false.B)
-  val is_load_reg    = RegInit(false.B)
-  val is_store_reg   = RegInit(false.B)
-  val is_branch_reg  = RegInit(false.B)
-  val is_jal_reg     = RegInit(false.B)
-  val is_jalr_reg    = RegInit(false.B)
-  val is_lui_reg     = RegInit(false.B)
-  val is_auipc_reg   = RegInit(false.B)
-  val is_system_reg  = RegInit(false.B)
-  val is_fence_reg   = RegInit(false.B)
+  val is_op_reg     = RegInit(false.B)
+  val is_op_imm_reg = RegInit(false.B)
+  val is_load_reg   = RegInit(false.B)
+  val is_store_reg  = RegInit(false.B)
+  val is_branch_reg = RegInit(false.B)
+  val is_jal_reg    = RegInit(false.B)
+  val is_jalr_reg   = RegInit(false.B)
+  val is_lui_reg    = RegInit(false.B)
+  val is_auipc_reg  = RegInit(false.B)
+  val is_system_reg = RegInit(false.B)
 
   val pc_reg       = RegInit(0.U(32.W))
   val inst_reg     = RegInit(0.U(32.W))
@@ -113,17 +110,16 @@ class ID_EX extends Module {
     mem_read_reg   := false.B
     mem_write_reg  := false.B
 
-    is_alu_reg     := false.B
-    is_alu_imm_reg := false.B
-    is_load_reg    := false.B
-    is_store_reg   := false.B
-    is_branch_reg  := false.B
-    is_jal_reg     := false.B
-    is_jalr_reg    := false.B
-    is_lui_reg     := false.B
-    is_auipc_reg   := false.B
-    is_system_reg  := false.B
-    is_fence_reg   := false.B
+    is_op_reg     := false.B
+    is_op_imm_reg := false.B
+    is_load_reg   := false.B
+    is_store_reg  := false.B
+    is_branch_reg := false.B
+    is_jal_reg    := false.B
+    is_jalr_reg   := false.B
+    is_lui_reg    := false.B
+    is_auipc_reg  := false.B
+    is_system_reg := false.B
 
     pc_reg       := 0.U
     inst_reg     := 0.U
@@ -145,17 +141,16 @@ class ID_EX extends Module {
     mem_read_reg   := ID_MEM_READ
     mem_write_reg  := ID_MEM_WRITE
 
-    is_alu_reg     := ID_IS_ALU
-    is_alu_imm_reg := ID_IS_ALU_IMM
-    is_load_reg    := ID_IS_LOAD
-    is_store_reg   := ID_IS_STORE
-    is_branch_reg  := ID_IS_BRANCH
-    is_jal_reg     := ID_IS_JAL
-    is_jalr_reg    := ID_IS_JALR
-    is_lui_reg     := ID_IS_LUI
-    is_auipc_reg   := ID_IS_AUIPC
-    is_system_reg  := ID_IS_SYSTEM
-    is_fence_reg   := ID_IS_FENCE
+    is_op_reg     := ID_IS_OP
+    is_op_imm_reg := ID_IS_OP_IMM
+    is_load_reg   := ID_IS_LOAD
+    is_store_reg  := ID_IS_STORE
+    is_branch_reg := ID_IS_BRANCH
+    is_jal_reg    := ID_IS_JAL
+    is_jalr_reg   := ID_IS_JALR
+    is_lui_reg    := ID_IS_LUI
+    is_auipc_reg  := ID_IS_AUIPC
+    is_system_reg := ID_IS_SYSTEM
 
     pc_reg       := ID_PC
     inst_reg     := ID_INST
@@ -177,17 +172,16 @@ class ID_EX extends Module {
   EX_MEM_READ   := mem_read_reg
   EX_MEM_WRITE  := mem_write_reg
 
-  EX_IS_ALU     := is_alu_reg
-  EX_IS_ALU_IMM := is_alu_imm_reg
-  EX_IS_LOAD    := is_load_reg
-  EX_IS_STORE   := is_store_reg
-  EX_IS_BRANCH  := is_branch_reg
-  EX_IS_JAL     := is_jal_reg
-  EX_IS_JALR    := is_jalr_reg
-  EX_IS_LUI     := is_lui_reg
-  EX_IS_AUIPC   := is_auipc_reg
-  EX_IS_SYSTEM  := is_system_reg
-  EX_IS_FENCE   := is_fence_reg
+  EX_IS_OP     := is_op_reg
+  EX_IS_OP_IMM := is_op_imm_reg
+  EX_IS_LOAD   := is_load_reg
+  EX_IS_STORE  := is_store_reg
+  EX_IS_BRANCH := is_branch_reg
+  EX_IS_JAL    := is_jal_reg
+  EX_IS_JALR   := is_jalr_reg
+  EX_IS_LUI    := is_lui_reg
+  EX_IS_AUIPC  := is_auipc_reg
+  EX_IS_SYSTEM := is_system_reg
 
   EX_PC       := pc_reg
   EX_INST     := inst_reg

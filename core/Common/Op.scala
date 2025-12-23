@@ -49,3 +49,12 @@ object StoreOp extends ChiselEnum {
   val SH = "b001".U(3.W)
   val SW = "b010".U(3.W)
 }
+
+object CSROp extends ChiselEnum {
+  val CSRRW  = "b001".U(3.W)
+  val CSRRS  = "b010".U(3.W)
+  val CSRRC  = "b011".U(3.W)
+  val CSRRWI = "b101".U(3.W)
+  val CSRRSI = "b110".U(3.W)
+  val CSRRCI = "b111".U(3.W)
+}
