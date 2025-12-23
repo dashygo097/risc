@@ -209,8 +209,8 @@ class RV32CPU extends Module {
   alu.rs1_data   := alu_rs1_data
   alu.rs2_data   := alu_rs2_data
   alu.alu_op     := id_ex.EX_ALU_OP
-  alu.is_alu_sub := id_ex.EX_ALU_IS_SUB
-  alu.is_alu_sra := id_ex.EX_ALU_IS_SRA
+  alu.alu_is_sub := id_ex.EX_ALU_IS_SUB
+  alu.alu_is_sra := id_ex.EX_ALU_IS_SRA
 
   // EX/MEM
   ex_mem.STALL := false.B
@@ -226,7 +226,7 @@ class RV32CPU extends Module {
   ex_mem.EX_IS_JAL  := id_ex.EX_IS_JAL
   ex_mem.EX_IS_JALR := id_ex.EX_IS_JALR
 
-  ex_mem.EX_ALU_RESULT := alu.rd_data
+  ex_mem.EX_ALU_RESULT := alu.result
   ex_mem.EX_RS2_DATA   := ex_rs2_data
   ex_mem.EX_RD         := id_ex.EX_RD
   ex_mem.EX_FUNCT3     := id_ex.EX_FUNCT3
