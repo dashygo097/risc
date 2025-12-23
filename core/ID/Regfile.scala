@@ -1,4 +1,4 @@
-package core.ex
+package core.id
 
 import mem.register._
 import utils._
@@ -18,11 +18,12 @@ class RV32RegFile extends Module {
 
   val dual_port_regfile = Module(
     new DualPortRegFile(
-      32,
-      32,
-      Seq(
+      numRegs = 32,
+      dataWidth = 32,
+      extraInfo = Seq(
         Register("x0", 0x0, 0x0L, writable = false, readable = true),
-      )
+      ),
+      isBypass = true
     )
   )
 

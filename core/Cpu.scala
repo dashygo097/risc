@@ -3,7 +3,6 @@ package core
 import common._
 import id._
 import ex._
-import utils._
 import chisel3._
 import chisel3.util._
 
@@ -316,8 +315,4 @@ class RV32CPU extends Module {
   DEBUG_REG_WE   := mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U)
   DEBUG_REG_ADDR := mem_wb.WB_RD
   DEBUG_REG_DATA := mem_wb.WB_DATA
-}
-
-object RV32CPU extends App {
-  VerilogEmitter.parse(new RV32CPU, "rv32_cpu.sv", info = true, lowering = true)
 }
