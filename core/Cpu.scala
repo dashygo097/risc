@@ -1,6 +1,5 @@
 package core
 
-import com.amba._
 import common._
 import id._
 import ex._
@@ -15,14 +14,12 @@ class RV32CPU extends Module {
   val IMEM_ADDR = IO(Output(UInt(32.W)))
   val IMEM_INST = IO(Input(UInt(32.W)))
 
-  val ext_bus = IO(new AXILiteMasterExternalIO(32, 32)).suggestName("BUS")
-  val bus     = Wire(new AXILiteMasterIO(32, 32))
-  // val DMEM_READ_EN    = IO(Output(Bool()))
-  // val DMEM_WRITE_EN   = IO(Output(Bool()))
-  // val DMEM_ADDR       = IO(Output(UInt(32.W)))
-  // val DMEM_WRITE_DATA = IO(Output(UInt(32.W)))
-  // val DMEM_WRITE_STRB = IO(Output(UInt(4.W)))
-  // val DMEM_READ_DATA  = IO(Input(UInt(32.W)))
+  val DMEM_READ_EN    = IO(Output(Bool()))
+  val DMEM_WRITE_EN   = IO(Output(Bool()))
+  val DMEM_ADDR       = IO(Output(UInt(32.W)))
+  val DMEM_WRITE_DATA = IO(Output(UInt(32.W)))
+  val DMEM_WRITE_STRB = IO(Output(UInt(4.W)))
+  val DMEM_READ_DATA  = IO(Input(UInt(32.W)))
 
   // Debug
   val DEBUG_PC       = IO(Output(UInt(32.W)))
@@ -38,7 +35,7 @@ class RV32CPU extends Module {
   val id_fwd_unit = Module(new RV32IDForwardingUnit)
   val ex_fwd_unit = Module(new RV32EXForwardingUnit)
   val alu         = Module(new RV32ALU)
-  val lsu         = Module(new RV32_AXIL_LSU)
+  val lsu         = Module(new RV32LSU)
 
   // Pipeline
   val if_id  = Module(new IF_ID)
@@ -108,11 +105,6 @@ class RV32CPU extends Module {
     id_ex.EX_MEM_READ &&
     ((id_ex.EX_RD === decoder.rs1) || (id_ex.EX_RD === decoder.rs2)) &&
     (id_ex.EX_RD =/= 0.U)
-  // val branch_ex_hazard   = (decoder.is_branch || decoder.is_jalr) &&
-  //   id_ex.EX_REG_WRITE &&
-  //   !id_ex.EX_MEM_READ &&
-  //   ((id_ex.EX_RD === decoder.rs1) || (decoder.is_branch && id_ex.EX_RD === decoder.rs2)) &&
-  //   (id_ex.EX_RD =/= 0.U)
 
   stall := load_use_hazard || branch_load_hazard
 
@@ -252,38 +244,14 @@ class RV32CPU extends Module {
   lsu.ctrl_ext.IS_STORE := ex_mem.MEM_IS_STORE
   lsu.ctrl_ext.IS_LOAD  := ex_mem.MEM_IS_LOAD
 
-  bus.aw.bits.addr    := lsu.bus_ext.AWADDR
-  bus.aw.bits.prot    := lsu.bus_ext.AWPROT
-  bus.aw.valid        := lsu.bus_ext.AWVALID
-  lsu.bus_ext.AWREADY := bus.aw.ready
+  DMEM_ADDR := lsu.dmem_addr
 
-  bus.w.bits.data    := lsu.bus_ext.WDATA
-  bus.w.bits.strb    := lsu.bus_ext.WSTRB
-  bus.w.valid        := lsu.bus_ext.WVALID
-  lsu.bus_ext.WREADY := bus.w.ready
+  DMEM_WRITE_DATA := lsu.dmem_write_data
+  DMEM_WRITE_STRB := lsu.dmem_write_strb
+  DMEM_WRITE_EN   := lsu.dmem_write_en
 
-  lsu.bus_ext.BRESP  := bus.b.bits.resp
-  lsu.bus_ext.BVALID := bus.b.valid
-  bus.b.ready        := lsu.bus_ext.BREADY
-
-  bus.ar.bits.addr    := lsu.bus_ext.ARADDR
-  bus.ar.bits.prot    := lsu.bus_ext.ARPROT
-  bus.ar.valid        := lsu.bus_ext.ARVALID
-  lsu.bus_ext.ARREADY := bus.ar.ready
-
-  lsu.bus_ext.RDATA  := bus.r.bits.data
-  lsu.bus_ext.RRESP  := bus.r.bits.resp
-  lsu.bus_ext.RVALID := bus.r.valid
-  bus.r.ready        := lsu.bus_ext.RREADY
-
-  // DMEM_ADDR := lsu.dmem_addr
-  //
-  // DMEM_WRITE_DATA := lsu.dmem_write_data
-  // DMEM_WRITE_STRB := lsu.dmem_write_strb
-  // DMEM_WRITE_EN   := lsu.dmem_write_en
-  //
-  // DMEM_READ_EN       := lsu.dmem_read_en
-  // lsu.dmem_read_data := DMEM_READ_DATA
+  DMEM_READ_EN       := lsu.dmem_read_en
+  lsu.dmem_read_data := DMEM_READ_DATA
 
   val mem_wb_data = MuxCase(
     ex_mem.MEM_ALU_RESULT,
@@ -330,7 +298,4 @@ class RV32CPU extends Module {
   DEBUG_REG_WE   := mem_wb.WB_REG_WRITE && (mem_wb.WB_RD =/= 0.U)
   DEBUG_REG_ADDR := mem_wb.WB_RD
   DEBUG_REG_DATA := mem_wb.WB_DATA
-
-  // Connect external bus
-  ext_bus.connect(bus)
 }
