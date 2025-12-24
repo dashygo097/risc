@@ -14,10 +14,11 @@ class EX_MEM extends Module {
   val EX_MEM_READ  = IO(Input(Bool()))
   val EX_MEM_WRITE = IO(Input(Bool()))
 
-  val EX_IS_LOAD = IO(Input(Bool()))
-  val EX_IS_LUI  = IO(Input(Bool()))
-  val EX_IS_JAL  = IO(Input(Bool()))
-  val EX_IS_JALR = IO(Input(Bool()))
+  val EX_IS_STORE = IO(Input(Bool()))
+  val EX_IS_LOAD  = IO(Input(Bool()))
+  val EX_IS_LUI   = IO(Input(Bool()))
+  val EX_IS_JAL   = IO(Input(Bool()))
+  val EX_IS_JALR  = IO(Input(Bool()))
 
   // Data
   val EX_ALU_RESULT = IO(Input(UInt(32.W)))
@@ -35,10 +36,11 @@ class EX_MEM extends Module {
   val MEM_MEM_READ  = IO(Output(Bool()))
   val MEM_MEM_WRITE = IO(Output(Bool()))
 
-  val MEM_IS_LOAD = IO(Output(Bool()))
-  val MEM_IS_LUI  = IO(Output(Bool()))
-  val MEM_IS_JAL  = IO(Output(Bool()))
-  val MEM_IS_JALR = IO(Output(Bool()))
+  val MEM_IS_STORE = IO(Output(Bool()))
+  val MEM_IS_LOAD  = IO(Output(Bool()))
+  val MEM_IS_LUI   = IO(Output(Bool()))
+  val MEM_IS_JAL   = IO(Output(Bool()))
+  val MEM_IS_JALR  = IO(Output(Bool()))
 
   val MEM_ALU_RESULT = IO(Output(UInt(32.W)))
   val MEM_RS2_DATA   = IO(Output(UInt(32.W)))
@@ -55,10 +57,11 @@ class EX_MEM extends Module {
   val mem_read_reg  = RegInit(false.B)
   val mem_write_reg = RegInit(false.B)
 
-  val is_load_reg = RegInit(false.B)
-  val is_lui_reg  = RegInit(false.B)
-  val is_jal_reg  = RegInit(false.B)
-  val is_jalr_reg = RegInit(false.B)
+  val is_store_reg = RegInit(false.B)
+  val is_load_reg  = RegInit(false.B)
+  val is_lui_reg   = RegInit(false.B)
+  val is_jal_reg   = RegInit(false.B)
+  val is_jalr_reg  = RegInit(false.B)
 
   val alu_result_reg = RegInit(0.U(32.W))
   val rs2_data_reg   = RegInit(0.U(32.W))
@@ -75,10 +78,11 @@ class EX_MEM extends Module {
     mem_read_reg  := false.B
     mem_write_reg := false.B
 
-    is_load_reg := false.B
-    is_lui_reg  := false.B
-    is_jal_reg  := false.B
-    is_jalr_reg := false.B
+    is_store_reg := false.B
+    is_load_reg  := false.B
+    is_lui_reg   := false.B
+    is_jal_reg   := false.B
+    is_jalr_reg  := false.B
 
     alu_result_reg := 0.U
     rs2_data_reg   := 0.U
@@ -94,10 +98,11 @@ class EX_MEM extends Module {
     mem_read_reg  := EX_MEM_READ
     mem_write_reg := EX_MEM_WRITE
 
-    is_load_reg := EX_IS_LOAD
-    is_lui_reg  := EX_IS_LUI
-    is_jal_reg  := EX_IS_JAL
-    is_jalr_reg := EX_IS_JALR
+    is_store_reg := EX_IS_STORE
+    is_load_reg  := EX_IS_LOAD
+    is_lui_reg   := EX_IS_LUI
+    is_jal_reg   := EX_IS_JAL
+    is_jalr_reg  := EX_IS_JALR
 
     alu_result_reg := EX_ALU_RESULT
     rs2_data_reg   := EX_RS2_DATA
@@ -114,10 +119,11 @@ class EX_MEM extends Module {
   MEM_MEM_READ  := mem_read_reg
   MEM_MEM_WRITE := mem_write_reg
 
-  MEM_IS_LOAD := is_load_reg
-  MEM_IS_LUI  := is_lui_reg
-  MEM_IS_JAL  := is_jal_reg
-  MEM_IS_JALR := is_jalr_reg
+  MEM_IS_STORE := is_store_reg
+  MEM_IS_LOAD  := is_load_reg
+  MEM_IS_LUI   := is_lui_reg
+  MEM_IS_JAL   := is_jal_reg
+  MEM_IS_JALR  := is_jalr_reg
 
   MEM_ALU_RESULT := alu_result_reg
   MEM_RS2_DATA   := rs2_data_reg

@@ -62,6 +62,11 @@ void CPUSimulator::clock_tick() {
   if (_dut->DMEM_READ_EN) {
     uint32_t aligned_addr = _dut->DMEM_ADDR & ~0x3;
     _dut->DMEM_READ_DATA = _dmem->read32(aligned_addr);
+    if (_verbose) {
+      std::cout << "  [MEM READ] addr=0x" << std::hex << _dut->DMEM_ADDR
+                << " aligned=0x" << aligned_addr << " data=0x"
+                << _dut->DMEM_READ_DATA << std::dec << std::endl;
+    }
     _dut->eval();
   } else {
     _dut->DMEM_READ_DATA = 0;

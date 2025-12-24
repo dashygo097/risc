@@ -72,11 +72,9 @@ private:
   std::map<uint8_t, uint32_t> _register_values;
   std::map<uint32_t, uint64_t> _pc_histogram;
 
-  void clock_tick();
-
-  void update_stats();
-
   void write_mem_with_strobe(uint32_t addr, uint32_t data, uint8_t strb);
 
+  void clock_tick();
+  void update_stats();
   void check_termination();
 };

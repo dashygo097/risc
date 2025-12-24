@@ -3,6 +3,7 @@ package core
 import common._
 import id._
 import ex._
+import mem._
 import chisel3._
 import chisel3.util._
 
@@ -28,12 +29,13 @@ class RV32CPU extends Module {
   val DEBUG_REG_DATA = IO(Output(UInt(32.W)))
 
   // Modules
-  val alu         = Module(new RV32ALU)
   val decoder     = Module(new RV32Decoder)
   val imm_gen     = Module(new RV32ImmGen)
   val regfile     = Module(new RV32RegFile)
   val id_fwd_unit = Module(new RV32IDForwardingUnit)
   val ex_fwd_unit = Module(new RV32EXForwardingUnit)
+  val alu         = Module(new RV32ALU)
+  val lsu         = Module(new RV32LSU)
 
   // Pipeline
   val if_id  = Module(new IF_ID)
@@ -81,7 +83,7 @@ class RV32CPU extends Module {
   val id_rs1_data = MuxLookup(id_fwd_unit.forward_rs1, 0.U(32.W))(
     Seq(
       ForwardingStage.SAFE -> regfile.rs1_data,
-      ForwardingStage.EX   -> alu.result,
+      ForwardingStage.EX   -> alu.packet_ext.RESULT,
       ForwardingStage.MEM  -> ex_mem.MEM_ALU_RESULT,
       ForwardingStage.WB   -> mem_wb.WB_DATA
     )
@@ -89,7 +91,7 @@ class RV32CPU extends Module {
   val id_rs2_data = MuxLookup(id_fwd_unit.forward_rs2, 0.U(32.W))(
     Seq(
       ForwardingStage.SAFE -> regfile.rs2_data,
-      ForwardingStage.EX   -> alu.result,
+      ForwardingStage.EX   -> alu.packet_ext.RESULT,
       ForwardingStage.MEM  -> ex_mem.MEM_ALU_RESULT,
       ForwardingStage.WB   -> mem_wb.WB_DATA
     )
@@ -103,11 +105,6 @@ class RV32CPU extends Module {
     id_ex.EX_MEM_READ &&
     ((id_ex.EX_RD === decoder.rs1) || (id_ex.EX_RD === decoder.rs2)) &&
     (id_ex.EX_RD =/= 0.U)
-  // val branch_ex_hazard   = (decoder.is_branch || decoder.is_jalr) &&
-  //   id_ex.EX_REG_WRITE &&
-  //   !id_ex.EX_MEM_READ &&
-  //   ((id_ex.EX_RD === decoder.rs1) || (decoder.is_branch && id_ex.EX_RD === decoder.rs2)) &&
-  //   (id_ex.EX_RD =/= 0.U)
 
   stall := load_use_hazard || branch_load_hazard
 
@@ -207,11 +204,11 @@ class RV32CPU extends Module {
     )
   )
 
-  alu.rs1_data   := alu_rs1_data
-  alu.rs2_data   := alu_rs2_data
-  alu.alu_op     := id_ex.EX_ALU_OP
-  alu.alu_is_sub := id_ex.EX_ALU_IS_SUB
-  alu.alu_is_sra := id_ex.EX_ALU_IS_SRA
+  alu.ctrl_ext.SRC1   := alu_rs1_data
+  alu.ctrl_ext.SRC2   := alu_rs2_data
+  alu.ctrl_ext.OP     := id_ex.EX_ALU_OP
+  alu.ctrl_ext.IS_SUB := id_ex.EX_ALU_IS_SUB
+  alu.ctrl_ext.IS_SRA := id_ex.EX_ALU_IS_SRA
 
   // EX/MEM
   ex_mem.STALL := false.B
@@ -222,12 +219,13 @@ class RV32CPU extends Module {
   ex_mem.EX_MEM_READ  := id_ex.EX_MEM_READ
   ex_mem.EX_MEM_WRITE := id_ex.EX_MEM_WRITE
 
-  ex_mem.EX_IS_LOAD := id_ex.EX_IS_LOAD
-  ex_mem.EX_IS_LUI  := id_ex.EX_IS_LUI
-  ex_mem.EX_IS_JAL  := id_ex.EX_IS_JAL
-  ex_mem.EX_IS_JALR := id_ex.EX_IS_JALR
+  ex_mem.EX_IS_STORE := id_ex.EX_IS_STORE
+  ex_mem.EX_IS_LOAD  := id_ex.EX_IS_LOAD
+  ex_mem.EX_IS_LUI   := id_ex.EX_IS_LUI
+  ex_mem.EX_IS_JAL   := id_ex.EX_IS_JAL
+  ex_mem.EX_IS_JALR  := id_ex.EX_IS_JALR
 
-  ex_mem.EX_ALU_RESULT := alu.result
+  ex_mem.EX_ALU_RESULT := alu.packet_ext.RESULT
   ex_mem.EX_RS2_DATA   := ex_rs2_data
   ex_mem.EX_RD         := id_ex.EX_RD
   ex_mem.EX_FUNCT3     := id_ex.EX_FUNCT3
@@ -237,43 +235,28 @@ class RV32CPU extends Module {
   ex_mem.EX_IMM        := id_ex.EX_IMM
 
   // MEM Stage
-  DMEM_READ_EN  := ex_mem.MEM_MEM_READ
-  DMEM_WRITE_EN := ex_mem.MEM_MEM_WRITE
-  DMEM_ADDR     := ex_mem.MEM_ALU_RESULT
 
-  val mem_byte_addr          = ex_mem.MEM_ALU_RESULT(1, 0)
-  val mem_aligned_write_data = MuxLookup(ex_mem.MEM_FUNCT3, ex_mem.MEM_RS2_DATA)(
-    Seq(
-      StoreOp.SB -> (ex_mem.MEM_RS2_DATA << (mem_byte_addr << 3)),
-      StoreOp.SH -> (ex_mem.MEM_RS2_DATA << (mem_byte_addr(1) << 4)),
-      StoreOp.SW -> ex_mem.MEM_RS2_DATA
-    )
-  )
-  DMEM_WRITE_DATA := mem_aligned_write_data
+  // LSU
+  lsu.ctrl_ext.ADDR     := ex_mem.MEM_ALU_RESULT
+  lsu.ctrl_ext.DATA     := ex_mem.MEM_RS2_DATA
+  lsu.ctrl_ext.SIGNED   := !ex_mem.MEM_FUNCT3(2)
+  lsu.ctrl_ext.SIZE     := ex_mem.MEM_FUNCT3(1, 0)
+  lsu.ctrl_ext.IS_STORE := ex_mem.MEM_IS_STORE
+  lsu.ctrl_ext.IS_LOAD  := ex_mem.MEM_IS_LOAD
 
-  DMEM_WRITE_STRB := MuxLookup(ex_mem.MEM_FUNCT3, 0.U)(
-    Seq(
-      StoreOp.SB -> ("b0001".U << mem_byte_addr),
-      StoreOp.SH -> ("b0011".U << (mem_byte_addr(1) << 1)),
-      StoreOp.SW -> "b1111".U
-    )
-  )
+  DMEM_ADDR := lsu.dmem_addr
 
-  val mem_shifted_read_data = DMEM_READ_DATA >> (mem_byte_addr << 3)
-  val mem_data              = MuxLookup(ex_mem.MEM_FUNCT3, 0.U)(
-    Seq(
-      LoadOp.LB  -> Cat(Fill(24, mem_shifted_read_data(7)), mem_shifted_read_data(7, 0)),
-      LoadOp.LH  -> Cat(Fill(16, mem_shifted_read_data(15)), mem_shifted_read_data(15, 0)),
-      LoadOp.LW  -> DMEM_READ_DATA,
-      LoadOp.LBU -> Cat(Fill(24, 0.U), mem_shifted_read_data(7, 0)),
-      LoadOp.LHU -> Cat(Fill(16, 0.U), mem_shifted_read_data(15, 0))
-    )
-  )
+  DMEM_WRITE_DATA := lsu.dmem_write_data
+  DMEM_WRITE_STRB := lsu.dmem_write_strb
+  DMEM_WRITE_EN   := lsu.dmem_write_en
+
+  DMEM_READ_EN       := lsu.dmem_read_en
+  lsu.dmem_read_data := DMEM_READ_DATA
 
   val mem_wb_data = MuxCase(
     ex_mem.MEM_ALU_RESULT,
     Seq(
-      ex_mem.MEM_IS_LOAD -> mem_data,
+      ex_mem.MEM_IS_LOAD -> lsu.packet_ext.DATA,
       ex_mem.MEM_IS_LUI  -> ex_mem.MEM_IMM,
       ex_mem.MEM_IS_JAL  -> (ex_mem.MEM_PC + 4.U),
       ex_mem.MEM_IS_JALR -> (ex_mem.MEM_PC + 4.U)

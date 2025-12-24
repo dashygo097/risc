@@ -9,9 +9,9 @@ class RV32EXForwardingUnit extends Module {
   val ex_rs1                       = IO(Input(UInt(5.W))).suggestName("EX_RS1")
   val ex_rs2                       = IO(Input(UInt(5.W))).suggestName("EX_RS2")
   val mem_rd                       = IO(Input(UInt(5.W))).suggestName("MEM_RD")
-  val mem_reg_write                = IO(Input(Bool())).suggestName("MEM_RegWrite")
+  val mem_reg_write                = IO(Input(Bool())).suggestName("MEM_REGWRITE")
   val wb_rd                        = IO(Input(UInt(5.W))).suggestName("WB_RD")
-  val wb_reg_write                 = IO(Input(Bool())).suggestName("WB_RegWrite")
+  val wb_reg_write                 = IO(Input(Bool())).suggestName("WB_REGWRITE")
 
   val forward_rs1 = IO(Output(UInt(2.W))).suggestName("FORWARD_RS1")
   val forward_rs2 = IO(Output(UInt(2.W))).suggestName("FORWARD_RS2")
