@@ -18,15 +18,15 @@ class Decoder(implicit p: Parameters) extends Module {
   }
 
   val instr   = IO(Input(UInt(p(ILen).W)))
-  val decoded = IO(Output(sigsType))
+  val decoded = IO(Output(sigsType.createBundle()))
 
-  decoded := Wire(sigsType.decode(instr, table.table))
+  decoded := sigsType.decode(instr, table.table)
 }
 
 // Test
 object DecoderInit {
-  val rv32iCtrlSigs    = new RV32ICtrlSigs
   val rv32iDecodeTable = new RV32IDecodeTable
+  val rv32iCtrlSigs    = RV32ICtrlSigsDecoder
 }
 
 object DecoderTest extends App {

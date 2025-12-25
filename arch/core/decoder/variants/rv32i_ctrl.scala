@@ -4,34 +4,51 @@ import arch.isa.RV32I
 import chisel3._
 import chisel3.util._
 
-class RV32ICtrlSigs extends RegisteredDecodeCtrlSigs with RV32IDecodeConsts {
-  override def isaName: String = "rv32i"
-
+class RV32ICtrlSigs extends Bundle with RV32IDecodeConsts {
   val legal = Bool()
 
   // imm
-  val imm_sel = Bits(SZ_IMM.W)
+  val imm_sel = UInt(SZ_IMM.W)
 
   // alu
   val alu      = Bool()
-  val alu_sel1 = Bits(SZ_A1.W)
-  val alu_sel2 = Bits(SZ_A2.W)
+  val alu_sel1 = UInt(SZ_A1.W)
+  val alu_sel2 = UInt(SZ_A2.W)
   val alu_mode = Bool()
-  val alu_fn   = Bits(SZ_AFN.W)
+  val alu_fn   = UInt(SZ_AFN.W)
 
   // lsu
   val lsu     = Bool()
-  val lsu_cmd = Bits(SZ_M.W)
+  val lsu_cmd = UInt(SZ_M.W)
+}
 
+class RV32ICtrlSigsImpl extends DecodeCtrlSigs with RV32IDecodeConsts {
   def default: List[BitPat] =
     List(N, IMM_X, X, A1_X, A2_X, X, AFN_X, X, M_X)
 
-  def decode(instr: UInt, table: Iterable[(BitPat, List[BitPat])]) = {
+  def decode(instr: UInt, table: Iterable[(BitPat, List[BitPat])]): Bundle = {
+    val sigs    = Wire(new RV32ICtrlSigs)
     val decoder = DecodeLogic(instr, default, table)
-    val sigs    = Seq(Wire(legal), imm_sel, alu, alu_sel1, alu_sel2, alu_mode, alu_fn, lsu, lsu_cmd)
-    sigs zip decoder map { case (s, d) => s := d }
-    this
+
+    sigs.legal    := decoder(0).asBool
+    sigs.imm_sel  := decoder(1)
+    sigs.alu      := decoder(2).asBool
+    sigs.alu_sel1 := decoder(3)
+    sigs.alu_sel2 := decoder(4)
+    sigs.alu_mode := decoder(5).asBool
+    sigs.alu_fn   := decoder(6)
+    sigs.lsu      := decoder(7).asBool
+    sigs.lsu_cmd  := decoder(8)
+
+    sigs
   }
+
+  def createBundle(): Bundle = new RV32ICtrlSigs
+}
+
+object RV32ICtrlSigsDecoder extends RegisteredDecodeCtrlSigs with RV32IDecodeConsts {
+  override def isaName: String      = "rv32i"
+  override def sigs: DecodeCtrlSigs = new RV32ICtrlSigsImpl
 }
 
 class RV32IDecodeTable extends RegisteredDecodeTable with RV32IDecodeConsts {
