@@ -2,33 +2,16 @@ package arch.core.decoder
 
 import scala.collection.mutable
 
-object DecodeTableFactory {
-  private val registry = mutable.Map[String, DecodeTable]()
+object DecoderUtilitiesFactory {
+  private val registry = mutable.Map[String, DecoderUtilities]()
 
-  def register(name: String, decoder: DecodeTable): Unit =
-    registry(name.toLowerCase) = decoder
-
-  def get(name: String): Option[DecodeTable] =
-    registry.get(name.toLowerCase)
-
-  def getOrElse(name: String, default: DecodeTable): DecodeTable =
-    registry.getOrElse(name.toLowerCase, default)
-
-  def listAvailable(): Seq[String] = registry.keys.toSeq.sorted
-
-  def contains(name: String): Boolean = registry.contains(name.toLowerCase)
-}
-
-object DecodeCtrlSigsFactory {
-  private val registry = mutable.Map[String, DecodeCtrlSigs]()
-
-  def register(name: String, sigs: DecodeCtrlSigs): Unit =
+  def register(name: String, sigs: DecoderUtilities): Unit =
     registry(name.toLowerCase) = sigs
 
-  def get(name: String): Option[DecodeCtrlSigs] =
+  def get(name: String): Option[DecoderUtilities] =
     registry.get(name.toLowerCase)
 
-  def getOrElse(name: String, default: DecodeCtrlSigs): DecodeCtrlSigs =
+  def getOrElse(name: String, default: DecoderUtilities): DecoderUtilities =
     registry.getOrElse(name.toLowerCase, default)
 
   def listAvailable(): Seq[String] = registry.keys.toSeq.sorted
@@ -36,13 +19,8 @@ object DecodeCtrlSigsFactory {
   def contains(name: String): Boolean = registry.contains(name.toLowerCase)
 }
 
-trait RegisteredDecodeTable extends DecodeTable {
+trait RegisteredDecoderUtilities {
   def isaName: String
-  DecodeTableFactory.register(isaName, this)
-}
-
-trait RegisteredDecodeCtrlSigs {
-  def isaName: String
-  def sigs: DecodeCtrlSigs
-  DecodeCtrlSigsFactory.register(isaName, sigs)
+  def utils: DecoderUtilities
+  DecoderUtilitiesFactory.register(isaName, utils)
 }
