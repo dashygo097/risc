@@ -28,7 +28,7 @@ class RV32IDecoderUtilitiesImpl extends DecoderUtilities with RV32IDecodeConsts 
 
   def createBundle(): Bundle = new RV32ICtrlSigs
 
-  def decode(instr: UInt, table: Iterable[(BitPat, List[BitPat])]): Bundle = {
+  def decode(instr: UInt): Bundle = {
     val sigs    = Wire(new RV32ICtrlSigs)
     val decoder = DecodeLogic(instr, default, table)
 

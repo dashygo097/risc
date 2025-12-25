@@ -24,3 +24,7 @@ trait RegisteredDecoderUtilities {
   def utils: DecoderUtilities
   DecoderUtilitiesFactory.register(isaName, utils)
 }
+
+object DecoderInit {
+  val rv32iUtils = RV32IDecoderUtilities
+}

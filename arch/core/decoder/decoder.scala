@@ -16,14 +16,10 @@ class Decoder(implicit p: Parameters) extends Module {
   val instr   = IO(Input(UInt(p(ILen).W)))
   val decoded = IO(Output(utils.createBundle()))
 
-  decoded := utils.decode(instr, utils.table)
+  decoded := utils.decode(instr)
 }
 
 // Test
-object DecoderInit {
-  val rv32iUtils = RV32IDecoderUtilities
-}
-
 object DecoderTest extends App {
   DecoderInit
 
