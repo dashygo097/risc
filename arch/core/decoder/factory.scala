@@ -41,7 +41,8 @@ trait RegisteredDecodeTable extends DecodeTable {
   DecodeTableFactory.register(isaName, this)
 }
 
-trait RegisteredDecodeCtrlSigs extends DecodeCtrlSigs {
+trait RegisteredDecodeCtrlSigs {
   def isaName: String
-  DecodeCtrlSigsFactory.register(isaName, this)
+  def sigs: DecodeCtrlSigs
+  DecodeCtrlSigsFactory.register(isaName, sigs)
 }

@@ -7,7 +7,8 @@ abstract trait DecodeTable {
   val table: Array[(BitPat, List[BitPat])]
 }
 
-abstract class DecodeCtrlSigs extends Bundle {
+trait DecodeCtrlSigs {
   def default: List[BitPat]
-  def decode(instr: UInt, table: Iterable[(BitPat, List[BitPat])]): DecodeCtrlSigs;
+  def decode(instr: UInt, table: Iterable[(BitPat, List[BitPat])]): Bundle
+  def createBundle(): Bundle
 }
