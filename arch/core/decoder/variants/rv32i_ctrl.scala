@@ -4,7 +4,8 @@ import arch.isa.RV32I
 import chisel3._
 import chisel3.util._
 
-class RV32ICtrlSigs extends Bundle with RV32IDecodeConsts {
+class RV32ICtrlSigs extends RegisteredDecodeCtrlSigs with RV32IDecodeConsts {
+  override def isaName: String = "rv32i"
 
   val legal = Bool()
 
@@ -25,15 +26,17 @@ class RV32ICtrlSigs extends Bundle with RV32IDecodeConsts {
   def default: List[BitPat] =
     List(N, IMM_X, X, A1_X, A2_X, X, AFN_X, X, M_X)
 
-  def decode(inst: UInt, table: Iterable[(BitPat, List[BitPat])]) = {
-    val decoder = DecodeLogic(inst, default, table)
-    val sigs    = Seq(legal, imm_sel, alu, alu_sel1, alu_sel2, alu_mode, alu_fn, lsu, lsu_cmd)
+  def decode(instr: UInt, table: Iterable[(BitPat, List[BitPat])]) = {
+    val decoder = DecodeLogic(instr, default, table)
+    val sigs    = Seq(Wire(legal), imm_sel, alu, alu_sel1, alu_sel2, alu_mode, alu_fn, lsu, lsu_cmd)
     sigs zip decoder map { case (s, d) => s := d }
     this
   }
 }
 
-class IRV32Decode extends DecodeConsts with RV32IDecodeConsts {
+class RV32IDecodeTable extends RegisteredDecodeTable with RV32IDecodeConsts {
+  override def isaName: String = "rv32i"
+
   val table: Array[(BitPat, List[BitPat])] = Array(
     // R-Type
     // Arithmetic

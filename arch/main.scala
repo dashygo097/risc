@@ -3,8 +3,9 @@ package arch
 import configs._
 
 object ISA  extends Field[String]("rv32i")
+object ILen extends Field[Int](32)
 object XLen extends Field[Int](32)
 
-object RV32I_CPU_App extends App {
-  println(s"Building a ${ISA()} CPU with XLen = ${XLen()} bits.")
+object CPU extends App {
+  println(s"Building a $ISA CPU")
 }
