@@ -23,7 +23,7 @@ class RV32ICtrlSigs extends Bundle with RV32IDecodeConsts {
   val lsu_cmd = Bits(SZ_M.W)
 
   def default: List[BitPat] =
-    List(N, IMM_X, A2_X, A1_X, AFN_X, N, M_X)
+    List(N, IMM_X, X, A1_X, A2_X, X, AFN_X, X, M_X)
 
   def decode(inst: UInt, table: Iterable[(BitPat, List[BitPat])]) = {
     val decoder = DecodeLogic(inst, default, table)
