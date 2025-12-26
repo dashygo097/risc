@@ -1,17 +1,9 @@
 package arch.core
 
-package object decoder {
-  DecoderInit
-}
+package object decoder {}
 
-package object alu {
-  ALUInit
-}
+package object alu {}
 
-package object lsu {
-  LSUInit
-}
+package object lsu {}
 
-package object imm {
-  ImmInit
-}
+package object imm {}
