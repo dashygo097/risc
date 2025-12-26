@@ -11,4 +11,12 @@ class ALU(implicit p: Parameters) extends Module {
     case None    => throw new Exception(s"ALU utilities for ISA ${p(ISA)} not found!")
   }
 
+  val en     = IO(Input(Bool()))
+  val src1   = IO(Input(UInt(p(XLen).W)))
+  val src2   = IO(Input(UInt(p(XLen).W)))
+  val fnType = IO(Input(UInt(utils.fnTypeWidth.W)))
+  val mode   = IO(Input(Bool()))
+  val result = IO(Output(UInt(p(XLen).W)))
+
+  result := Mux(en, utils.fn(src1, src2, fnType, mode), 0.U(p(XLen).W))
 }
