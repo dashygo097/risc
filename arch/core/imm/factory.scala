@@ -1,31 +1,30 @@
 package arch.core.imm
 
-import arch._
-import arch.configs._
-import utils._
-import chisel3._
+import scala.collection.mutable
 
-class ImmGen(implicit p: Parameters) extends Module {
-  override def desiredName: String = s"${p(ISA)}_immgen"
+object ImmUtilitiesFactory {
+  private val registry = mutable.Map[String, ImmUtilities]()
 
-  val utils = ImmUtilitiesFactory.get(p(ISA)) match {
-    case Some(u) => u
-    case None    => throw new Exception(s"Imm utilities for ISA ${p(ISA)} not found!")
-  }
+  def register(name: String, sigs: ImmUtilities): Unit =
+    registry(name.toLowerCase) = sigs
 
+  def get(name: String): Option[ImmUtilities] =
+    registry.get(name.toLowerCase)
+
+  def getOrElse(name: String, default: ImmUtilities): ImmUtilities =
+    registry.getOrElse(name.toLowerCase, default)
+
+  def listAvailable(): Seq[String] = registry.keys.toSeq.sorted
+
+  def contains(name: String): Boolean = registry.contains(name.toLowerCase)
 }
 
-// Test
-object ImmTest extends App {
-  ImmInit
+trait RegisteredImmUtilities {
+  def isaName: String
+  def utils: ImmUtilities
+  ImmUtilitiesFactory.register(isaName, utils)
+}
 
-  implicit val p: Parameters = Parameters.empty ++ Map(
-    ISA  -> "rv32i",
-    ILen -> 32,
-    XLen -> 32
-  )
-
-  VerilogEmitter.parse(new ImmGen, s"immgen.sv")
-
-  println(s"✓ Verilog generated at: build/immgen.sv")
+object ImmInit {
+  val rv32Utils = RV32ImmUtilities
 }
