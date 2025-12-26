@@ -1,7 +1,6 @@
 package arch.core.imm
 
 import arch.configs._
-import utils._
 import chisel3._
 
 class ImmGen(implicit p: Parameters) extends Module {
@@ -17,11 +16,4 @@ class ImmGen(implicit p: Parameters) extends Module {
   val imm     = IO(Output(utils.createBundle))
 
   imm := utils.genImm(instr, immType)
-}
-
-// Test
-object ImmTest extends App {
-  ImmInit
-  VerilogEmitter.parse(new ImmGen, s"${p(ISA)}_immgen.sv")
-  println(s"✓ Verilog generated at: build/${p(ISA)}_immgen.sv")
 }

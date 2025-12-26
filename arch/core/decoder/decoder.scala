@@ -1,7 +1,6 @@
 package arch.core.decoder
 
 import arch.configs._
-import utils._
 import chisel3._
 
 class Decoder(implicit p: Parameters) extends Module {
@@ -16,11 +15,4 @@ class Decoder(implicit p: Parameters) extends Module {
   val decoded = IO(Output(utils.createBundle()))
 
   decoded := utils.decode(instr)
-}
-
-// Test
-object DecoderTest extends App {
-  DecoderInit
-  VerilogEmitter.parse(new Decoder, s"${p(ISA)}_decoder.sv")
-  println(s"✓ Verilog generated at: build/${p(ISA)}_decoder.sv")
 }
