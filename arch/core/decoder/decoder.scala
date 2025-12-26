@@ -1,6 +1,5 @@
 package arch.core.decoder
 
-import arch._
 import arch.configs._
 import utils._
 import chisel3._
@@ -22,14 +21,6 @@ class Decoder(implicit p: Parameters) extends Module {
 // Test
 object DecoderTest extends App {
   DecoderInit
-
-  implicit val p: Parameters = Parameters.empty ++ Map(
-    ISA  -> "rv32i",
-    ILen -> 32,
-    XLen -> 32
-  )
-
-  VerilogEmitter.parse(new Decoder, s"decoder.sv")
-
-  println(s"✓ Verilog generated at: build/decoder.sv")
+  VerilogEmitter.parse(new Decoder, s"${p(ISA)}_decoder.sv")
+  println(s"✓ Verilog generated at: build/${p(ISA)}_decoder.sv")
 }

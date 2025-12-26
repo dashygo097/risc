@@ -1,6 +1,5 @@
 package arch.core.alu
 
-import arch._
 import arch.configs._
 import utils._
 import chisel3._
@@ -18,14 +17,6 @@ class ALU(implicit p: Parameters) extends Module {
 // Test
 object ALUTest extends App {
   ALUInit
-
-  implicit val p: Parameters = Parameters.empty ++ Map(
-    ISA  -> "rv32i",
-    ILen -> 32,
-    XLen -> 32
-  )
-
-  VerilogEmitter.parse(new ALU, s"alu.sv")
-
-  println(s"✓ Verilog generated at: build/alu.sv")
+  VerilogEmitter.parse(new ALU, s"${p(ISA)}_alu.sv")
+  println(s"✓ Verilog generated at: build/${p(ISA)}_alu.sv")
 }

@@ -1,6 +1,5 @@
 package arch.core.imm
 
-import arch._
 import arch.configs._
 import utils._
 import chisel3._
@@ -23,14 +22,6 @@ class ImmGen(implicit p: Parameters) extends Module {
 // Test
 object ImmTest extends App {
   ImmInit
-
-  implicit val p: Parameters = Parameters.empty ++ Map(
-    ISA  -> "rv32i",
-    ILen -> 32,
-    XLen -> 32
-  )
-
-  VerilogEmitter.parse(new ImmGen, s"immgen.sv")
-
-  println(s"✓ Verilog generated at: build/immgen.sv")
+  VerilogEmitter.parse(new ImmGen, s"${p(ISA)}_immgen.sv")
+  println(s"✓ Verilog generated at: build/${p(ISA)}_immgen.sv")
 }
