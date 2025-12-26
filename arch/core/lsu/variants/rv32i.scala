@@ -1,7 +1,7 @@
 package arch.core.lsu
 
 import arch.core.common.Consts
-import chisel3.util.BitPat
+import chisel3.util._
 
 trait RV32ILSUConsts extends Consts {
   def M_X   = BitPat("b???")
@@ -14,4 +14,11 @@ trait RV32ILSUConsts extends Consts {
   def M_LW  = BitPat("b101")
   def M_LBU = BitPat("b110")
   def M_LHU = BitPat("b111")
+}
+
+class RV32ILSUUtilitiesImpl extends LSUUtilities with RV32ILSUConsts {}
+
+object RV32ILSUUtilities extends RegisteredLSUUtilities with RV32ILSUConsts {
+  override def isaName: String     = "rv32i"
+  override def utils: LSUUtilities = new RV32ILSUUtilitiesImpl
 }

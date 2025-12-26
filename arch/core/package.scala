@@ -11,3 +11,5 @@ package object alu {}
 package object lsu {}
 
 package object imm {}
+
+package object regfile {}

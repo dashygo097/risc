@@ -1,4 +1,4 @@
-package arch.core.pipeline
+package arch.core.common
 
 import arch.configs._
 import chisel3._

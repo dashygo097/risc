@@ -1,7 +1,12 @@
 package arch
 
 package object configs {
-  object ISA extends Field[String]("rv32i")
+  // User Options
+  // You should only modify these parameters
+  object ISA                extends Field[String]("rv32i")
+  object IsRegfileUseBypass extends Field[Boolean](true)
+
+  // Derived Parameters
   object XLen
       extends Field[Int](
         ISA() match {
@@ -21,7 +26,7 @@ package object configs {
   implicit val p: Parameters = Parameters.empty ++ Map(
     ISA  -> ISA.apply(),
     XLen -> XLen.apply(),
-    ILen -> ILen.apply()
+    ILen -> ILen.apply(),
   )
 }
 
