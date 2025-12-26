@@ -24,3 +24,7 @@ package object configs {
     ILen -> ILen.apply()
   )
 }
+
+package object isa {}
+
+package object core {}
