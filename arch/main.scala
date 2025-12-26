@@ -1,7 +1,10 @@
 package arch
 
+import core.alu._
 import configs._
+import utils._
 
-object CPU extends App {
-  println(s"Building a ${p(ISA)} CPU")
+object ALUTest extends App {
+  ALUInit
+  VerilogEmitter.parse(new ALU, s"${p(ISA)}_alu.sv")
 }
