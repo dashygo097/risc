@@ -16,3 +16,11 @@ class Decoder(implicit p: Parameters) extends Module {
 
   decoded := utils.decode(instr)
 }
+
+object Decoder {
+  def apply(instr: UInt)(implicit p: Parameters): Bundle = {
+    val decoder = Module(new Decoder())
+    decoder.instr := instr
+    decoder.decoded
+  }
+}

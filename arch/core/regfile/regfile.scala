@@ -5,5 +5,4 @@ import chisel3._
 
 class Regfile(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_regfile"
-
 }
