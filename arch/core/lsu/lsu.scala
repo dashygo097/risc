@@ -10,5 +10,4 @@ class LSU(implicit p: Parameters) extends Module {
     case Some(u) => u
     case None    => throw new Exception(s"LSU utilities for ISA ${p(ISA)} not found!")
   }
-
 }

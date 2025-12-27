@@ -17,3 +17,12 @@ class ImmGen(implicit p: Parameters) extends Module {
 
   imm := utils.genImm(instr, immType)
 }
+
+object ImmGen {
+  def apply(instr: UInt, immType: UInt)(implicit p: Parameters): UInt = {
+    val immGen = Module(new ImmGen())
+    immGen.instr   := instr
+    immGen.immType := immType
+    immGen.imm
+  }
+}
