@@ -1,6 +1,7 @@
-package arch.core.common
+package arch.core
 
-import arch.core.regfile.RegfileUtilitiesFactory
+import common.Consts
+import regfile.RegfileUtilitiesFactory
 import arch.configs._
 import chisel3._
 import chisel3.util._

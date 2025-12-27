@@ -12,7 +12,7 @@ class Decoder(implicit p: Parameters) extends Module {
   }
 
   val instr   = IO(Input(UInt(p(ILen).W)))
-  val decoded = IO(Output(utils.createBundle()))
+  val decoded = IO(Output(new DecodedOutput))
 
   decoded := utils.decode(instr)
 }
