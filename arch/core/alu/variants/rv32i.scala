@@ -6,7 +6,6 @@ import chisel3._
 import chisel3.util._
 
 trait RV32IALUConsts extends Consts {
-  // ALU
   def A1_X    = BitPat("b??")
   val SZ_A1   = A1_X.getWidth
   def A1_ZERO = BitPat("b00")

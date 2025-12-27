@@ -23,10 +23,19 @@ package object configs {
         }
       )
 
+  object ALen
+      extends Field[Int](
+        ISA() match {
+          case "rv32i" => 32
+          case other   => throw new Exception(s"Unsupported ISA: $other")
+        }
+      )
+
   implicit val p: Parameters = Parameters.empty ++ Map(
     ISA  -> ISA.apply(),
     XLen -> XLen.apply(),
     ILen -> ILen.apply(),
+    ALen -> ALen.apply(),
   )
 }
 

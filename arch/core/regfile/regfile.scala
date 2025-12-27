@@ -3,7 +3,7 @@ package arch.core.regfile
 import arch.configs._
 import mem.register.DualPortRegFile
 import chisel3._
-import chisel3.util._
+import scala.math.pow
 
 class Regfile(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_regfile"
@@ -13,9 +13,9 @@ class Regfile(implicit p: Parameters) extends Module {
     case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
   }
 
-  val rs1_addr   = IO(Input(UInt(log2Ceil(utils.numGPR).W)))
-  val rs2_addr   = IO(Input(UInt(log2Ceil(utils.numGPR).W)))
-  val write_addr = IO(Input(UInt(log2Ceil(utils.numGPR).W)))
+  val rs1_addr   = IO(Input(UInt(utils.width.W)))
+  val rs2_addr   = IO(Input(UInt(utils.width.W)))
+  val write_addr = IO(Input(UInt(utils.width.W)))
   val write_data = IO(Input(UInt(p(XLen).W)))
   val write_en   = IO(Input(Bool()))
 
@@ -24,7 +24,7 @@ class Regfile(implicit p: Parameters) extends Module {
 
   val dual_port_regfile = Module(
     new DualPortRegFile(
-      utils.numGPR,
+      pow(2, utils.width).toInt,
       p(XLen),
       utils.extraInfo,
       isBypass = p(IsRegfileUseBypass)
