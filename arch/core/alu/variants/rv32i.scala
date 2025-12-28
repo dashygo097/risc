@@ -19,11 +19,6 @@ trait RV32IAluConsts extends AluConsts {
   def AFN_SLTU = BitPat("b1011")
   def AFN_SGE  = BitPat("b1100")
   def AFN_SGEU = BitPat("b1101")
-
-  override def isArithmetic(fnType: UInt): Bool =
-    fnType(3) === 0.B
-  override def isComparison(fnType: UInt): Bool =
-    fnType(3) === 1.B
 }
 
 class RV32IAluUtilitiesImpl extends AluUtilities with RV32IAluConsts {
@@ -75,9 +70,12 @@ class RV32IAluUtilitiesImpl extends AluUtilities with RV32IAluConsts {
       )
     ).asUInt
 
-    // Select between arithmetic and comparison
     Mux(isComparison(fnType), cmp_result, arith_result)
   }
+  def isArithmetic(fnType: UInt): Bool                           =
+    fnType(3) === 0.B
+  def isComparison(fnType: UInt): Bool                           =
+    fnType(3) === 1.B
 }
 
 object RV32IAluUtilities extends RegisteredAluUtilities with RV32IAluConsts {

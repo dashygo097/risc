@@ -4,7 +4,7 @@ import arch.core.common.Consts
 import chisel3.util._
 
 trait RV32ILsuConsts extends Consts {
-  def M_X   = BitPat("b???")
+  def M_X   = BitPat("b????")
   val SZ_M  = M_X.getWidth
   def M_SB  = BitPat("b000")
   def M_SH  = BitPat("b001")

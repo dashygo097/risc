@@ -16,9 +16,6 @@ trait AluConsts extends Consts {
   def A2_ZERO = BitPat("b00")
   def A2_RS2  = BitPat("b01")
   def A2_IMM  = BitPat("b10")
-
-  def isArithmetic(fnType: UInt): Bool = 0.B
-  def isComparison(fnType: UInt): Bool = 0.B
 }
 
 trait AluUtilities {
@@ -26,4 +23,6 @@ trait AluUtilities {
   def sel2Width: Int
   def fnTypeWidth: Int
   def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt
+  def isArithmetic(fnType: UInt): Bool
+  def isComparison(fnType: UInt): Bool
 }
