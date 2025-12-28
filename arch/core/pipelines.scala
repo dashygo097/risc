@@ -24,8 +24,12 @@ class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
 
   // TODO: This decoded output only supports rv32i yet
   val decoded_output = new DecodedOutput
+  val instr          = UInt(p(ILen).W)
+  val pc             = UInt(p(XLen).W)
   val rs1            = UInt(regfile_utils.width.W)
+  val rs1_data       = UInt(p(XLen).W)
   val rs2            = UInt(regfile_utils.width.W)
+  val rs2_data       = UInt(p(XLen).W)
   val rd             = UInt(regfile_utils.width.W)
 }
 
@@ -36,10 +40,9 @@ class ExcutionBundle(implicit p: Parameters) extends Bundle {
   }
 
   val alu_result = UInt(p(XLen).W)
+  val instr      = UInt(p(ILen).W)
   val pc         = UInt(p(XLen).W)
   val rd         = UInt(regfile_utils.width.W)
-  val mem_read   = Bool()
-  val mem_write  = Bool()
   val regwrite   = Bool()
 }
 
@@ -50,6 +53,7 @@ class MemoryBundle(implicit p: Parameters) extends Bundle {
   }
 
   val wb_data  = UInt(p(XLen).W)
+  val instr    = UInt(p(ILen).W)
   val pc       = UInt(p(XLen).W)
   val rd       = UInt(regfile_utils.width.W)
   val regwrite = Bool()

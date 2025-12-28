@@ -11,11 +11,13 @@ class PipelineStage[T <: Data](gen: T)(implicit p: Parameters) extends Module {
   val sin   = IO(Input(gen.cloneType))
   val sout  = IO(Output(gen.cloneType))
 
+  val sreg = RegInit(0.U.asTypeOf(gen))
+
   when(flush) {
-    sout := 0.U.asTypeOf(gen)
+    sreg := 0.U.asTypeOf(gen)
   }.elsewhen(!stall) {
-    sout := sin
-  }.otherwise {
-    sout := sout
+    sreg := sin
   }
+
+  sout := sreg
 }

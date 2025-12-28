@@ -2,7 +2,6 @@
 .globl _start
 
 _start:
-    nop
     lui x10, 0x80000
     
     addi x1, x0, 100      # x1 = 100

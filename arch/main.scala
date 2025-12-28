@@ -1,10 +1,22 @@
 package arch
 
+import core._
 import core.decoder._
 import core.regfile._
 import core.alu._
+import core.lsu._
+import core.imm._
 import configs._
 import utils._
+
+object Main extends App {
+  DecoderInit
+  RegfileInit
+  ALUInit
+  LSUInit
+  ImmInit
+  VerilogEmitter.parse(new RiscCore, s"${p(ISA)}_cpu.sv", lowering = true)
+}
 
 object DecoderTest extends App {
   DecoderInit

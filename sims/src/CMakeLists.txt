@@ -1,6 +1,6 @@
-add_executable(rv32_cpu_verilated)
+add_executable(rv32i_cpu_verilated)
 
-verilate(rv32_cpu_verilated
+verilate(rv32i_cpu_verilated
   SOURCES ${RTL_SOURCES}
   VERILATOR_ARGS 
     -Wall
@@ -8,7 +8,7 @@ verilate(rv32_cpu_verilated
     -Wno-UNUSED
     -Wno-UNOPTFLAT
     -Wno-DECLFILENAME
-    --top-module rv32_cpu
+    --top-module rv32i_cpu
   PREFIX Vrv32_cpu
   TRACE_THREADS 2
 )
@@ -23,18 +23,18 @@ set(SIMULATOR_SOURCES
   trace.cc
 )
 
-target_sources(rv32_cpu_verilated PRIVATE ${SIMULATOR_SOURCES})
+target_sources(rv32i_cpu_verilated PRIVATE ${SIMULATOR_SOURCES})
 
-target_include_directories(rv32_cpu_verilated PRIVATE
+target_include_directories(rv32i_cpu_verilated PRIVATE
   ${CMAKE_SOURCE_DIR}/include
 )
 
 find_package(Threads REQUIRED)
-target_link_libraries(rv32_cpu_verilated PRIVATE Threads::Threads)
+target_link_libraries(rv32i_cpu_verilated PRIVATE Threads::Threads)
 
-set_target_properties(rv32_cpu_verilated PROPERTIES
-  OUTPUT_NAME rv32_simulator
+set_target_properties(rv32i_cpu_verilated PROPERTIES
+  OUTPUT_NAME rv32i_simulator
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-add_executable(rv32_simulator ALIAS rv32_cpu_verilated)
+add_executable(rv32i_simulator ALIAS rv32i_cpu_verilated)
