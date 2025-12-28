@@ -67,6 +67,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   decoder.instr := if_id.ID.instr
 
   // TODO: To be replaced in a more general way
+  // riscv specific
   val rs1 = if_id.ID.instr(19, 15)
   val rs2 = if_id.ID.instr(24, 20)
   val rd  = if_id.ID.instr(11, 7)
@@ -190,10 +191,16 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   DMEM_WRITE_STRB := lsu_utils.strb(ex_mem.MEM.lsu_cmd)
   val mem_read_data = DMEM_READ_DATA
 
+  val mem_wb_data = Mux(
+    lsu_utils.isMemRead(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd),
+    0.U(p(XLen).W), //  TODO: load data processing
+    ex_mem.MEM.alu_result
+  )
+
   // MEM/WB
   mem_wb.STALL        := false.B
   mem_wb.FLUSH        := false.B
-  mem_wb.MEM.wb_data  := ex_mem.MEM.alu_result
+  mem_wb.MEM.wb_data  := mem_wb_data
   mem_wb.MEM.instr    := ex_mem.MEM.instr
   mem_wb.MEM.pc       := ex_mem.MEM.pc
   mem_wb.MEM.rd       := ex_mem.MEM.rd
