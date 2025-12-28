@@ -4,18 +4,22 @@ import arch.configs._
 import arch.core.alu._
 import arch.core.imm._
 import arch.core.lsu._
+import arch.core.regfile._
 import chisel3._
 import chisel3.util.BitPat
 
 class DecodedOutput(implicit p: Parameters) extends Bundle {
-  val imm_utils = ImmUtilitiesFactory.getOrThrow(p(ISA))
-  val alu_utils = AluUtilitiesFactory.getOrThrow(p(ISA))
-  val lsu_utils = LsuUtilitiesFactory.getOrThrow(p(ISA))
+  val imm_utils     = ImmUtilitiesFactory.getOrThrow(p(ISA))
+  val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA))
+  val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
+  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
 
   val legal = Bool()
 
   // regfile
   val regwrite = Bool()
+  // val rs1      = UInt(regfile_utils.width.W)
+  // val rs2      = UInt(regfile_utils.width.W)
 
   // imm
   val imm_type = UInt(imm_utils.immTypeWidth.W)
