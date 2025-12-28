@@ -36,10 +36,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // Modules
   val decoder = Module(new Decoder)
-  val imm_gen = Module(new ImmGen)
   val regfile = Module(new Regfile)
   val id_fwd  = Module(new IDForwardingUnit)
   val ex_fwd  = Module(new EXForwardingUnit)
+  val imm_gen = Module(new ImmGen)
   val alu     = Module(new Alu)
 
   // pipeline
