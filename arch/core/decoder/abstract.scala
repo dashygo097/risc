@@ -18,8 +18,6 @@ class DecodedOutput(implicit p: Parameters) extends Bundle {
 
   // regfile
   val regwrite = Bool()
-  // val rs1      = UInt(regfile_utils.width.W)
-  // val rs2      = UInt(regfile_utils.width.W)
 
   // imm
   val imm_type = UInt(imm_utils.immTypeWidth.W)

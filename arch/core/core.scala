@@ -161,7 +161,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
       A2_ZERO.value.U(SZ_A2.W) -> 0.U(p(XLen).W),
       A2_RS2.value.U(SZ_A2.W)  -> ex_rs2_data,
       A2_IMM.value.U(SZ_A2.W)  -> imm_gen.imm,
-      A2_FOUR.value.U(SZ_A2.W) -> 4.U(p(XLen).W)
     )
   )
 
