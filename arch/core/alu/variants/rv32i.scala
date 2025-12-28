@@ -72,10 +72,8 @@ class RV32IAluUtilitiesImpl extends AluUtilities with RV32IAluConsts {
 
     Mux(isComparison(fnType), cmp_result, arith_result)
   }
-  def isArithmetic(fnType: UInt): Bool                           =
-    fnType(3) === 0.B
-  def isComparison(fnType: UInt): Bool                           =
-    fnType(3) === 1.B
+  def isArithmetic(fnType: UInt): Bool                           = !fnType(3)
+  def isComparison(fnType: UInt): Bool                           = fnType(3)
 }
 
 object RV32IAluUtilities extends RegisteredAluUtilities with RV32IAluConsts {

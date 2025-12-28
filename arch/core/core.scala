@@ -4,6 +4,7 @@ import decoder._
 import imm._
 import alu._
 import regfile._
+import lsu._
 import arch.configs._
 import chisel3._
 import chisel3.util._
@@ -11,10 +12,8 @@ import chisel3.util._
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
-  val regfile_utils = RegfileUtilitiesFactory.get(p(ISA)) match {
-    case Some(u) => u
-    case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
-  }
+  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
+  val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
 
   // TODO: Frontend Interface need to be impled as well as the cpu simulator
   // TEMPORARY Memory Interface
@@ -67,6 +66,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // ID
   decoder.instr := if_id.ID.instr
 
+  // TODO: To be replaced in a more general way
   val rs1 = if_id.ID.instr(19, 15)
   val rs2 = if_id.ID.instr(24, 20)
   val rd  = if_id.ID.instr(11, 7)
@@ -179,13 +179,15 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ex_mem.EX.pc         := id_ex.EX.pc
   ex_mem.EX.rd         := id_ex.EX.rd
   ex_mem.EX.regwrite   := id_ex.EX.decoded_output.regwrite
+  ex_mem.EX.lsu        := id_ex.EX.decoded_output.lsu
+  ex_mem.EX.lsu_cmd    := id_ex.EX.decoded_output.lsu_cmd
 
   // MEM
   DMEM_ADDR       := ex_mem.MEM.alu_result
-  DMEM_READ_EN    := false.B
-  DMEM_WRITE_EN   := false.B
+  DMEM_READ_EN    := lsu_utils.isMemRead(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
+  DMEM_WRITE_EN   := lsu_utils.isMemWrite(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
   DMEM_WRITE_DATA := ex_rs2_data
-  DMEM_WRITE_STRB := "b1111".U((p(XLen) / 8).W)
+  DMEM_WRITE_STRB := lsu_utils.strb(ex_mem.MEM.lsu_cmd)
   val mem_read_data = DMEM_READ_DATA
 
   // MEM/WB
