@@ -1,0 +1,25 @@
+package arch.core.imm
+
+import arch.configs._
+import chisel3._
+
+class ImmGen(implicit p: Parameters) extends Module {
+  override def desiredName: String = s"${p(ISA)}_immgen"
+
+  val utils = ImmUtilitiesFactory.getOrThrow(p(ISA))
+
+  val instr   = IO(Input(UInt(p(ILen).W)))
+  val immType = IO(Input(UInt(utils.immTypeWidth.W)))
+  val imm     = IO(Output(utils.createBundle))
+
+  imm := utils.genImm(instr, immType)
+}
+
+object ImmGen {
+  def apply(instr: UInt, immType: UInt)(implicit p: Parameters): UInt = {
+    val immGen = Module(new ImmGen())
+    immGen.instr   := instr
+    immGen.immType := immType
+    immGen.imm
+  }
+}
