@@ -1,7 +1,7 @@
 .section .text
 .globl _start
+
 _start:
-    nop
     lui x10, 0x80000
     
     # Test 1: BEQ (Branch if Equal)
