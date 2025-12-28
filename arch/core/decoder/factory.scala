@@ -14,6 +14,12 @@ object DecoderUtilitiesFactory {
   def getOrElse(name: String, default: DecoderUtilities): DecoderUtilities =
     registry.getOrElse(name.toLowerCase, default)
 
+  def getOrThrow(name: String): DecoderUtilities =
+    registry.getOrElse(
+      name.toLowerCase,
+      throw new NoSuchElementException(s"DecoderUtilities for ISA '$name' not found")
+    )
+
   def listAvailable(): Seq[String] = registry.keys.toSeq.sorted
 
   def contains(name: String): Boolean = registry.contains(name.toLowerCase)

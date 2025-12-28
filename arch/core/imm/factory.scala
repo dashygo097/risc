@@ -14,6 +14,12 @@ object ImmUtilitiesFactory {
   def getOrElse(name: String, default: ImmUtilities): ImmUtilities =
     registry.getOrElse(name.toLowerCase, default)
 
+  def getOrThrow(name: String): ImmUtilities =
+    registry.getOrElse(
+      name.toLowerCase,
+      throw new NoSuchElementException(s"ImmUtilities for ISA '$name' not found")
+    )
+
   def listAvailable(): Seq[String] = registry.keys.toSeq.sorted
 
   def contains(name: String): Boolean = registry.contains(name.toLowerCase)

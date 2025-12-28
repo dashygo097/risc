@@ -6,10 +6,7 @@ import chisel3._
 class Decoder(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_decoder"
 
-  val utils = DecoderUtilitiesFactory.get(p(ISA)) match {
-    case Some(u) => u
-    case None    => throw new Exception(s"Decoder utilities for ISA ${p(ISA)} not found!")
-  }
+  val utils = DecoderUtilitiesFactory.getOrThrow(p(ISA))
 
   val instr   = IO(Input(UInt(p(ILen).W)))
   val decoded = IO(Output(new DecodedOutput))

@@ -3,7 +3,7 @@ package arch.core.lsu
 import arch.core.common.Consts
 import chisel3.util._
 
-trait RV32ILSUConsts extends Consts {
+trait RV32ILsuConsts extends Consts {
   def M_X   = BitPat("b???")
   val SZ_M  = M_X.getWidth
   def M_SB  = BitPat("b000")
@@ -16,9 +16,9 @@ trait RV32ILSUConsts extends Consts {
   def M_LHU = BitPat("b111")
 }
 
-class RV32ILSUUtilitiesImpl extends LSUUtilities with RV32ILSUConsts {}
+class RV32ILsuUtilitiesImpl extends LsuUtilities with RV32ILsuConsts {}
 
-object RV32ILSUUtilities extends RegisteredLSUUtilities with RV32ILSUConsts {
+object RV32ILsuUtilities extends RegisteredLsuUtilities with RV32ILsuConsts {
   override def isaName: String     = "rv32i"
-  override def utils: LSUUtilities = new RV32ILSUUtilitiesImpl
+  override def utils: LsuUtilities = new RV32ILsuUtilitiesImpl
 }

@@ -12,8 +12,8 @@ import utils._
 object Main extends App {
   DecoderInit
   RegfileInit
-  ALUInit
-  LSUInit
+  AluInit
+  LsuInit
   ImmInit
   VerilogEmitter.parse(new RiscCore, s"${p(ISA)}_cpu.sv", lowering = true)
 }
@@ -28,7 +28,7 @@ object RegfileTest extends App {
   VerilogEmitter.parse(new Regfile, s"${p(ISA)}_regfile.sv")
 }
 
-object ALUTest extends App {
-  ALUInit
-  VerilogEmitter.parse(new ALU, s"${p(ISA)}_alu.sv")
+object AluTest extends App {
+  AluInit
+  VerilogEmitter.parse(new Alu, s"${p(ISA)}_alu.sv")
 }

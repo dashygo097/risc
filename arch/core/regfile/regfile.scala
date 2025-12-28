@@ -8,10 +8,7 @@ import scala.math.pow
 class Regfile(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_regfile"
 
-  val utils = RegfileUtilitiesFactory.get(p(ISA)) match {
-    case Some(u) => u
-    case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
-  }
+  val utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
 
   val rs1_addr   = IO(Input(UInt(utils.width.W)))
   val rs2_addr   = IO(Input(UInt(utils.width.W)))

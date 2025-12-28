@@ -1,3 +1,3 @@
 package arch.core.lsu
 
-trait LSUUtilities {}
+trait LsuUtilities {}

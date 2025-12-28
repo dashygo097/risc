@@ -5,7 +5,7 @@ import arch.core.common.Consts
 import chisel3._
 import chisel3.util._
 
-trait RV32IALUConsts extends Consts {
+trait RV32IAluConsts extends Consts {
   def A1_X    = BitPat("b??")
   val SZ_A1   = A1_X.getWidth
   def A1_ZERO = BitPat("b00")
@@ -31,7 +31,7 @@ trait RV32IALUConsts extends Consts {
   def AFN_AND  = BitPat("b111")
 }
 
-class RV32IALUUtilitiesImpl extends ALUUtilities with RV32IALUConsts {
+class RV32IAluUtilitiesImpl extends AluUtilities with RV32IAluConsts {
   def fnTypeWidth: Int                                           = SZ_AFN
   def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt = {
     val result = Wire(UInt(p(XLen).W))
@@ -64,7 +64,7 @@ class RV32IALUUtilitiesImpl extends ALUUtilities with RV32IALUConsts {
   }
 }
 
-object RV32IALUUtilities extends RegisteredALUUtilities with RV32IALUConsts {
+object RV32IAluUtilities extends RegisteredAluUtilities with RV32IAluConsts {
   override def isaName: String     = "rv32i"
-  override def utils: ALUUtilities = new RV32IALUUtilitiesImpl
+  override def utils: AluUtilities = new RV32IAluUtilitiesImpl
 }

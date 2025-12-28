@@ -3,12 +3,12 @@ package arch.core.decoder
 import arch.isa.RV32I
 import arch.core.common.Consts
 import arch.core.imm.RV32ImmConsts
-import arch.core.alu.RV32IALUConsts
-import arch.core.lsu.RV32ILSUConsts
+import arch.core.alu.RV32IAluConsts
+import arch.core.lsu.RV32ILsuConsts
 import chisel3._
 import chisel3.util._
 
-trait RV32IDecodeConsts extends Consts with RV32IALUConsts with RV32ILSUConsts with RV32ImmConsts {
+trait RV32IDecodeConsts extends Consts with RV32IAluConsts with RV32ILsuConsts with RV32ImmConsts {
   // Branch
   def BR_X   = BitPat("b???")
   val SZ_BR  = BR_X.getWidth
