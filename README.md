@@ -1,6 +1,4 @@
-# rvcpu
-
-#### A toy RISCV CPU impled with chisel scala with a riscv cpu simulator.
+# risc
 
 ###### NOTE: THIS REPO IS STILL UNDER DEVELOPMENT.
 

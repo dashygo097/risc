@@ -8,7 +8,7 @@ import chisel3._
 import chisel3.util._
 
 class RV32CPU extends Module {
-  override def desiredName: String = s"rv32_cpu"
+  override def desiredName: String = s"rv32i_cpu"
 
   // Memory Interface
   val IMEM_ADDR = IO(Output(UInt(32.W)))

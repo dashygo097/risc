@@ -49,7 +49,7 @@ option(ENABLE_COVERAGE "Enable coverage collection" ON)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CMAKE_BINARY_DIR})
 
-set(RTL_SOURCES ${CMAKE_SOURCE_DIR}/../build/rv32_cpu.sv)
+set(RTL_SOURCES ${CMAKE_SOURCE_DIR}/../build/rv32i_cpu.sv)
 if(NOT EXISTS ${RTL_SOURCES})
   message(WARNING "RTL file not found: ${RTL_SOURCES}")
   message(WARNING "Please make sure your Chisel design has been generated")
@@ -79,7 +79,7 @@ add_subdirectory(src)
 print_info("――――――――――――――――――APP SCOPE――――――――――――――――――" "0" "1")
 
 # App
-install(TARGETS rv32_cpu_verilated DESTINATION bin)
+install(TARGETS rv32i_cpu_verilated DESTINATION bin)
 print_info("Configuration: " "92" "0")
 print_info("  Build Type: ${CMAKE_BUILD_TYPE}" "92" "1")
 print_info("  C++ Compiler: ${CMAKE_CXX_COMPILER}" "92" "1")
