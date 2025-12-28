@@ -85,19 +85,19 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   val id_rs1_data = MuxLookup(id_fwd.forward_rs1, 0.U(p(XLen).W))(
     Seq(
-      F_SAFE.value.U(SZ_F.W) -> regfile.rs1_data,
-      F_EX.value.U(SZ_F.W)   -> alu.result,
-      F_MEM.value.U(SZ_F.W)  -> ex_mem.MEM.alu_result,
-      F_WB.value.U(SZ_F.W)   -> mem_wb.WB.wb_data
+      FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs1_data,
+      FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
 
   val id_rs2_data = MuxLookup(id_fwd.forward_rs2, 0.U(p(XLen).W))(
     Seq(
-      F_SAFE.value.U(SZ_F.W) -> regfile.rs2_data,
-      F_EX.value.U(SZ_F.W)   -> alu.result,
-      F_MEM.value.U(SZ_F.W)  -> ex_mem.MEM.alu_result,
-      F_WB.value.U(SZ_F.W)   -> mem_wb.WB.wb_data
+      FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs2_data,
+      FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
 
@@ -134,17 +134,17 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   val ex_rs1_data = MuxLookup(ex_fwd.forward_rs1, 0.U(p(XLen).W))(
     Seq(
-      F_SAFE.value.U(SZ_F.W) -> id_ex.EX.rs1_data,
-      F_MEM.value.U(SZ_F.W)  -> ex_mem.MEM.alu_result,
-      F_WB.value.U(SZ_F.W)   -> mem_wb.WB.wb_data
+      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.EX.rs1_data,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
 
   val ex_rs2_data = MuxLookup(ex_fwd.forward_rs2, 0.U(p(XLen).W))(
     Seq(
-      F_SAFE.value.U(SZ_F.W) -> id_ex.EX.rs2_data,
-      F_MEM.value.U(SZ_F.W)  -> ex_mem.MEM.alu_result,
-      F_WB.value.U(SZ_F.W)   -> mem_wb.WB.wb_data
+      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.EX.rs2_data,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
 
