@@ -8,8 +8,7 @@ import arch.configs._
 import chisel3._
 import chisel3.util._
 
-// TODO: Implement the RiscCore for other isa
-class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with RV32IAluConsts {
+class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
   val regfile_utils = RegfileUtilitiesFactory.get(p(ISA)) match {
@@ -124,7 +123,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // EX
   imm_gen.instr   := id_ex.EX.instr
-  imm_gen.immType := id_ex.EX.decoded_output.imm_sel
+  imm_gen.immType := id_ex.EX.decoded_output.imm_type
 
   ex_fwd.ex_rs1       := id_ex.EX.rs1
   ex_fwd.ex_rs2       := id_ex.EX.rs2

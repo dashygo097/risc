@@ -26,14 +26,12 @@ class RV32IDecoderUtilitiesImpl extends DecoderUtilities with RV32IDecodeConsts 
   def default: List[BitPat] =
     List(N, IMM_X, X, X, A1_X, A2_X, X, AFN_X, X, M_X)
 
-  def createBundle(): Bundle = new DecodedOutput
-
-  def decode(instr: UInt): Bundle = {
+  def decode(instr: UInt): DecodedOutput = {
     val sigs    = Wire(new DecodedOutput)
     val decoder = DecodeLogic(instr, default, table)
 
     sigs.legal    := decoder(0).asBool
-    sigs.imm_sel  := decoder(1)
+    sigs.imm_type := decoder(1)
     sigs.regwrite := decoder(2).asBool
     sigs.alu      := decoder(3).asBool
     sigs.alu_sel1 := decoder(4)
