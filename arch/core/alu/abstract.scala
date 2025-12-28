@@ -16,6 +16,9 @@ trait AluConsts extends Consts {
   def A2_ZERO = BitPat("b00")
   def A2_RS2  = BitPat("b01")
   def A2_IMM  = BitPat("b10")
+
+  def isArithmetic(fnType: UInt): Bool = 0.B
+  def isComparison(fnType: UInt): Bool = 0.B
 }
 
 trait AluUtilities {

@@ -5,10 +5,11 @@ import arch.core.common.Consts
 import arch.core.imm.RV32ImmConsts
 import arch.core.alu.RV32IAluConsts
 import arch.core.lsu.RV32ILsuConsts
+import arch.core.regfile.RV32IRegfileConsts
 import chisel3._
 import chisel3.util._
 
-trait RV32IDecodeConsts extends Consts with RV32IAluConsts with RV32ILsuConsts with RV32ImmConsts {
+trait RV32IDecodeConsts extends Consts with RV32IAluConsts with RV32ILsuConsts with RV32ImmConsts with RV32IRegfileConsts {
   // Branch
   def BR_X   = BitPat("b???")
   val SZ_BR  = BR_X.getWidth

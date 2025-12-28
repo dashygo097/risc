@@ -7,8 +7,8 @@ import arch.configs._
 import chisel3._
 
 class InstructionFetchBundle(implicit p: Parameters) extends Bundle {
-  val pc    = UInt(p(XLen).W)
   val instr = UInt(p(ILen).W)
+  val pc    = UInt(p(XLen).W)
 }
 
 class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
@@ -22,14 +22,14 @@ class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
     case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
   }
 
-  val decoded_output = new DecodedOutput
   val instr          = UInt(p(ILen).W)
   val pc             = UInt(p(XLen).W)
+  val rd             = UInt(regfile_utils.width.W)
+  val decoded_output = new DecodedOutput
   val rs1            = UInt(regfile_utils.width.W)
   val rs1_data       = UInt(p(XLen).W)
   val rs2            = UInt(regfile_utils.width.W)
   val rs2_data       = UInt(p(XLen).W)
-  val rd             = UInt(regfile_utils.width.W)
 }
 
 class ExcutionBundle(implicit p: Parameters) extends Bundle {
@@ -38,10 +38,10 @@ class ExcutionBundle(implicit p: Parameters) extends Bundle {
     case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
   }
 
-  val alu_result = UInt(p(XLen).W)
   val instr      = UInt(p(ILen).W)
   val pc         = UInt(p(XLen).W)
   val rd         = UInt(regfile_utils.width.W)
+  val alu_result = UInt(p(XLen).W)
   val regwrite   = Bool()
 }
 
@@ -51,11 +51,11 @@ class MemoryBundle(implicit p: Parameters) extends Bundle {
     case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
   }
 
-  val wb_data  = UInt(p(XLen).W)
   val instr    = UInt(p(ILen).W)
   val pc       = UInt(p(XLen).W)
   val rd       = UInt(regfile_utils.width.W)
   val regwrite = Bool()
+  val wb_data  = UInt(p(XLen).W)
 }
 
 class IF_ID(implicit p: Parameters) extends Module {

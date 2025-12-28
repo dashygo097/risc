@@ -102,24 +102,24 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   )
 
   // hazard detection
-  val load_use_hazard = (id_ex.EX.rd === rs1 && rs1 =/= 0.U) || (id_ex.EX.rd === rs2 && rs2 =/= 0.U)
 
   stall := false.B
 
   // branch decision
 
-  flush                   := false.B // for now, no branch implemented
+  flush := false.B
+
   // ID/EX
   id_ex.STALL             := stall
   id_ex.FLUSH             := flush || stall
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
+  id_ex.ID.rd             := rd
   id_ex.ID.rs1            := rs1
   id_ex.ID.rs1_data       := id_rs1_data
   id_ex.ID.rs2            := rs2
   id_ex.ID.rs2_data       := id_rs2_data
-  id_ex.ID.rd             := rd
 
   // EX
   imm_gen.instr   := id_ex.EX.instr
@@ -212,7 +212,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // debug ports
   DEBUG_PC       := mem_wb.WB.pc
   DEBUG_INST     := mem_wb.WB.instr
-  DEBUG_REG_WE   := mem_wb.WB.regwrite
   DEBUG_REG_ADDR := mem_wb.WB.rd
+  DEBUG_REG_WE   := mem_wb.WB.regwrite
   DEBUG_REG_DATA := mem_wb.WB.wb_data
 }
