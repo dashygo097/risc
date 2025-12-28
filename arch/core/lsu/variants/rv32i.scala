@@ -16,7 +16,9 @@ trait RV32ILsuConsts extends Consts {
   def M_LHU = BitPat("b111")
 }
 
-class RV32ILsuUtilitiesImpl extends LsuUtilities with RV32ILsuConsts {}
+class RV32ILsuUtilitiesImpl extends LsuUtilities with RV32ILsuConsts {
+  def cmdWidth: Int = SZ_M
+}
 
 object RV32ILsuUtilities extends RegisteredLsuUtilities with RV32ILsuConsts {
   override def isaName: String     = "rv32i"

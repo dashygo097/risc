@@ -22,7 +22,6 @@ class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
     case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
   }
 
-  // TODO: This decoded output only supports rv32i yet
   val decoded_output = new DecodedOutput
   val instr          = UInt(p(ILen).W)
   val pc             = UInt(p(XLen).W)
