@@ -22,31 +22,51 @@ class Lsu(implicit p: Parameters) extends Module {
   val mem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
 
   // Outputs
+  val rdata     = IO(Output(UInt(p(XLen).W)))
   val pending   = IO(Output(Bool()))
   val unsigned  = IO(Output(Bool()))
   val mem_read  = IO(Output(Bool()))
   val mem_write = IO(Output(Bool()))
-  val strb      = IO(Output(UInt((p(XLen) / 8).W)))
 
   // Internal Signals
   val pending_reg = RegInit(false.B)
+  val byte_offset = addr(1, 0)
+  val half_offset = addr(1)
 
   unsigned  := en && utils.isUnsigned(cmd)
   mem_read  := utils.isMemRead(en, cmd)
   mem_write := utils.isMemWrite(en, cmd)
-  strb      := Mux(en, utils.strb(cmd), 0.U)
 
-  // Memory request generation
+  val aligned_wdata = MuxCase(
+    wdata,
+    Seq(
+      utils.isByte(cmd) -> (wdata << (byte_offset << 3)),
+      utils.isHalf(cmd) -> (wdata << (half_offset << 4)),
+      utils.isWord(cmd) -> wdata
+    )
+  )
+
+  val shifted_rdata = mem.resp.bits.data >> (byte_offset << 3)
+  val loaded_data   = MuxCase(
+    shifted_rdata,
+    Seq(
+      utils.isByte(cmd) -> Cat(
+        Fill(24, Mux(unsigned, 0.U(1.W), shifted_rdata(7))),
+        shifted_rdata(7, 0)
+      ),
+      utils.isHalf(cmd) -> Cat(
+        Fill(16, Mux(unsigned, 0.U(1.W), shifted_rdata(15))),
+        shifted_rdata(15, 0)
+      ),
+      utils.isWord(cmd) -> shifted_rdata
+    )
+  )
+
+  // Memory request
   mem.req.valid     := (mem_read || mem_write) && !pending
   mem.req.bits.op   := Mux(mem_write, MemoryOp.WRITE, MemoryOp.READ)
   mem.req.bits.addr := addr
-  mem.req.bits.data := MuxLookup(strb, 0.U)(
-    Seq(
-      "b0001".U -> (wdata & 0xff.U),
-      "b0011".U -> (wdata & 0xffff.U),
-      "b1111".U -> wdata
-    )
-  )
+  mem.req.bits.data := aligned_wdata
 
   mem.resp.ready := true.B
 
@@ -59,4 +79,6 @@ class Lsu(implicit p: Parameters) extends Module {
   }
   pending := pending_reg
 
+  // Read Data
+  rdata := Mux(mem.resp.fire, loaded_data, 0.U)
 }
