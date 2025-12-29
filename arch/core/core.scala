@@ -82,10 +82,9 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // ID
   decoder.instr := if_id.ID.instr
 
-  // TODO: handle abstractions for different ISAs
-  val rs1 = if_id.ID.instr(19, 15)
-  val rs2 = if_id.ID.instr(24, 20)
-  val rd  = if_id.ID.instr(11, 7)
+  val rs1 = regfile_utils.getRs1(if_id.ID.instr)
+  val rs2 = regfile_utils.getRs2(if_id.ID.instr)
+  val rd  = regfile_utils.getRd(if_id.ID.instr)
 
   regfile.rs1_addr := rs1
   regfile.rs2_addr := rs2
@@ -120,12 +119,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // branch decision
 
   // hazard detection
-  val load_use_hazard = id_ex.EX.decoded_output.lsu &&
-    lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
-    ((id_ex.EX.rd === rs1) || (id_ex.EX.rd === rs2)) &&
-    (id_ex.EX.rd =/= 0.U)
-
-  stall := load_use_hazard
+  stall := false.B
   flush := false.B // TODO: add branch handling
 
   // ID/EX

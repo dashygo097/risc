@@ -2,6 +2,7 @@ package arch.core.regfile
 
 import arch.core.common.Consts
 import utils.Register
+import chisel3._
 import chisel3.util.BitPat
 
 trait RV32IRegfileConsts extends Consts {
@@ -42,7 +43,11 @@ trait RV32IRegfileConsts extends Consts {
 }
 
 class RV32IRegfileUtilitiesImpl extends RegfileUtilities with RV32IRegfileConsts {
-  def width: Int               = SZ_GPR
+  def width: Int                = SZ_GPR
+  def getRs1(instr: UInt): UInt = instr(19, 15)
+  def getRs2(instr: UInt): UInt = instr(24, 20)
+  def getRd(instr: UInt): UInt  = instr(11, 7)
+
   def extraInfo: Seq[Register] = {
     val info = Seq(
       Register("zero", 0x0, 0x0L, writable = false, readable = true),
