@@ -9,9 +9,7 @@ CPUSimulator::CPUSimulator(bool enable_trace)
       _dmem(new Memory(256 * 1024, 0x80000000)), _trace(new ExecutionTrace()),
       _time_counter(0), _cycle_count(0), _inst_count(0), _timeout(1000000),
       _terminate(false), _verbose(false), _profiling(false),
-      _trace_enabled(enable_trace), _imem_state(MemState::IDLE),
-      _dmem_state(MemState::IDLE), _pending_imem_addr(0), _pending_dmem_addr(0),
-      _pending_dmem_data(0), _pending_dmem_write(false) {
+      _trace_enabled(enable_trace) {
 #ifdef ENABLE_TRACE
   if (_trace_enabled) {
     Verilated::traceEverOn(true);
@@ -67,75 +65,46 @@ void CPUSimulator::reset() {
   _register_values.clear();
   _pc_histogram.clear();
   _trace->clear();
-  _imem_state = MemState::IDLE;
-  _dmem_state = MemState::IDLE;
 }
 
 void CPUSimulator::handle_imem_interface() {
-  switch (_imem_state) {
-  case MemState::IDLE:
-    _dut->imem_resp_valid = 0;
-    if (_dut->imem_req_valid && _dut->imem_req_ready) {
-      _pending_imem_addr = _dut->imem_req_bits_addr;
-      _imem_state = MemState::IMEM_WAIT;
-    }
-    break;
+  _dut->imem_resp_valid = 0;
 
-  case MemState::IMEM_WAIT:
-    _dut->imem_resp_bits_data = _imem->read32(_pending_imem_addr);
+  if (_dut->imem_req_valid && _dut->imem_req_ready) {
+    uint32_t addr = _dut->imem_req_bits_addr;
+    uint32_t data = _imem->read32(addr);
+    _dut->imem_resp_bits_data = data;
     _dut->imem_resp_valid = 1;
-
-    if (_dut->imem_resp_ready) {
-      _imem_state = MemState::IDLE;
-    }
-    break;
-
-  case MemState::DMEM_WAIT:
-    break;
   }
 }
 
 void CPUSimulator::handle_dmem_interface() {
-  switch (_dmem_state) {
-  case MemState::IDLE:
-    _dut->dmem_resp_valid = 0;
-    if (_dut->dmem_req_valid && _dut->dmem_req_ready) {
-      _pending_dmem_addr = _dut->dmem_req_bits_addr;
-      _pending_dmem_data = _dut->dmem_req_bits_data;
-      _pending_dmem_write = _dut->dmem_req_bits_op;
-      _dmem_state = MemState::DMEM_WAIT;
-    }
-    break;
+  _dut->dmem_resp_valid = 0;
+  if (_dut->dmem_req_valid && _dut->dmem_req_ready) {
+    uint32_t addr = _dut->dmem_req_bits_addr;
 
-  case MemState::IMEM_WAIT:
-    break;
-
-  case MemState::DMEM_WAIT:
-    if (_pending_dmem_write) {
-      _dmem->write32(_pending_dmem_addr, _pending_dmem_data);
+    if (_dut->dmem_req_bits_op) {
+      uint32_t data = _dut->dmem_req_bits_data;
+      _dmem->write32(addr, data);
       _dut->dmem_resp_bits_data = 0;
 
       if (_verbose) {
-        std::cout << "  [MEM WRITE] addr=0x" << std::hex << _pending_dmem_addr
-                  << " data=0x" << _pending_dmem_data << std::dec << std::endl;
+        std::cout << "  [MEM WRITE] addr=0x" << std::hex << addr << " data=0x"
+                  << data << std::dec << std::endl;
       }
     } else {
-      uint32_t aligned_addr = _pending_dmem_addr & ~0x3;
-      _dut->dmem_resp_bits_data = _dmem->read32(aligned_addr);
+      uint32_t aligned_addr = addr & ~0x3;
+      uint32_t data = _dmem->read32(aligned_addr);
+      _dut->dmem_resp_bits_data = data;
 
       if (_verbose) {
-        std::cout << "  [MEM READ] addr=0x" << std::hex << _pending_dmem_addr
-                  << " aligned=0x" << aligned_addr << " data=0x"
-                  << _dut->dmem_resp_bits_data << std::dec << std::endl;
+        std::cout << "  [MEM READ] addr=0x" << std::hex << addr << " aligned=0x"
+                  << aligned_addr << " data=0x" << data << std::dec
+                  << std::endl;
       }
     }
 
     _dut->dmem_resp_valid = 1;
-
-    if (_dut->dmem_resp_ready) {
-      _dmem_state = MemState::IDLE;
-    }
-    break;
   }
 }
 

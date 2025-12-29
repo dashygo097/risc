@@ -62,14 +62,6 @@ private:
   std::map<uint8_t, uint32_t> _register_values;
   std::map<uint32_t, uint64_t> _pc_histogram;
 
-  enum class MemState { IDLE, IMEM_WAIT, DMEM_WAIT };
-  MemState _imem_state;
-  MemState _dmem_state;
-  uint32_t _pending_imem_addr;
-  uint32_t _pending_dmem_addr;
-  uint32_t _pending_dmem_data;
-  bool _pending_dmem_write;
-
   void clock_tick();
   void handle_imem_interface();
   void handle_dmem_interface();
