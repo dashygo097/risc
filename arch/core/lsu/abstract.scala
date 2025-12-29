@@ -5,6 +5,10 @@ import chisel3._
 trait LsuUtilities {
   def cmdWidth: Int
   def strb(cmd: UInt): UInt
+
+  def isByte(cmd: UInt): Bool
+  def isHalf(cmd: UInt): Bool
+  def isWord(cmd: UInt): Bool
   def isUnsigned(cmd: UInt): Bool
   def isRead(cmd: UInt): Bool
   def isWrite(cmd: UInt): Bool

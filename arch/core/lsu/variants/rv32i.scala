@@ -29,6 +29,9 @@ class RV32ILsuUtilitiesImpl extends LsuUtilities with RV32ILsuConsts {
       )
     )
 
+  def isByte(cmd: UInt): Bool                   = cmd(1, 0) === "b00".U
+  def isHalf(cmd: UInt): Bool                   = cmd(1, 0) === "b01".U
+  def isWord(cmd: UInt): Bool                   = cmd(1, 0) === "b10".U
   def isUnsigned(cmd: UInt): Bool               = cmd(2)
   def isRead(cmd: UInt): Bool                   = cmd(3)
   def isWrite(cmd: UInt): Bool                  = !cmd(3)
