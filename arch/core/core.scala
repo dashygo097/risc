@@ -10,29 +10,6 @@ import mem.cache._
 import chisel3._
 import chisel3.util._
 
-class BranchComparator(implicit p: Parameters) extends Module {
-  val src1   = IO(Input(UInt(p(XLen).W)))
-  val src2   = IO(Input(UInt(p(XLen).W)))
-  val fnType = IO(Input(UInt(4.W)))
-  val enable = IO(Input(Bool()))
-  val taken  = IO(Output(Bool()))
-
-  val eq  = src1 === src2
-  val lt  = src1.asSInt < src2.asSInt
-  val ltu = src1 < src2
-
-  taken := enable && MuxLookup(fnType(2, 0), false.B)(
-    Seq(
-      0.U -> !eq, // SNE
-      1.U -> eq,  // SEQ
-      2.U -> lt,  // SLT
-      3.U -> ltu, // SLTU
-      4.U -> !lt, // SGE
-      5.U -> !ltu // SGEU
-    )
-  )
-}
-
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
@@ -51,13 +28,12 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val debug_reg_data = IO(Output(UInt(p(XLen).W)))
 
   // Modules
-  val decoder     = Module(new Decoder)
-  val regfile     = Module(new Regfile)
-  val id_fwd      = Module(new IDForwardingUnit)
-  val ex_fwd      = Module(new EXForwardingUnit)
-  val imm_gen     = Module(new ImmGen)
-  val alu         = Module(new Alu)
-  val branch_comp = Module(new BranchComparator)
+  val decoder = Module(new Decoder)
+  val regfile = Module(new Regfile)
+  val id_fwd  = Module(new IDForwardingUnit)
+  val ex_fwd  = Module(new EXForwardingUnit)
+  val imm_gen = Module(new ImmGen)
+  val alu     = Module(new Alu)
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -105,6 +81,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // ID
   decoder.instr := if_id.ID.instr
 
+  // TODO: handle abstractions for different ISAs
   val rs1 = if_id.ID.instr(19, 15)
   val rs2 = if_id.ID.instr(24, 20)
   val rd  = if_id.ID.instr(11, 7)
@@ -139,18 +116,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
   )
 
-  // branch
-  val is_branch = decoder.decoded.alu && alu_utils.isComparison(decoder.decoded.alu_fn)
-  val is_jal    = false.B // TODO: from decoder
-  val is_jalr   = false.B // TODO: from decoder
-
-  branch_comp.src1   := id_rs1_data
-  branch_comp.src2   := id_rs2_data
-  branch_comp.fnType := decoder.decoded.alu_fn
-  branch_comp.enable := is_branch
-
-  val branch_taken = branch_comp.taken
-  val jump_taken   = is_jal || is_jalr
+  // branch decision
 
   // hazard detection
   val load_use_hazard = id_ex.EX.decoded_output.lsu &&
@@ -158,14 +124,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     ((id_ex.EX.rd === rs1) || (id_ex.EX.rd === rs2)) &&
     (id_ex.EX.rd =/= 0.U)
 
-  val branch_hazard = (is_branch || is_jalr) &&
-    id_ex.EX.decoded_output.lsu &&
-    lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
-    ((id_ex.EX.rd === rs1) || (id_ex.EX.rd === rs2)) &&
-    (id_ex.EX.rd =/= 0.U)
-
-  stall := load_use_hazard || branch_hazard
-  flush := branch_taken || jump_taken
+  stall := false.B
+  flush := false.B // TODO: add branch handling
 
   // ID/EX
   id_ex.STALL             := stall
@@ -180,10 +140,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   id_ex.ID.rs2_data       := id_rs2_data
 
   // EX
-  // Imm
-  imm_gen.instr   := id_ex.EX.instr
-  imm_gen.immType := id_ex.EX.decoded_output.imm_type
-
   ex_fwd.ex_rs1       := id_ex.EX.rs1
   ex_fwd.ex_rs2       := id_ex.EX.rs2
   ex_fwd.mem_rd       := ex_mem.MEM.rd
@@ -206,6 +162,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
       FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
+
+  // Imm
+  imm_gen.instr   := id_ex.EX.instr
+  imm_gen.immType := id_ex.EX.decoded_output.imm_type
 
   // ALU
   val alu_rs1_data = MuxLookup(id_ex.EX.decoded_output.alu_sel1, 0.U(p(XLen).W))(
@@ -286,10 +246,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_en   := mem_wb.WB.regwrite
 
   // pc update
-  val branch_target = if_id.ID.pc + imm_gen.imm
-  val jalr_target   = (id_rs1_data + imm_gen.imm) & ~1.U(p(XLen).W)
-
-  // TODO: add branch and jar/jalr targets
   next_pc := pc + 4.U
 
   when(!stall && !imem_pending) {
