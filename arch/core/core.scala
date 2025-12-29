@@ -219,7 +219,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   )
 
   // MEM/WB
-  mem_wb.STALL        := !lsu.ready && lsu.mem_read
+  mem_wb.STALL        := lsu.pending && lsu.mem_read
   mem_wb.FLUSH        := false.B
   mem_wb.MEM.wb_data  := mem_wb_data
   mem_wb.MEM.instr    := ex_mem.MEM.instr
