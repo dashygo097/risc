@@ -4,6 +4,7 @@
 _start:
     lui x10, 0x80000
 
+    # sw/lw 
     addi x1, x0, 0x12   # x1 = 0x12
     sw x1, 0(x10)         # mem[0x80000000] = 0x00000012
     
@@ -12,5 +13,11 @@ _start:
     
     lw x3, 0(x10)         # x3 = 0x00000012
     lw x4, 4(x10)         # x4 = 0x00000056
+
+    # sh/lh
+    lui x5, 0x12345
+    ori x5, x5, 0x678
+    sh x5, 8(x10)         # mem[0x80000008] = 0x5678
+    lh x6, 8(x10)         # x6 = 0x5678
 
     ebreak
