@@ -3,6 +3,7 @@ package arch.core.lsu
 import arch.configs._
 import mem.cache._
 import chisel3._
+import chisel3.util._
 
 class Lsu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_lsu"
@@ -21,46 +22,41 @@ class Lsu(implicit p: Parameters) extends Module {
   val mem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
 
   // Outputs
-  val rdata     = IO(Output(UInt(p(XLen).W)))
-  val ready     = IO(Output(Bool()))
+  val pending   = IO(Output(Bool()))
   val unsigned  = IO(Output(Bool()))
   val mem_read  = IO(Output(Bool()))
   val mem_write = IO(Output(Bool()))
   val strb      = IO(Output(UInt((p(XLen) / 8).W)))
 
-  // Internal state
-  val read_data = RegInit(0.U(p(XLen).W))
-  val pending   = RegInit(false.B)
+  // Internal Signals
+  val pending_reg = RegInit(false.B)
 
-  // Control signals
-  unsigned := en && utils.isUnsigned(cmd)
-  val is_read  = en && utils.isRead(cmd)
-  val is_write = en && utils.isWrite(cmd)
-  mem_read  := is_read
-  mem_write := is_write
+  unsigned  := en && utils.isUnsigned(cmd)
+  mem_read  := utils.isMemRead(en, cmd)
+  mem_write := utils.isMemWrite(en, cmd)
   strb      := Mux(en, utils.strb(cmd), 0.U)
-  ready     := !pending
 
   // Memory request generation
-  mem.req.valid     := (is_read || is_write) && !pending
-  mem.req.bits.op   := Mux(is_write, MemoryOp.WRITE, MemoryOp.READ)
+  mem.req.valid     := (mem_read || mem_write) && !pending
+  mem.req.bits.op   := Mux(mem_write, MemoryOp.WRITE, MemoryOp.READ)
   mem.req.bits.addr := addr
-  mem.req.bits.data := wdata
+  mem.req.bits.data := MuxLookup(strb, 0.U)(
+    Seq(
+      "b0001".U -> (wdata & 0xff.U),
+      "b0011".U -> (wdata & 0xffff.U),
+      "b1111".U -> wdata
+    )
+  )
 
   mem.resp.ready := true.B
 
-  // State machine
+  // Pending
   when(mem.req.fire) {
-    pending := true.B
+    pending_reg := true.B
   }
   when(mem.resp.fire) {
-    read_data := mem.resp.bits.data
-    pending   := false.B
+    pending_reg := false.B
   }
+  pending := pending_reg
 
-  // Read data output
-  rdata := read_data
-  when(is_read && mem.resp.fire) {
-    rdata := mem.resp.bits.data
-  }
 }
