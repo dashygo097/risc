@@ -22,7 +22,6 @@ lazy val core = (project in file("core"))
     name := "core",
     libraryDependencies ++= Seq(
       "dashygo097"        %% "utils"  % "0.1.0",
-      "dashygo097"        %% "dsp"    % "0.1.0",
       "dashygo097"        %% "math"   % "0.1.0",
       "dashygo097"        %% "com"    % "0.1.0",
       "dashygo097"        %% "mem"    % "0.1.0",
@@ -39,7 +38,6 @@ lazy val arch = (project in file("arch"))
     name := "arch",
     libraryDependencies ++= Seq(
       "dashygo097"        %% "utils"  % "0.1.0",
-      "dashygo097"        %% "dsp"    % "0.1.0",
       "dashygo097"        %% "math"   % "0.1.0",
       "dashygo097"        %% "com"    % "0.1.0",
       "dashygo097"        %% "mem"    % "0.1.0",
