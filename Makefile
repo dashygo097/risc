@@ -5,7 +5,7 @@ SIM_DIR = $(BASE_DIR)/sims
 SYNTH_DIR = $(BASE_DIR)/synth
 TB_DIR = $(SIM_DIR)/tb
 
-LIB ?= core 
+LIB ?= arch 
 FZF ?= false
 STA_TOOL ?= yosys
 
