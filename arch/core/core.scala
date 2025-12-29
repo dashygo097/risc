@@ -124,7 +124,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     ((id_ex.EX.rd === rs1) || (id_ex.EX.rd === rs2)) &&
     (id_ex.EX.rd =/= 0.U)
 
-  stall := false.B
+  stall := load_use_hazard
   flush := false.B // TODO: add branch handling
 
   // ID/EX
