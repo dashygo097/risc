@@ -101,12 +101,12 @@ class RV32IDecoderUtilitiesImpl extends DecoderUtilities with RV32IDecodeConsts 
 
       // B-Type
       // Branch
-      RV32I.BEQ  -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_ADD, N, M_X),
-      RV32I.BNE  -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_ADD, N, M_X),
-      RV32I.BLT  -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_SLT, N, M_X),
-      RV32I.BGE  -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_SLT, N, M_X),
-      RV32I.BLTU -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_SLTU, N, M_X),
-      RV32I.BGEU -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_SLTU, N, M_X),
+      RV32I.BEQ  -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_SEQ, N, M_X),
+      RV32I.BNE  -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_SNE, N, M_X),
+      RV32I.BLT  -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_BLT, N, M_X),
+      RV32I.BGE  -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_BGE, N, M_X),
+      RV32I.BLTU -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_BLTU, N, M_X),
+      RV32I.BGEU -> List(Y, N, IMM_B, Y, A1_PC, A2_IMM, N, AFN_BGEU, N, M_X),
 
       // U-Type
       // Upper Immediate

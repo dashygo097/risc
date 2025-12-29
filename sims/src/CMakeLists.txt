@@ -9,7 +9,7 @@ verilate(rv32i_cpu_verilated
     -Wno-UNOPTFLAT
     -Wno-DECLFILENAME
     --top-module rv32i_cpu
-  PREFIX Vrv32_cpu
+  PREFIX Vrv32i_cpu
   TRACE_THREADS 2
 )
 

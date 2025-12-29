@@ -1,14 +1,12 @@
 #pragma once
-
 #include "./memory.hh"
 #include "./trace.hh"
-#include "Vrv32_cpu.h"
+#include "Vrv32i_cpu.h"
 #include "verilated.h"
 #include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
-
 #ifdef ENABLE_TRACE
 #include "verilated_vcd_c.h"
 #endif
@@ -18,43 +16,36 @@ public:
   CPUSimulator(bool enable_trace = false);
   ~CPUSimulator();
 
-  // Program loading
   bool load_bin(const std::string &filename, uint32_t base_addr = 0);
   bool load_elf(const std::string &filename);
 
-  // Simulation control
   void reset();
   void step(int cycles = 1);
   void run(uint64_t max_cycles = 0);
   void run_until(uint32_t pc);
 
-  // State accessors
   uint32_t get_pc() const;
   uint32_t get_reg(uint8_t reg) const;
   uint32_t read_mem(uint32_t addr) const;
   void write_mem(uint32_t addr, uint32_t data);
 
-  // Statistics
   uint64_t get_cycle_count() const { return _cycle_count; }
   uint64_t get_inst_count() const { return _inst_count; }
   double get_ipc() const;
 
-  // Configuration
   void verbose(bool verbose) { _verbose = verbose; }
   void timeout(uint64_t timeout) { _timeout = timeout; }
   void profiling(bool enable) { _profiling = enable; }
 
-  // Debugging and tracing
   void dump_registers() const;
   void dump_memory(uint32_t start, uint32_t size) const;
   void save_trace(const std::string &filename);
 
 private:
-  std::unique_ptr<Vrv32_cpu> _dut;
+  std::unique_ptr<Vrv32i_cpu> _dut;
   std::unique_ptr<Memory> _imem;
   std::unique_ptr<Memory> _dmem;
   std::unique_ptr<ExecutionTrace> _trace;
-
 #ifdef ENABLE_TRACE
   std::unique_ptr<VerilatedVcdC> _vcd;
 #endif
@@ -64,7 +55,6 @@ private:
   uint64_t _inst_count;
   uint64_t _timeout;
   bool _terminate;
-
   bool _verbose;
   bool _profiling;
   bool _trace_enabled;
@@ -72,9 +62,16 @@ private:
   std::map<uint8_t, uint32_t> _register_values;
   std::map<uint32_t, uint64_t> _pc_histogram;
 
-  void write_mem_with_strobe(uint32_t addr, uint32_t data, uint8_t strb);
+  enum class MemState { IDLE, IMEM_WAIT, DMEM_WAIT };
+  MemState _imem_state;
+  MemState _dmem_state;
+  uint32_t _pending_imem_addr;
+  uint32_t _pending_dmem_addr;
+  uint32_t _pending_dmem_data;
+  bool _pending_dmem_write;
 
   void clock_tick();
-  void update_stats();
+  void handle_imem_interface();
+  void handle_dmem_interface();
   void check_termination();
 };
