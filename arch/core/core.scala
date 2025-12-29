@@ -6,68 +6,105 @@ import alu._
 import regfile._
 import lsu._
 import arch.configs._
+import mem.cache._
 import chisel3._
 import chisel3.util._
+
+class BranchComparator(implicit p: Parameters) extends Module {
+  val src1   = IO(Input(UInt(p(XLen).W)))
+  val src2   = IO(Input(UInt(p(XLen).W)))
+  val fnType = IO(Input(UInt(4.W)))
+  val enable = IO(Input(Bool()))
+  val taken  = IO(Output(Bool()))
+
+  val eq  = src1 === src2
+  val lt  = src1.asSInt < src2.asSInt
+  val ltu = src1 < src2
+
+  taken := enable && MuxLookup(fnType(2, 0), false.B)(
+    Seq(
+      0.U -> !eq, // SNE
+      1.U -> eq,  // SEQ
+      2.U -> lt,  // SLT
+      3.U -> ltu, // SLTU
+      4.U -> !lt, // SGE
+      5.U -> !ltu // SGEU
+    )
+  )
+}
 
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
+  val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA))
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
 
-  // TODO: Frontend Interface need to be impled as well as the cpu simulator
-  // TEMPORARY Memory Interface
-  val IMEM_ADDR = IO(Output(UInt(p(XLen).W)))
-  val IMEM_INST = IO(Input(UInt(p(ILen).W)))
+  val imem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
+  val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
 
-  val DMEM_ADDR       = IO(Output(UInt(p(XLen).W)))
-  val DMEM_WRITE_DATA = IO(Output(UInt(p(XLen).W)))
-  val DMEM_WRITE_STRB = IO(Output(UInt((p(XLen) / 8).W)))
-  val DMEM_WRITE_EN   = IO(Output(Bool()))
-  val DMEM_READ_DATA  = IO(Input(UInt(p(XLen).W)))
-  val DMEM_READ_EN    = IO(Output(Bool()))
-
-  val DEBUG_PC       = IO(Output(UInt(p(XLen).W)))
-  val DEBUG_INST     = IO(Output(UInt(p(ILen).W)))
-  val DEBUG_REG_WE   = IO(Output(Bool()))
-  val DEBUG_REG_ADDR = IO(Output(UInt(regfile_utils.width.W)))
-  val DEBUG_REG_DATA = IO(Output(UInt(p(XLen).W)))
+  // Debug
+  val debug_pc       = IO(Output(UInt(p(XLen).W)))
+  val debug_instr    = IO(Output(UInt(p(ILen).W)))
+  val debug_reg_we   = IO(Output(Bool()))
+  val debug_reg_addr = IO(Output(UInt(regfile_utils.width.W)))
+  val debug_reg_data = IO(Output(UInt(p(XLen).W)))
 
   // Modules
-  val decoder = Module(new Decoder)
-  val regfile = Module(new Regfile)
-  val id_fwd  = Module(new IDForwardingUnit)
-  val ex_fwd  = Module(new EXForwardingUnit)
-  val imm_gen = Module(new ImmGen)
-  val alu     = Module(new Alu)
+  val decoder     = Module(new Decoder)
+  val regfile     = Module(new Regfile)
+  val id_fwd      = Module(new IDForwardingUnit)
+  val ex_fwd      = Module(new EXForwardingUnit)
+  val imm_gen     = Module(new ImmGen)
+  val alu         = Module(new Alu)
+  val branch_comp = Module(new BranchComparator)
 
-  // pipeline
+  // Pipelines
   val if_id  = Module(new IF_ID)
   val id_ex  = Module(new ID_EX)
   val ex_mem = Module(new EX_MEM)
   val mem_wb = Module(new MEM_WB)
 
-  // control signals
+  // Control Signals
   val stall = Wire(Bool())
   val flush = Wire(Bool())
 
   // IF
-  val pc      = RegInit(0.U(p(XLen).W))
-  val next_pc = Wire(UInt(p(XLen).W))
+  val pc         = RegInit(0.U(p(XLen).W))
+  val next_pc    = Wire(UInt(p(XLen).W))
+  val pc_updated = RegInit(false.B)
 
-  IMEM_ADDR := pc
+  val imem_pending = RegInit(false.B)
+  val imem_data    = RegInit(0.U(p(ILen).W))
+
+  imem.req.valid     := !imem_pending && !stall && !flush
+  imem.req.bits.op   := MemoryOp.READ
+  imem.req.bits.addr := pc
+  imem.req.bits.data := DontCare
+  imem.resp.ready    := true.B
+
+  when(imem.req.fire && !flush) {
+    imem_pending := true.B
+  }
+
+  when(imem.resp.fire) {
+    imem_data    := imem.resp.bits.data
+    imem_pending := false.B
+  }
+
+  when(flush) {
+    imem_pending := false.B
+  }
 
   // IF/ID
-  if_id.STALL    := stall
+  if_id.STALL    := stall || imem_pending
   if_id.FLUSH    := flush
   if_id.IF.pc    := pc
-  if_id.IF.instr := IMEM_INST
+  if_id.IF.instr := Mux(imem.resp.fire, imem.resp.bits.data, imem_data)
 
   // ID
   decoder.instr := if_id.ID.instr
 
-  // TODO: To be replaced in a more general way
-  // riscv specific
   val rs1 = if_id.ID.instr(19, 15)
   val rs2 = if_id.ID.instr(24, 20)
   val rd  = if_id.ID.instr(11, 7)
@@ -102,13 +139,33 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
   )
 
+  // branch
+  val is_branch = decoder.decoded.alu && alu_utils.isComparison(decoder.decoded.alu_fn)
+  val is_jal    = false.B // TODO: from decoder
+  val is_jalr   = false.B // TODO: from decoder
+
+  branch_comp.src1   := id_rs1_data
+  branch_comp.src2   := id_rs2_data
+  branch_comp.fnType := decoder.decoded.alu_fn
+  branch_comp.enable := is_branch
+
+  val branch_taken = branch_comp.taken
+  val jump_taken   = is_jal || is_jalr
+
   // hazard detection
+  val load_use_hazard = id_ex.EX.decoded_output.lsu &&
+    lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
+    ((id_ex.EX.rd === rs1) || (id_ex.EX.rd === rs2)) &&
+    (id_ex.EX.rd =/= 0.U)
 
-  stall := false.B
+  val branch_hazard = (is_branch || is_jalr) &&
+    id_ex.EX.decoded_output.lsu &&
+    lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
+    ((id_ex.EX.rd === rs1) || (id_ex.EX.rd === rs2)) &&
+    (id_ex.EX.rd =/= 0.U)
 
-  // branch decision
-
-  flush := false.B
+  stall := load_use_hazard || branch_hazard
+  flush := branch_taken || jump_taken
 
   // ID/EX
   id_ex.STALL             := stall
@@ -123,6 +180,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   id_ex.ID.rs2_data       := id_rs2_data
 
   // EX
+  // Imm
   imm_gen.instr   := id_ex.EX.instr
   imm_gen.immType := id_ex.EX.decoded_output.imm_type
 
@@ -149,6 +207,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
   )
 
+  // ALU
   val alu_rs1_data = MuxLookup(id_ex.EX.decoded_output.alu_sel1, 0.U(p(XLen).W))(
     Seq(
       A1_ZERO.value.U(SZ_A1.W) -> 0.U(p(XLen).W),
@@ -179,26 +238,41 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ex_mem.EX.instr      := id_ex.EX.instr
   ex_mem.EX.pc         := id_ex.EX.pc
   ex_mem.EX.rd         := id_ex.EX.rd
+  ex_mem.EX.rs2_data   := ex_rs2_data
   ex_mem.EX.regwrite   := id_ex.EX.decoded_output.regwrite
   ex_mem.EX.lsu        := id_ex.EX.decoded_output.lsu
   ex_mem.EX.lsu_cmd    := id_ex.EX.decoded_output.lsu_cmd
 
   // MEM
-  DMEM_ADDR       := ex_mem.MEM.alu_result
-  DMEM_READ_EN    := lsu_utils.isMemRead(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
-  DMEM_WRITE_EN   := lsu_utils.isMemWrite(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
-  DMEM_WRITE_DATA := ex_rs2_data
-  DMEM_WRITE_STRB := lsu_utils.strb(ex_mem.MEM.lsu_cmd)
-  val mem_read_data = DMEM_READ_DATA
+  val dmem_state = RegInit(false.B)
+  val dmem_data  = RegInit(0.U(p(XLen).W))
+
+  val mem_read  = lsu_utils.isMemRead(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
+  val mem_write = lsu_utils.isMemWrite(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
+
+  dmem.req.valid     := (mem_read || mem_write) && !dmem_state
+  dmem.req.bits.op   := Mux(mem_write, MemoryOp.WRITE, MemoryOp.READ)
+  dmem.req.bits.addr := ex_mem.MEM.alu_result
+  dmem.req.bits.data := ex_mem.MEM.rs2_data
+  dmem.resp.ready    := true.B
+
+  when(dmem.req.fire) {
+    dmem_state := true.B
+  }
+
+  when(dmem.resp.fire) {
+    dmem_data  := dmem.resp.bits.data
+    dmem_state := false.B
+  }
 
   val mem_wb_data = Mux(
-    lsu_utils.isMemRead(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd),
-    0.U(p(XLen).W), //  TODO: load data processing
+    mem_read,
+    Mux(dmem.resp.fire, dmem.resp.bits.data, dmem_data),
     ex_mem.MEM.alu_result
   )
 
   // MEM/WB
-  mem_wb.STALL        := false.B
+  mem_wb.STALL        := dmem_state
   mem_wb.FLUSH        := false.B
   mem_wb.MEM.wb_data  := mem_wb_data
   mem_wb.MEM.instr    := ex_mem.MEM.instr
@@ -211,17 +285,21 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_data := mem_wb.WB.wb_data
   regfile.write_en   := mem_wb.WB.regwrite
 
-  // PC update
+  // pc update
+  val branch_target = if_id.ID.pc + imm_gen.imm
+  val jalr_target   = (id_rs1_data + imm_gen.imm) & ~1.U(p(XLen).W)
+
+  // TODO: add branch and jar/jalr targets
   next_pc := pc + 4.U
 
-  when(!stall) {
+  when(!stall && !imem_pending) {
     pc := next_pc
   }
 
   // debug ports
-  DEBUG_PC       := mem_wb.WB.pc
-  DEBUG_INST     := mem_wb.WB.instr
-  DEBUG_REG_ADDR := mem_wb.WB.rd
-  DEBUG_REG_WE   := mem_wb.WB.regwrite
-  DEBUG_REG_DATA := mem_wb.WB.wb_data
+  debug_pc       := mem_wb.WB.pc
+  debug_instr    := mem_wb.WB.instr
+  debug_reg_addr := mem_wb.WB.rd
+  debug_reg_we   := mem_wb.WB.regwrite
+  debug_reg_data := mem_wb.WB.wb_data
 }

@@ -33,6 +33,7 @@ class ExcutionBundle(implicit p: Parameters) extends Bundle {
   val pc         = UInt(p(XLen).W)
   val rd         = UInt(regfile_utils.width.W)
   val alu_result = UInt(p(XLen).W)
+  val rs2_data   = UInt(p(XLen).W)
   val regwrite   = Bool()
   val lsu        = Bool()
   val lsu_cmd    = UInt(lsu_utils.cmdWidth.W)
