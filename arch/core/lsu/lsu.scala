@@ -5,6 +5,7 @@ import mem.cache._
 import chisel3._
 import chisel3.util._
 
+// TODO: Abstraction for different ISAs
 class Lsu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_lsu"
 
@@ -40,8 +41,11 @@ class Lsu(implicit p: Parameters) extends Module {
   val aligned_wdata = MuxCase(
     wdata,
     Seq(
-      utils.isByte(cmd) -> (wdata << (byte_offset << 3)),
-      utils.isHalf(cmd) -> (wdata << (half_offset << 4)),
+      utils.isByte(cmd) -> Cat(
+        Fill(24, 0.U),
+        wdata(7, 0)
+      ),
+      utils.isHalf(cmd) -> Cat(Fill(16, 0.U), wdata(15, 0)),
       utils.isWord(cmd) -> wdata
     )
   )
@@ -51,11 +55,11 @@ class Lsu(implicit p: Parameters) extends Module {
     shifted_rdata,
     Seq(
       utils.isByte(cmd) -> Cat(
-        Fill(24, Mux(unsigned, 0.U(1.W), shifted_rdata(7))),
+        Fill(24, !unsigned && shifted_rdata(7)),
         shifted_rdata(7, 0)
       ),
       utils.isHalf(cmd) -> Cat(
-        Fill(16, Mux(unsigned, 0.U(1.W), shifted_rdata(15))),
+        Fill(16, !unsigned && shifted_rdata(15)),
         shifted_rdata(15, 0)
       ),
       utils.isWord(cmd) -> shifted_rdata
