@@ -34,6 +34,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val ex_fwd  = Module(new EXForwardingUnit)
   val imm_gen = Module(new ImmGen)
   val alu     = Module(new Alu)
+  val lsu     = Module(new Lsu)
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -204,32 +205,21 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ex_mem.EX.lsu_cmd    := id_ex.EX.decoded_output.lsu_cmd
 
   // MEM
-  val dmem_pending = RegInit(false.B)
+  lsu.en    := ex_mem.MEM.lsu
+  lsu.cmd   := ex_mem.MEM.lsu_cmd
+  lsu.addr  := ex_mem.MEM.alu_result
+  lsu.wdata := ex_mem.MEM.rs2_data
 
-  val mem_read  = lsu_utils.isMemRead(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
-  val mem_write = lsu_utils.isMemWrite(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
-
-  dmem.req.valid     := (mem_read || mem_write) && !dmem_pending
-  dmem.req.bits.op   := Mux(mem_write, MemoryOp.WRITE, MemoryOp.READ)
-  dmem.req.bits.addr := ex_mem.MEM.alu_result
-  dmem.req.bits.data := ex_mem.MEM.rs2_data
-  dmem.resp.ready    := true.B
-
-  when(dmem.req.fire) {
-    dmem_pending := true.B
-  }
-  when(dmem.resp.fire) {
-    dmem_pending := false.B
-  }
+  dmem <> lsu.mem
 
   val mem_wb_data = Mux(
-    mem_read && dmem.resp.fire,
+    lsu.mem_read && dmem.resp.fire,
     dmem.resp.bits.data,
     ex_mem.MEM.alu_result
   )
 
   // MEM/WB
-  mem_wb.STALL        := dmem_pending && mem_read
+  mem_wb.STALL        := !lsu.ready && lsu.mem_read
   mem_wb.FLUSH        := false.B
   mem_wb.MEM.wb_data  := mem_wb_data
   mem_wb.MEM.instr    := ex_mem.MEM.instr
