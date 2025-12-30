@@ -13,7 +13,7 @@ class Alu(implicit p: Parameters) extends Module {
   val src2   = IO(Input(UInt(p(XLen).W)))
   val fnType = IO(Input(UInt(utils.fnTypeWidth.W)))
   val mode   = IO(Input(Bool()))
-  val result = IO(Output(UInt(p(XLen).W)))
+  val result = IO(Output(new AluResult))
 
-  result := Mux(en, utils.fn(src1, src2, fnType, mode), 0.U(p(XLen).W))
+  result := Mux(en, utils.fn(src1, src2, fnType, mode), 0.U.asTypeOf(new AluResult))
 }
