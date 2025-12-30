@@ -29,7 +29,7 @@ public:
   uint32_t read_mem(uint32_t addr) const;
   void write_mem(uint32_t addr, uint32_t data);
 
-  uint64_t get_cycle_count() const { return _cycle_count; }
+  uint64_t get_cycle_count() const { return _dut->debug_cycles; }
   uint64_t get_inst_count() const { return _inst_count; }
   double get_ipc() const;
 
@@ -51,7 +51,6 @@ private:
 #endif
 
   uint64_t _time_counter;
-  uint64_t _cycle_count;
   uint64_t _inst_count;
   uint64_t _timeout;
   bool _terminate;

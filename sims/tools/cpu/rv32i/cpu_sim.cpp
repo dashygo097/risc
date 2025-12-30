@@ -7,9 +7,8 @@
 CPUSimulator::CPUSimulator(bool enable_trace)
     : _dut(new Vrv32i_cpu), _imem(new Memory(256 * 1024, 0x00000000)),
       _dmem(new Memory(256 * 1024, 0x80000000)), _trace(new ExecutionTrace()),
-      _time_counter(0), _cycle_count(0), _inst_count(0), _timeout(1000000),
-      _terminate(false), _verbose(false), _profiling(false),
-      _trace_enabled(enable_trace) {
+      _time_counter(0), _inst_count(0), _timeout(1000000), _terminate(false),
+      _verbose(false), _profiling(false), _trace_enabled(enable_trace) {
 #ifdef ENABLE_TRACE
   if (_trace_enabled) {
     Verilated::traceEverOn(true);
@@ -59,7 +58,6 @@ void CPUSimulator::reset() {
   _dut->reset = 0;
   _dut->eval();
 
-  _cycle_count = 0;
   _inst_count = 0;
   _terminate = false;
   _register_values.clear();
@@ -135,7 +133,7 @@ void CPUSimulator::clock_tick() {
 
     if (_trace_enabled) {
       TraceEntry entry;
-      entry.cycle = _cycle_count;
+      entry.cycle = _dut->debug_cycles;
       entry.pc = _dut->debug_pc;
       entry.inst = _dut->debug_instr;
       entry.rd = _dut->debug_reg_addr;
@@ -151,7 +149,7 @@ void CPUSimulator::clock_tick() {
     }
 
     if (_verbose) {
-      std::cout << "Cycle " << std::dec << std::setw(6) << _cycle_count
+      std::cout << "Cycle " << std::dec << std::setw(6) << _dut->debug_cycles
                 << " | PC=0x" << std::hex << std::setw(8) << std::setfill('0')
                 << _dut->debug_pc << " | Inst=0x" << std::setw(8)
                 << _dut->debug_instr << " | x" << std::dec
@@ -160,8 +158,6 @@ void CPUSimulator::clock_tick() {
                 << std::endl;
     }
   }
-
-  _cycle_count++;
 }
 
 void CPUSimulator::step(int cycles) {
@@ -172,18 +168,19 @@ void CPUSimulator::step(int cycles) {
 
 void CPUSimulator::run(uint64_t max_cycles) {
   uint64_t target = max_cycles > 0 ? max_cycles : _timeout;
-  while (_cycle_count < target && !_terminate) {
+  while (_dut->debug_cycles < target && !_terminate) {
     clock_tick();
     check_termination();
   }
 
   if (_verbose) {
-    std::cout << "\nSimulation completed after " << _cycle_count << " cycles\n";
+    std::cout << "\nSimulation completed after " << _dut->debug_cycles
+              << " cycles\n";
   }
 }
 
 void CPUSimulator::run_until(uint32_t pc) {
-  while (_dut->debug_pc != pc && _cycle_count < _timeout && !_terminate) {
+  while (_dut->debug_pc != pc && _dut->debug_cycles < _timeout && !_terminate) {
     clock_tick();
     check_termination();
   }
@@ -214,7 +211,8 @@ void CPUSimulator::write_mem(uint32_t addr, uint32_t data) {
 }
 
 double CPUSimulator::get_ipc() const {
-  return _cycle_count > 0 ? (double)_inst_count / _cycle_count : 0.0;
+  return _dut->debug_cycles > 0 ? (double)_inst_count / _dut->debug_cycles
+                                : 0.0;
 }
 
 void CPUSimulator::dump_registers() const {
