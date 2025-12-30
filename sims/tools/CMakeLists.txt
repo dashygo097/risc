@@ -15,25 +15,27 @@ verilate(${ISA}_cpu_verilated
 
 # Simulator sources
 set(SIMULATOR_SOURCES
-  ${ISA}/main.cc
-  ${ISA}/cpu_sim.cc
+  ${ISA}/instruction.cpp
+  ${ISA}/cpu_sim.cpp
+  ${ISA}/main.cpp
 )
 
 target_sources(${ISA}_cpu_verilated PRIVATE ${SIMULATOR_SOURCES})
 
 target_include_directories(${ISA}_cpu_verilated PRIVATE
-  ${ISA}/cpu_sim.hh
+  ${ISA}/instruction.hpp
+  ${ISA}/cpu_sim.hpp
 )
 
 find_package(Threads REQUIRED)
-target_link_libraries(${ISA}_cpu_verilated PRIVATE rvsim Threads::Threads)
+target_link_libraries(${ISA}_cpu_verilated PRIVATE demu Threads::Threads)
 
 set_target_properties(${ISA}_cpu_verilated PROPERTIES
-  OUTPUT_NAME ${ISA}_simulator
+  OUTPUT_NAME demu_${ISA}_cpu
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-add_executable(${ISA}_simulator ALIAS ${ISA}_cpu_verilated)
+add_executable(demu_${ISA}_cpu ALIAS ${ISA}_cpu_verilated)
 
 # Stastics
 print_info("――――――――――――――――――APP SCOPE――――――――――――――――――\n" "0" "1")
