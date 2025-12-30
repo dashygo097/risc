@@ -1,4 +1,6 @@
 package arch.core.alu
+
+import arch.configs._
 import chisel3._
 import chisel3.util._
 
@@ -22,30 +24,30 @@ trait RV32IAluConsts extends AluConsts {
   def AFN_BGEU = BitPat("b1101")
 }
 
-class RV32IAluUtilitiesImpl extends AluUtilities with RV32IAluConsts {
+class RV32IAluUtilitiesImpl(implicit p: Parameters) extends AluUtilities with RV32IAluConsts {
   def sel1Width: Int   = SZ_A1
   def sel2Width: Int   = SZ_A2
   def fnTypeWidth: Int = SZ_AFN
 
-  def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt = {
-    val xlen = src1.getWidth
+  def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): AluResult = {
+    val result = Wire(new AluResult)
 
     val eq  = src1 === src2
     val lt  = src1.asSInt < src2.asSInt
     val ltu = src1 < src2
 
     val src2_inv  = Mux(mode, ~src2, src2)
-    val adder_out = (src1 + src2_inv + mode.asUInt)(xlen - 1, 0)
+    val adder_out = (src1 + src2_inv + mode.asUInt)(p(XLen) - 1, 0)
 
     val shamt   = src2(4, 0)
-    val sll_out = (src1 << shamt)(xlen - 1, 0)
+    val sll_out = (src1 << shamt)(p(XLen) - 1, 0)
     val srl_out = Mux(
       mode,
       (src1.asSInt >> shamt).asUInt,
       src1 >> shamt
-    )(xlen - 1, 0)
+    )(p(XLen) - 1, 0)
 
-    val arith_result = MuxLookup(fnType, 0.U(xlen.W))(
+    val arith_result = MuxLookup(fnType, 0.U(p(XLen).W))(
       Seq(
         AFN_ADD.value.U(SZ_AFN.W)  -> adder_out,
         AFN_SLL.value.U(SZ_AFN.W)  -> sll_out,
@@ -67,9 +69,11 @@ class RV32IAluUtilitiesImpl extends AluUtilities with RV32IAluConsts {
         AFN_BGE.value.U(SZ_AFN.W)  -> !lt,
         AFN_BGEU.value.U(SZ_AFN.W) -> !ltu
       )
-    ).asUInt
+    )
 
-    Mux(isComparison(fnType), cmp_result, arith_result)
+    result.arith := Mux(isArithmetic(fnType), arith_result, adder_out)
+    result.cmp   := cmp_result
+    result
   }
 
   def isArithmetic(fnType: UInt): Bool = !fnType(3)
