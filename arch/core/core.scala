@@ -2,6 +2,7 @@ package arch.core
 
 import decoder._
 import imm._
+import bru._
 import alu._
 import regfile._
 import lsu._
@@ -22,6 +23,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // Modules
   val decoder = Module(new Decoder)
+  val bru     = Module(new Bru)
   val regfile = Module(new Regfile)
   val id_fwd  = Module(new IDForwardingUnit)
   val ex_fwd  = Module(new EXForwardingUnit)
@@ -47,13 +49,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(0.U(p(ILen).W))
 
-  imem.req.valid     := !imem_pending && !stall && !flush
+  imem.req.valid     := !imem_pending
   imem.req.bits.op   := MemoryOp.READ
   imem.req.bits.addr := pc
   imem.req.bits.data := DontCare
   imem.resp.ready    := true.B
 
-  when(imem.req.fire && !flush) {
+  when(imem.req.fire) {
     imem_pending := true.B
   }
 
@@ -62,13 +64,9 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_pending := false.B
   }
 
-  when(flush) {
-    imem_pending := false.B
-  }
-
   // IF/ID
-  if_id.STALL    := stall || imem_pending
-  if_id.FLUSH    := flush
+  if_id.STALL    := imem_pending
+  if_id.FLUSH    := false.B
   if_id.IF.pc    := pc
   if_id.IF.instr := Mux(imem.resp.fire, imem.resp.bits.data, imem_data)
 
@@ -110,10 +108,15 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   )
 
   // branch decision
+  bru.en     := decoder.decoded.branch
+  bru.src1   := id_rs1_data
+  bru.src2   := id_rs2_data
+  bru.brType := decoder.decoded.brFn
+  val id_branch_taken = bru.cmp
 
   // hazard detection
   stall := false.B
-  flush := false.B // TODO: add branch handling
+  flush := id_branch_taken
 
   // ID/EX
   id_ex.STALL             := stall

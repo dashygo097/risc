@@ -1,6 +1,7 @@
 package arch.core.bru
 
 import arch.core.common.Consts
+import chisel3._
 import chisel3.util._
 
 trait RV32IBranchConsts extends Consts {
@@ -15,7 +16,24 @@ trait RV32IBranchConsts extends Consts {
 }
 
 class RV32BruUtilitiesImpl extends BruUtilities with RV32IBranchConsts {
-  def branchTypeWidth: Int = SZ_BR
+  def branchTypeWidth: Int                           = SZ_BR
+  def fn(src1: UInt, src2: UInt, fnType: UInt): Bool = {
+    val eq  = src1 === src2
+    val lt  = src1.asSInt < src2.asSInt
+    val ltu = src1 < src2
+
+    MuxCase(
+      false.B,
+      Seq(
+        (fnType === BR_EQ)  -> eq,
+        (fnType === BR_NE)  -> !eq,
+        (fnType === BR_LT)  -> lt,
+        (fnType === BR_GE)  -> !lt,
+        (fnType === BR_LTU) -> ltu,
+        (fnType === BR_GEU) -> !ltu
+      )
+    )
+  }
 }
 
 object RV32BruUtilities extends RegisteredBruUtilities with RV32IBranchConsts {

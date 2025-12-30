@@ -81,6 +81,7 @@ void CPUSimulator::handle_imem_interface() {
 
 void CPUSimulator::handle_dmem_interface() {
   _dut->dmem_resp_valid = 0;
+
   if (_dut->dmem_req_valid && _dut->dmem_req_ready) {
     addr_t addr = static_cast<addr_t>(_dut->dmem_req_bits_addr);
 
