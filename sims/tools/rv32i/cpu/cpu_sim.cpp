@@ -66,52 +66,76 @@ void CPUSimulator::reset() {
   _register_values.clear();
   _pc_histogram.clear();
   _trace->clear();
+
+  _imem_pending = 0;
+  _dmem_pending = 0;
 }
 
 void CPUSimulator::handle_imem_interface() {
-  _dut->imem_resp_valid = 0;
+  if (!_imem_pending) {
+    _dut->imem_resp_valid = 0;
 
-  if (_dut->imem_req_valid && _dut->imem_req_ready) {
-    addr_t addr = static_cast<addr_t>(_dut->imem_req_bits_addr);
-    word_t data = _imem->read_word(addr);
-    _dut->imem_resp_bits_data = data;
+    if (_dut->imem_req_valid && _dut->imem_req_ready) {
+      _imem_pending_addr = static_cast<addr_t>(_dut->imem_req_bits_addr);
+      _imem_pending = 1;
+    }
+  } else {
+    _dut->imem_resp_bits_data = _imem->read_word(_imem_pending_addr);
     _dut->imem_resp_valid = 1;
+
+    if (_dut->imem_resp_ready) {
+      _imem_pending = 0;
+    }
   }
 }
 
 void CPUSimulator::handle_dmem_interface() {
-  _dut->dmem_resp_valid = 0;
+  if (!_dmem_pending) {
+    _dut->dmem_resp_valid = 0;
 
-  if (_dut->dmem_req_valid && _dut->dmem_req_ready) {
-    addr_t addr = static_cast<addr_t>(_dut->dmem_req_bits_addr);
-
-    if (_dut->dmem_req_bits_op) {
-      word_t data = static_cast<word_t>(_dut->dmem_req_bits_data);
-      _dmem->write_word(addr, data);
+    if (_dut->dmem_req_valid && _dut->dmem_req_ready) {
+      _dmem_pending_addr = static_cast<addr_t>(_dut->dmem_req_bits_addr);
+      _dmem_pending_op = _dut->dmem_req_bits_op;
+      _dmem_pending_data = static_cast<word_t>(_dut->dmem_req_bits_data);
+      _dmem_pending = 1;
+    }
+  } else {
+    if (_dmem_pending_op) {
+      _dmem->write_word(_dmem_pending_addr, _dmem_pending_data);
       _dut->dmem_resp_bits_data = 0;
-
       if (_verbose) {
-        std::cout << "  [MEM WRITE] addr=0x" << std::hex << addr << " data=0x"
-                  << data << std::dec << std::endl;
+        std::cout << "  [DMEM WRITE] addr=0x" << std::hex << _dmem_pending_addr
+                  << " data=0x" << _dmem_pending_data << std::dec << std::endl;
       }
     } else {
-      addr_t aligned_addr = addr & ~0x3;
+      addr_t aligned_addr = _dmem_pending_addr & ~0x3;
       word_t data = _dmem->read_word(aligned_addr);
       _dut->dmem_resp_bits_data = data;
-
       if (_verbose) {
-        std::cout << "  [MEM READ] addr=0x" << std::hex << addr << " aligned=0x"
-                  << aligned_addr << " data=0x" << data << std::dec
-                  << std::endl;
+        std::cout << "  [DMEM READ] addr=0x" << std::hex << _dmem_pending_addr
+                  << " aligned=0x" << aligned_addr << " data=0x" << data
+                  << std::dec << std::endl;
       }
     }
-
     _dut->dmem_resp_valid = 1;
+
+    if (_dut->dmem_resp_ready) {
+      _dmem_pending = 0;
+    }
   }
 }
 
 void CPUSimulator::clock_tick() {
   _dut->clock = 0;
+  _dut->eval();
+
+#ifdef ENABLE_TRACE
+  if (_vcd) {
+    _vcd->dump(_time_counter++);
+  }
+#endif
+
+  _dut->clock = 1;
   handle_imem_interface();
   handle_dmem_interface();
   _dut->eval();
@@ -122,16 +146,8 @@ void CPUSimulator::clock_tick() {
   }
 #endif
 
-  _dut->clock = 1;
-  _dut->eval();
-
-#ifdef ENABLE_TRACE
-  if (_vcd) {
-    _vcd->dump(_time_counter++);
-  }
-#endif
-
-  if (_dut->debug_reg_we && _dut->debug_reg_addr != 0) {
+  if (_dut->debug_reg_we && _dut->debug_reg_addr != 0 && _dut->imem_req_valid &&
+      _dut->imem_req_ready) {
     word_t reg_data = static_cast<word_t>(_dut->debug_reg_data);
     _register_values[_dut->debug_reg_addr] = reg_data;
     _inst_count++;

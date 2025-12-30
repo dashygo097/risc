@@ -38,6 +38,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val mem_wb = Module(new MEM_WB)
 
   // Control Signals
+  // TODO: stall/flush logic for 5 pipeline stages
   val stall = Wire(Bool())
   val flush = Wire(Bool())
 
@@ -49,13 +50,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(0.U(p(ILen).W))
 
-  imem.req.valid     := !imem_pending
+  imem.req.valid     := !imem_pending && !stall && !flush
   imem.req.bits.op   := MemoryOp.READ
   imem.req.bits.addr := pc
   imem.req.bits.data := DontCare
   imem.resp.ready    := true.B
 
-  when(imem.req.fire) {
+  when(imem.req.fire && !flush) {
     imem_pending := true.B
   }
 
@@ -64,9 +65,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_pending := false.B
   }
 
+  when(flush) {
+    imem_pending := false.B
+  }
+
   // IF/ID
-  if_id.STALL    := imem_pending
-  if_id.FLUSH    := false.B
+  if_id.STALL    := stall || imem_pending
+  if_id.FLUSH    := flush
   if_id.IF.pc    := pc
   if_id.IF.instr := Mux(imem.resp.fire, imem.resp.bits.data, imem_data)
 
@@ -116,7 +121,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // hazard detection
   stall := false.B
-  flush := id_branch_taken
+  flush := false.B
 
   // ID/EX
   id_ex.STALL             := stall

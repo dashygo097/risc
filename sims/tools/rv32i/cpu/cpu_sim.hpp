@@ -3,6 +3,7 @@
 #include "Vrv32i_cpu.h"
 #include "verilated.h"
 #include <cstdint>
+#include <demu/isa/isa.hh>
 #include <demu/memory.hh>
 #include <demu/trace.hh>
 #include <map>
@@ -68,6 +69,14 @@ private:
   bool _verbose;
   bool _profiling;
   bool _trace_enabled;
+
+  demu::isa::addr_t _imem_pending_addr;
+  bool _imem_pending;
+
+  demu::isa::addr_t _dmem_pending_addr;
+  demu::isa::word_t _dmem_pending_data;
+  bool _dmem_pending_op;
+  bool _dmem_pending;
 
   // Architecture state tracking
   std::map<uint8_t, demu::isa::word_t> _register_values;
