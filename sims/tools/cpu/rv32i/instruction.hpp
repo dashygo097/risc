@@ -21,13 +21,6 @@ public:
   uint8_t get_funct7() const { return _funct7; }
   int32_t get_imm() const { return _imm; }
 
-  static uint32_t add(uint8_t rd, uint8_t rs1, uint8_t rs2);
-  static uint32_t addi(uint8_t rd, uint8_t rs1, int16_t imm);
-  static uint32_t lw(uint8_t rd, uint8_t rs1, int16_t offset);
-  static uint32_t sw(uint8_t rs2, uint8_t rs1, int16_t offset);
-  static uint32_t beq(uint8_t rs1, uint8_t rs2, int16_t offset);
-  static uint32_t jal(uint8_t rd, int32_t offset);
-
 private:
   uint32_t _raw;
   uint8_t _opcode;
