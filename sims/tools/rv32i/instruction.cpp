@@ -1,4 +1,4 @@
-#include "rvsim/instruction.hh"
+#include "instruction.hpp"
 #include <iomanip>
 #include <sstream>
 

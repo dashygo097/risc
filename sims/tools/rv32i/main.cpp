@@ -1,4 +1,4 @@
-#include "cpu_sim.hh"
+#include "cpu_sim.hpp"
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
