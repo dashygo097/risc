@@ -5,6 +5,7 @@ package object configs {
   // You should only modify these parameters
   object ISA                extends Field[String]("rv32i")
   object BusType            extends Field[String]("axi4")
+  object IsDebug            extends Field[Boolean](true)
   object IsRegfileUseBypass extends Field[Boolean](true)
 
   // Derived Parameters

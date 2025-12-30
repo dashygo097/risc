@@ -20,14 +20,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
   val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
 
-  // Debug
-  val debug_cycles   = IO(Output(UInt(64.W)))
-  val debug_pc       = IO(Output(UInt(p(XLen).W)))
-  val debug_instr    = IO(Output(UInt(p(ILen).W)))
-  val debug_reg_we   = IO(Output(Bool()))
-  val debug_reg_addr = IO(Output(UInt(regfile_utils.width.W)))
-  val debug_reg_data = IO(Output(UInt(p(XLen).W)))
-
   // Modules
   val decoder = Module(new Decoder)
   val regfile = Module(new Regfile)
@@ -44,9 +36,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val mem_wb = Module(new MEM_WB)
 
   // Control Signals
-  val cycle_counter = RegInit(0.U(64.W))
-  val stall         = Wire(Bool())
-  val flush         = Wire(Bool())
+  val stall = Wire(Bool())
+  val flush = Wire(Bool())
 
   // IF
   val pc         = RegInit(0.U(p(XLen).W))
@@ -235,16 +226,28 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     pc := next_pc
   }
 
-  // cycle counter
-  when(!cycle_counter(63)) { // prevent overflow
-    cycle_counter := cycle_counter + 1.U
-  }
+  // Debug
+  if (p(IsDebug)) {
+    val debug_cycles   = IO(Output(UInt(64.W)))
+    val debug_pc       = IO(Output(UInt(p(XLen).W)))
+    val debug_instr    = IO(Output(UInt(p(ILen).W)))
+    val debug_reg_we   = IO(Output(Bool()))
+    val debug_reg_addr = IO(Output(UInt(regfile_utils.width.W)))
+    val debug_reg_data = IO(Output(UInt(p(XLen).W)))
 
-  // debug ports
-  debug_cycles   := cycle_counter
-  debug_pc       := mem_wb.WB.pc
-  debug_instr    := mem_wb.WB.instr
-  debug_reg_addr := mem_wb.WB.rd
-  debug_reg_we   := mem_wb.WB.regwrite
-  debug_reg_data := mem_wb.WB.wb_data
+    val cycle_counter = RegInit(0.U(64.W))
+
+    // cycle counter
+    when(!cycle_counter(63)) { // prevent overflow
+      cycle_counter := cycle_counter + 1.U
+    }
+
+    // debug ports
+    debug_cycles   := cycle_counter
+    debug_pc       := mem_wb.WB.pc
+    debug_instr    := mem_wb.WB.instr
+    debug_reg_addr := mem_wb.WB.rd
+    debug_reg_we   := mem_wb.WB.regwrite
+    debug_reg_data := mem_wb.WB.wb_data
+  }
 }
