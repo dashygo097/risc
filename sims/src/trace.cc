@@ -1,5 +1,6 @@
 #include "trace.hh"
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 
 void ExecutionTrace::add_entry(const TraceEntry &entry) {
