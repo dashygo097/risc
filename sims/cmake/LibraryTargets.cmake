@@ -7,7 +7,7 @@ target_include_directories(demu PUBLIC
 )
 
 # 3rdparty libs to link statically
-# target_link_libraries(demu PUBLIC nlohmann_json::nlohmann_json)
+# target_link_libraries(demu PRIVATE nlohmann_json::nlohmann_json)
 
 set_target_properties(demu PROPERTIES
   ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
