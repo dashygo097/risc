@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+namespace demu {
 struct TraceEntry {
   uint64_t cycle;
   uint32_t pc;
@@ -32,3 +33,5 @@ public:
 private:
   std::vector<TraceEntry> _entries;
 };
+
+} // namespace demu

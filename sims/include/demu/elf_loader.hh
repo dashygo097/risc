@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+namespace demu {
 struct ELF32_Header {
   uint8_t e_ident[16];
   uint16_t e_type;
@@ -49,3 +50,5 @@ public:
 private:
   static bool is_elf(const std::string &filename);
 };
+
+} // namespace demu

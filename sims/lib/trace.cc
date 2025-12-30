@@ -1,8 +1,9 @@
-#include "rvsim/trace.hh"
+#include "demu/trace.hh"
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 
+namespace demu {
 void ExecutionTrace::add_entry(const TraceEntry &entry) {
   _entries.push_back(entry);
 }
@@ -38,3 +39,5 @@ void ExecutionTrace::save(const std::string &filename) const {
 }
 
 void ExecutionTrace::clear() { _entries.clear(); }
+
+} // namespace demu

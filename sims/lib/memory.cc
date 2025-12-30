@@ -1,60 +1,77 @@
-#include "rvsim/memory.hh"
+#include "demu/memory.hh"
 #include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 
-Memory::Memory(size_t size, uint32_t base_addr)
+namespace demu {
+Memory::Memory(size_t size, addr_t base_addr)
     : _memory(size, 0), _base_addr(base_addr) {}
 
-uint32_t Memory::read32(uint32_t addr) const noexcept {
+word_t Memory::read_word(addr_t addr) const noexcept {
   if (!is_valid_addr(addr))
-    return 0;
-  uint32_t offset = translate_addr(addr);
-  return (_memory[offset + 0] << 0) | (_memory[offset + 1] << 8) |
-         (_memory[offset + 2] << 16) | (_memory[offset + 3] << 24);
+    return 0x0;
+
+  word_t read_data = 0;
+  addr_t offset = translate_addr(addr);
+
+  for (size_t i = 0; i < sizeof(word_t) / sizeof(byte_t); i++) {
+    read_data |= static_cast<word_t>(_memory[offset + i]) << (i * 8);
+  }
+  return read_data;
 }
 
-uint16_t Memory::read16(uint32_t addr) const noexcept {
+half_t Memory::read_half(addr_t addr) const noexcept {
   if (!is_valid_addr(addr))
-    return 0;
-  uint32_t offset = translate_addr(addr);
-  return (_memory[offset + 0] << 0) | (_memory[offset + 1] << 8);
+    return 0x0;
+
+  half_t read_data = 0;
+  addr_t offset = translate_addr(addr);
+
+  for (size_t i = 0; i < sizeof(half_t) / sizeof(byte_t); i++) {
+    read_data |= static_cast<word_t>(_memory[offset + i]) << (i * 8);
+  }
+  return read_data;
 }
 
-uint8_t Memory::read8(uint32_t addr) const noexcept {
+byte_t Memory::read_byte(addr_t addr) const noexcept {
   if (!is_valid_addr(addr))
-    return 0;
-  uint32_t offset = translate_addr(addr);
+    return 0x0;
+
+  addr_t offset = translate_addr(addr);
+
   return _memory[offset];
 }
 
-void Memory::write32(uint32_t addr, uint32_t data) {
+void Memory::write_word(addr_t addr, word_t data) {
   if (!is_valid_addr(addr))
     return;
-  uint32_t offset = translate_addr(addr);
-  _memory[offset + 0] = (data >> 0) & 0xFF;
-  _memory[offset + 1] = (data >> 8) & 0xFF;
-  _memory[offset + 2] = (data >> 16) & 0xFF;
-  _memory[offset + 3] = (data >> 24) & 0xFF;
+
+  addr_t offset = translate_addr(addr);
+  for (size_t i = 0; i < sizeof(word_t) / sizeof(byte_t); i++) {
+    _memory[offset + i] = (data >> (i * 8)) & 0xFF;
+  }
 }
 
-void Memory::write16(uint32_t addr, uint16_t data) {
+void Memory::write_half(addr_t addr, half_t data) {
   if (!is_valid_addr(addr))
     return;
-  uint32_t offset = translate_addr(addr);
-  _memory[offset + 0] = (data >> 0) & 0xFF;
-  _memory[offset + 1] = (data >> 8) & 0xFF;
+
+  addr_t offset = translate_addr(addr);
+  for (size_t i = 0; i < sizeof(half_t) / sizeof(byte_t); i++) {
+    _memory[offset + i] = (data >> (i * 8)) & 0xFF;
+  }
 }
 
-void Memory::write8(uint32_t addr, uint8_t data) {
+void Memory::write_byte(addr_t addr, byte_t data) {
   if (!is_valid_addr(addr))
     return;
-  uint32_t offset = translate_addr(addr);
+
+  addr_t offset = translate_addr(addr);
   _memory[offset] = data;
 }
 
-bool Memory::load_binary(const std::string &filename, uint32_t offset) {
+bool Memory::load_binary(const std::string &filename, addr_t offset) {
   std::ifstream file(filename, std::ios::binary | std::ios::ate);
   if (!file.is_open()) {
     std::cerr << "Failed to open binary file: " << filename << std::endl;
@@ -70,9 +87,10 @@ bool Memory::load_binary(const std::string &filename, uint32_t offset) {
   }
 
   std::vector<char> buffer(size);
+
   if (file.read(buffer.data(), size)) {
     for (size_t i = 0; i < buffer.size(); i++) {
-      _memory[offset + i] = static_cast<uint8_t>(buffer[i]);
+      _memory[offset + i] = static_cast<byte_t>(buffer[i]);
     }
     return true;
   }
@@ -82,20 +100,20 @@ bool Memory::load_binary(const std::string &filename, uint32_t offset) {
 
 void Memory::clear() { std::fill(_memory.begin(), _memory.end(), 0); }
 
-void Memory::dump(uint32_t start, uint32_t length) const {
-  for (uint32_t addr = start; addr < start + length; addr += 16) {
+void Memory::dump(addr_t start, addr_t length) const {
+  for (addr_t addr = start; addr < start + length; addr += 16) {
     std::cout << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";
 
-    for (uint32_t i = 0; i < 16 && addr + i < start + length; i++) {
+    for (size_t i = 0; i < 16 && addr + i < start + length; i++) {
       if (i == 8)
         std::cout << " ";
       std::cout << std::hex << std::setw(2) << std::setfill('0')
-                << (int)read8(addr + i) << " ";
+                << (int_t)read_byte(addr + i) << " ";
     }
 
     std::cout << " |";
-    for (uint32_t i = 0; i < 16 && addr + i < start + length; i++) {
-      uint8_t c = read8(addr + i);
+    for (size_t i = 0; i < 16 && addr + i < start + length; i++) {
+      byte_t c = read_byte(addr + i);
       std::cout << (c >= 32 && c < 127 ? (char)c : '.');
     }
     std::cout << "|" << std::endl;
@@ -103,11 +121,13 @@ void Memory::dump(uint32_t start, uint32_t length) const {
   std::cout << std::dec << std::endl;
 }
 
-bool Memory::is_valid_addr(uint32_t addr) const noexcept {
-  uint32_t offset = addr - _base_addr;
+bool Memory::is_valid_addr(addr_t addr) const noexcept {
+  addr_t offset = addr - _base_addr;
   return offset < _memory.size();
 }
 
-uint32_t Memory::translate_addr(uint32_t addr) const noexcept {
+addr_t Memory::translate_addr(addr_t addr) const noexcept {
   return addr - _base_addr;
 }
+
+} // namespace demu
