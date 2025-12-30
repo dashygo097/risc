@@ -1,7 +1,6 @@
 package arch.core.alu
 
 import arch.core.common.Consts
-import arch.configs._
 import chisel3._
 import chisel3.util.BitPat
 
@@ -19,16 +18,9 @@ trait AluConsts extends Consts {
   def A2_IMM  = BitPat("b10")
 }
 
-class AluResult(implicit p: Parameters) extends Bundle {
-  val arith = UInt(p(XLen).W)
-  val cmp   = Bool()
-}
-
 trait AluUtilities {
   def sel1Width: Int
   def sel2Width: Int
   def fnTypeWidth: Int
-  def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): AluResult
-  def isArithmetic(fnType: UInt): Bool
-  def isComparison(fnType: UInt): Bool
+  def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt
 }

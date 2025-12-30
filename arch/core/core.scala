@@ -94,8 +94,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val id_rs1_data = MuxLookup(id_fwd.forward_rs1, 0.U(p(XLen).W))(
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs1_data,
-      FWD_EX.value.U(SZ_FWD.W)   -> alu.result.arith,
-      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_arith_result,
+      FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
       FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
@@ -103,8 +103,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val id_rs2_data = MuxLookup(id_fwd.forward_rs2, 0.U(p(XLen).W))(
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs2_data,
-      FWD_EX.value.U(SZ_FWD.W)   -> alu.result.arith,
-      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_arith_result,
+      FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
       FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
@@ -138,7 +138,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val ex_rs1_data = MuxLookup(ex_fwd.forward_rs1, 0.U(p(XLen).W))(
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.EX.rs1_data,
-      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_arith_result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
       FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
@@ -146,7 +146,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val ex_rs2_data = MuxLookup(ex_fwd.forward_rs2, 0.U(p(XLen).W))(
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.EX.rs2_data,
-      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_arith_result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
       FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
@@ -182,19 +182,19 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ex_mem.STALL := false.B
   ex_mem.FLUSH := false.B
 
-  ex_mem.EX.alu_arith_result := alu.result.arith
-  ex_mem.EX.instr            := id_ex.EX.instr
-  ex_mem.EX.pc               := id_ex.EX.pc
-  ex_mem.EX.rd               := id_ex.EX.rd
-  ex_mem.EX.rs2_data         := ex_rs2_data
-  ex_mem.EX.regwrite         := id_ex.EX.decoded_output.regwrite
-  ex_mem.EX.lsu              := id_ex.EX.decoded_output.lsu
-  ex_mem.EX.lsu_cmd          := id_ex.EX.decoded_output.lsu_cmd
+  ex_mem.EX.alu_result := alu.result
+  ex_mem.EX.instr      := id_ex.EX.instr
+  ex_mem.EX.pc         := id_ex.EX.pc
+  ex_mem.EX.rd         := id_ex.EX.rd
+  ex_mem.EX.rs2_data   := ex_rs2_data
+  ex_mem.EX.regwrite   := id_ex.EX.decoded_output.regwrite
+  ex_mem.EX.lsu        := id_ex.EX.decoded_output.lsu
+  ex_mem.EX.lsu_cmd    := id_ex.EX.decoded_output.lsu_cmd
 
   // MEM
   lsu.en    := ex_mem.MEM.lsu
   lsu.cmd   := ex_mem.MEM.lsu_cmd
-  lsu.addr  := ex_mem.MEM.alu_arith_result
+  lsu.addr  := ex_mem.MEM.alu_result
   lsu.wdata := ex_mem.MEM.rs2_data
 
   dmem <> lsu.mem
@@ -202,7 +202,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val mem_wb_data = Mux(
     lsu.mem_read && dmem.resp.fire,
     lsu.rdata,
-    ex_mem.MEM.alu_arith_result
+    ex_mem.MEM.alu_result
   )
 
   // MEM/WB

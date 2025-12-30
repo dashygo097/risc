@@ -5,23 +5,16 @@ import chisel3._
 import chisel3.util._
 
 trait RV32IAluConsts extends AluConsts {
-  def AFN_X    = BitPat("b????")
+  def AFN_X    = BitPat("b???")
   val SZ_AFN   = AFN_X.getWidth
-  def AFN_ADD  = BitPat("b0000")
-  def AFN_SLL  = BitPat("b0001")
-  def AFN_SLT  = BitPat("b0010")
-  def AFN_SLTU = BitPat("b0011")
-  def AFN_XOR  = BitPat("b0100")
-  def AFN_SRL  = BitPat("b0101")
-  def AFN_OR   = BitPat("b0110")
-  def AFN_AND  = BitPat("b0111")
-
-  def AFN_SNE  = BitPat("b1000")
-  def AFN_SEQ  = BitPat("b1001")
-  def AFN_BLT  = BitPat("b1010")
-  def AFN_BLTU = BitPat("b1011")
-  def AFN_BGE  = BitPat("b1100")
-  def AFN_BGEU = BitPat("b1101")
+  def AFN_ADD  = BitPat("b000")
+  def AFN_SLL  = BitPat("b001")
+  def AFN_SLT  = BitPat("b010")
+  def AFN_SLTU = BitPat("b011")
+  def AFN_XOR  = BitPat("b100")
+  def AFN_SRL  = BitPat("b101")
+  def AFN_OR   = BitPat("b110")
+  def AFN_AND  = BitPat("b111")
 }
 
 class RV32IAluUtilitiesImpl(implicit p: Parameters) extends AluUtilities with RV32IAluConsts {
@@ -29,10 +22,7 @@ class RV32IAluUtilitiesImpl(implicit p: Parameters) extends AluUtilities with RV
   def sel2Width: Int   = SZ_A2
   def fnTypeWidth: Int = SZ_AFN
 
-  def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): AluResult = {
-    val result = Wire(new AluResult)
-
-    val eq  = src1 === src2
+  def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt = {
     val lt  = src1.asSInt < src2.asSInt
     val ltu = src1 < src2
 
@@ -60,24 +50,8 @@ class RV32IAluUtilitiesImpl(implicit p: Parameters) extends AluUtilities with RV
       )
     )
 
-    val cmp_result = MuxLookup(fnType, false.B)(
-      Seq(
-        AFN_SNE.value.U(SZ_AFN.W)  -> !eq,
-        AFN_SEQ.value.U(SZ_AFN.W)  -> eq,
-        AFN_BLT.value.U(SZ_AFN.W)  -> lt,
-        AFN_BLTU.value.U(SZ_AFN.W) -> ltu,
-        AFN_BGE.value.U(SZ_AFN.W)  -> !lt,
-        AFN_BGEU.value.U(SZ_AFN.W) -> !ltu
-      )
-    )
-
-    result.arith := Mux(isArithmetic(fnType), arith_result, adder_out)
-    result.cmp   := cmp_result
-    result
+    arith_result
   }
-
-  def isArithmetic(fnType: UInt): Bool = !fnType(3)
-  def isComparison(fnType: UInt): Bool = fnType(3)
 }
 
 object RV32IAluUtilities extends RegisteredAluUtilities with RV32IAluConsts {

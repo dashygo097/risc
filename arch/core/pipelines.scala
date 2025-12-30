@@ -29,14 +29,14 @@ class ExcutionBundle(implicit p: Parameters) extends Bundle {
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
 
-  val instr            = UInt(p(ILen).W)
-  val pc               = UInt(p(XLen).W)
-  val rd               = UInt(regfile_utils.width.W)
-  val alu_arith_result = UInt(p(XLen).W)
-  val rs2_data         = UInt(p(XLen).W)
-  val regwrite         = Bool()
-  val lsu              = Bool()
-  val lsu_cmd          = UInt(lsu_utils.cmdWidth.W)
+  val instr      = UInt(p(ILen).W)
+  val pc         = UInt(p(XLen).W)
+  val rd         = UInt(regfile_utils.width.W)
+  val alu_result = UInt(p(XLen).W)
+  val rs2_data   = UInt(p(XLen).W)
+  val regwrite   = Bool()
+  val lsu        = Bool()
+  val lsu_cmd    = UInt(lsu_utils.cmdWidth.W)
 }
 
 class MemoryBundle(implicit p: Parameters) extends Bundle {
