@@ -23,7 +23,7 @@ void ExecutionTrace::save(const std::string &filename) const {
          << "0x" << std::hex << std::setw(8) << entry.inst << ","
          << entry.disasm << ",";
 
-    if (entry.rd_written) {
+    if (entry.regwrite) {
       file << "x" << std::dec << (int)entry.rd << ","
            << "0x" << std::hex << std::setw(8) << entry.rd_val;
     } else {

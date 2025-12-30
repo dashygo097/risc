@@ -138,7 +138,7 @@ void CPUSimulator::clock_tick() {
       entry.inst = _dut->debug_instr;
       entry.rd = _dut->debug_reg_addr;
       entry.rd_val = _dut->debug_reg_data;
-      entry.rd_written = _dut->debug_reg_we;
+      entry.regwrite = _dut->debug_reg_we;
       Instruction inst(_dut->debug_instr);
       entry.disasm = inst.to_string();
       _trace->add_entry(entry);

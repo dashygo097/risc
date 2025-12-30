@@ -11,7 +11,7 @@ struct TraceEntry {
   std::string disasm;
   uint8_t rd;
   uint32_t rd_val;
-  bool rd_written;
+  bool regwrite;
 };
 
 class ExecutionTrace {
