@@ -1,7 +1,7 @@
 # config.cmake 
 
 # compilation configurations
-set(USE_CCACHE ON)
+option(USE_CCACHE "Use ccache to speed up recompilation" ON)
 
 # settings
 set(ISA "rv32i")

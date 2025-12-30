@@ -14,7 +14,7 @@ else
     BUILD_CMD = cmake --build $(BUILD_DIR)
 endif
 
-.PHONY: all config build clean help
+.PHONY: all config build reconfigure clean help
 
 all: build
 
@@ -30,7 +30,7 @@ config:
 	fi
 
 # Build the project
-build: 
+build: config
 	@mkdir -p $(BUILD_DIR)
 	@if [ ! -f $(BUILD_DIR)/CMakeCache.txt ]; then \
 		echo "Running CMake with generator: $(GENERATOR)"; \
