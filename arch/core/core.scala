@@ -39,8 +39,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // Control Signals
   // TODO: stall/flush logic for 5 pipeline stages
-  val stall = Wire(Bool())
-  val flush = Wire(Bool())
+  // val stall = Wire(Bool())
+  // val flush = Wire(Bool())
 
   // IF
   val pc         = RegInit(0.U(p(XLen).W))
@@ -50,13 +50,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(0.U(p(ILen).W))
 
-  imem.req.valid     := !imem_pending && !stall && !flush
+  imem.req.valid     := !imem_pending
   imem.req.bits.op   := MemoryOp.READ
   imem.req.bits.addr := pc
   imem.req.bits.data := DontCare
   imem.resp.ready    := true.B
 
-  when(imem.req.fire && !flush) {
+  when(imem.req.fire) {
     imem_pending := true.B
   }
 
@@ -65,13 +65,9 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_pending := false.B
   }
 
-  when(flush) {
-    imem_pending := false.B
-  }
-
   // IF/ID
-  if_id.STALL    := stall || imem_pending
-  if_id.FLUSH    := flush
+  if_id.STALL    := imem_pending
+  if_id.FLUSH    := false.B
   if_id.IF.pc    := pc
   if_id.IF.instr := Mux(imem.resp.fire, imem.resp.bits.data, imem_data)
 
@@ -120,12 +116,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val id_branch_taken = bru.cmp
 
   // hazard detection
-  stall := false.B
-  flush := false.B
 
   // ID/EX
-  id_ex.STALL             := stall
-  id_ex.FLUSH             := flush || stall
+  id_ex.STALL             := false.B
+  id_ex.FLUSH             := false.B
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
@@ -187,9 +181,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   alu.mode   := id_ex.EX.decoded_output.alu_mode
 
   // EX/MEM
-  ex_mem.STALL := false.B
-  ex_mem.FLUSH := false.B
-
+  ex_mem.STALL         := false.B
+  ex_mem.FLUSH         := false.B
   ex_mem.EX.alu_result := alu.result
   ex_mem.EX.instr      := id_ex.EX.instr
   ex_mem.EX.pc         := id_ex.EX.pc
@@ -214,7 +207,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   )
 
   // MEM/WB
-  mem_wb.STALL        := lsu.pending && lsu.mem_read
+  mem_wb.STALL        := false.B
   mem_wb.FLUSH        := false.B
   mem_wb.MEM.wb_data  := mem_wb_data
   mem_wb.MEM.instr    := ex_mem.MEM.instr
@@ -230,7 +223,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // pc update
   next_pc := pc + 4.U
 
-  when(!stall && !imem_pending) {
+  when(!imem_pending) {
     pc := next_pc
   }
 
