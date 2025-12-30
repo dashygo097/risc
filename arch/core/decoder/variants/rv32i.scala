@@ -28,6 +28,7 @@ class RV32IDecoderUtilitiesImpl extends DecoderUtilities with RV32IDecodeConsts 
     //   |  |  +---------------------------------- imm_type
     //   |  +------------------------------------- regwrite
     //   +---------------------------------------- legal
+  def bubble: BitPat        = RV32I.NOP
 
   def decode(instr: UInt): DecodedOutput = {
     val sigs    = Wire(new DecodedOutput)

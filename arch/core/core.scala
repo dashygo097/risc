@@ -201,7 +201,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   dmem <> lsu.mem
 
   val mem_wb_data = Mux(
-    lsu.mem_read && dmem.resp.fire,
+    lsu.mem_read,
     lsu.rdata,
     ex_mem.MEM.alu_result
   )
