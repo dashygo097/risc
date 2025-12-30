@@ -1,6 +1,6 @@
 #include "cpu_sim.hh"
-#include "elf_loader.hh"
-#include "instruction.hh"
+#include "rvsim/elf_loader.hh"
+#include "rvsim/instruction.hh"
 #include <iomanip>
 #include <iostream>
 

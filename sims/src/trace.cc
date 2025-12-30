@@ -1,4 +1,4 @@
-#include "trace.hh"
+#include "rvsim/trace.hh"
 #include <fstream>
 #include <iomanip>
 #include <iostream>

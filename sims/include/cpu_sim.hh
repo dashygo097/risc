@@ -1,6 +1,6 @@
 #pragma once
-#include "./memory.hh"
-#include "./trace.hh"
+#include "./rvsim/memory.hh"
+#include "./rvsim/trace.hh"
 #include "Vrv32i_cpu.h"
 #include "verilated.h"
 #include <cstdint>

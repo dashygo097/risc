@@ -6,7 +6,7 @@
 
 class Memory {
 public:
-  Memory(size_t size, uint32_t base_addr = 0);
+  Memory(size_t size, uint32_t base_addr = 0x0);
   ~Memory() = default;
 
   [[nodiscard]] uint32_t read32(uint32_t addr) const noexcept;
