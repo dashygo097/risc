@@ -1,6 +1,6 @@
 #include "cpu_sim.hpp"
-#include "demu/elf_loader.hh"
 #include "instruction.hpp"
+#include <demu/elf_loader.hh>
 #include <iomanip>
 #include <iostream>
 
@@ -229,7 +229,7 @@ void CPUSimulator::dump_registers() const {
   std::cout << "========================================\n";
   std::cout << "x00 = 0x" << std::hex << std::setw(8) << std::setfill('0')
             << get_reg(0) << "  ";
-  for (int i = 1; i < 32; i++) {
+  for (int i = 1; i < NUM_GPRS; i++) {
     std::cout << "x" << std::dec << std::setw(2) << i << " = 0x" << std::hex
               << std::setw(8) << std::setfill('0') << get_reg(i);
     if (i % 4 == 3)

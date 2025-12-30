@@ -1,9 +1,10 @@
 #pragma once
-#include "./demu/memory.hh"
-#include "./demu/trace.hh"
+
 #include "Vrv32i_cpu.h"
 #include "verilated.h"
 #include <cstdint>
+#include <demu/memory.hh>
+#include <demu/trace.hh>
 #include <map>
 #include <memory>
 #include <string>
