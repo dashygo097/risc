@@ -16,7 +16,7 @@ public:
   CPUSimulator(bool enable_trace = false);
   ~CPUSimulator();
 
-  bool load_bin(const std::string &filename, uint32_t base_addr = 0);
+  bool load_bin(const std::string &filename, uint32_t base_addr = 0x0);
   bool load_elf(const std::string &filename);
 
   void reset();
