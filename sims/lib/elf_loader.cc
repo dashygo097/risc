@@ -1,8 +1,9 @@
-#include "rvsim/elf_loader.hh"
+#include "demu/elf_loader.hh"
 #include <cstring>
 #include <fstream>
 #include <iostream>
 
+namespace demu {
 bool ELFLoader::is_elf(const std::string &filename) {
   std::ifstream file(filename, std::ios::binary);
   if (!file.is_open())
@@ -47,7 +48,7 @@ bool ELFLoader::load(const std::string &filename, Memory &mem) {
       file.read(reinterpret_cast<char *>(data.data()), ph.p_filesz);
 
       for (size_t j = 0; j < data.size(); j++) {
-        mem.write8(ph.p_paddr + j, data[j]);
+        mem.write_byte(ph.p_paddr + j, data[j]);
       }
 
       std::cout << "Loaded segment: addr=0x" << std::hex << ph.p_paddr
@@ -67,3 +68,5 @@ bool ELFLoader::load(const std::string &filename,
   entry_point = 0;
   return false;
 }
+
+} // namespace demu
