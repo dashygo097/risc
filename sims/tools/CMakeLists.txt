@@ -4,5 +4,4 @@ project(demu LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_subdirectory(cpu)
-add_subdirectory(system)
+add_subdirectory(${ISA})

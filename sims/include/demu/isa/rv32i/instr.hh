@@ -1,13 +1,15 @@
 #pragma once
 
+#include "./typedefs.hh"
 #include <cstdint>
 #include <string>
 
+namespace demu::isa {
 enum InstType { R_TYPE, I_TYPE, S_TYPE, B_TYPE, U_TYPE, J_TYPE, UNKNOWN };
 
 class Instruction {
 public:
-  explicit Instruction(uint32_t raw);
+  explicit Instruction(instr_t raw);
 
   [[nodiscard]] InstType get_type() const noexcept;
   [[nodiscard]] std::string get_mnemonic() const noexcept;
@@ -22,7 +24,7 @@ public:
   int32_t get_imm() const { return _imm; }
 
 private:
-  uint32_t _raw;
+  instr_t _raw;
   uint8_t _opcode;
   uint8_t _rd;
   uint8_t _rs1;
@@ -38,3 +40,5 @@ private:
   [[nodiscard]] int32_t decode_u_imm() const noexcept;
   [[nodiscard]] int32_t decode_j_imm() const noexcept;
 };
+
+} // namespace demu::isa

@@ -1,6 +1,6 @@
 #include "cpu_sim.hpp"
-#include "instruction.hpp"
 #include <demu/elf_loader.hh>
+#include <demu/isa/isa.hh>
 #include <iomanip>
 #include <iostream>
 

@@ -14,17 +14,9 @@ verilate(${ISA}_cpu_verilated
 )
 
 # Simulator sources
-set(SIMULATOR_SOURCES
-  ${ISA}/instruction.cpp
-  ${ISA}/cpu_sim.cpp
-  ${ISA}/main.cpp
-)
-
-target_sources(${ISA}_cpu_verilated PRIVATE ${SIMULATOR_SOURCES})
-
+target_sources(${ISA}_cpu_verilated PRIVATE cpu_sim.cpp cpu_main.cpp)
 target_include_directories(${ISA}_cpu_verilated PRIVATE
-  ${ISA}/instruction.hpp
-  ${ISA}/cpu_sim.hpp
+  cpu_sim.hpp
 )
 
 find_package(Threads REQUIRED)
@@ -37,10 +29,7 @@ set_target_properties(${ISA}_cpu_verilated PROPERTIES
 
 add_executable(demu_${ISA}_cpu ALIAS ${ISA}_cpu_verilated)
 
-# Stastics
-print_info("――――――――――――――――――APP SCOPE――――――――――――――――――\n" "0" "1")
-
-# App
+# Configuration 
 install(TARGETS ${ISA}_cpu_verilated DESTINATION bin)
 print_info("Configuration: \n" "92" "0")
 print_info("  ISA: ${ISA}\n" "92" "1")

@@ -1,8 +1,9 @@
-#include "instruction.hpp"
+#include "demu/isa/isa.hh"
 #include <iomanip>
 #include <sstream>
 
-Instruction::Instruction(uint32_t raw) : _raw(raw) { decode(); }
+namespace demu::isa {
+Instruction::Instruction(instr_t raw) : _raw(raw) { decode(); }
 
 void Instruction::decode() {
   _opcode = _raw & 0x7F;
@@ -234,3 +235,5 @@ int32_t Instruction::decode_j_imm() const noexcept {
     imm |= 0xFFE00000;
   return imm;
 }
+
+} // namespace demu::isa
