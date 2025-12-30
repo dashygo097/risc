@@ -5,5 +5,5 @@ import chisel3._
 
 trait BusBridgeUtilities {
   def busType(): Bundle
-  def createBus(req: MemoryHierarchyReq, resp: MemoryHierarchyResp): Bundle
+  def createBridge(memory: UnifiedMemoryIO): Bundle
 }
