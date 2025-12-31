@@ -112,14 +112,19 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   bru.en     := decoder.decoded.branch
   bru.src1   := id_rs1_data
   bru.src2   := id_rs2_data
+  bru.imm    := imm_gen.imm
   bru.brType := decoder.decoded.brFn
-  val id_branch_taken = bru.cmp
+  val id_branch_taken  = bru.cmp
+  val id_branch_target = bru.target
 
   // hazard detection
+  val load_use_hazard = lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
+    (id_ex.EX.rd === rs1 || id_ex.EX.rd === rs2) &&
+    id_ex.EX.rd =/= 0.U
 
   // ID/EX
-  id_ex.STALL             := false.B
-  id_ex.FLUSH             := false.B
+  id_ex.STALL             := load_use_hazard
+  id_ex.FLUSH             := !load_use_hazard && id_branch_taken
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
@@ -221,9 +226,14 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_en   := mem_wb.WB.regwrite
 
   // pc update
-  next_pc := pc + 4.U
+  next_pc := MuxCase(
+    pc + 4.U,
+    Seq(
+      id_branch_taken -> id_branch_target
+    )
+  )
 
-  when(!imem_pending) {
+  when(!load_use_hazard && !imem_pending) {
     pc := next_pc
   }
 
