@@ -4,7 +4,7 @@
 .extern main      
 
 _start:
-    li sp, 0x80001000
+    lui sp, 0x80001
     mv fp, zero
     jal ra, main
     ebreak

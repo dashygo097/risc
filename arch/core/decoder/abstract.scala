@@ -25,8 +25,8 @@ class DecodedOutput(implicit p: Parameters) extends Bundle {
   val imm_type = UInt(imm_utils.immTypeWidth.W)
 
   // branch
-  val branch = Bool()
-  val brFn   = UInt(bru_utils.branchTypeWidth.W)
+  val branch  = Bool()
+  val br_type = UInt(bru_utils.branchTypeWidth.W)
 
   // alu
   val alu      = Bool()

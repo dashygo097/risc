@@ -15,6 +15,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   override def desiredName: String = s"${p(ISA)}_cpu"
 
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
+  val bru_utils     = BruUtilitiesFactory.getOrThrow(p(ISA))
   val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA))
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
 
@@ -38,19 +39,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val mem_wb = Module(new MEM_WB)
 
   // Control Signals
+  val imem_pending    = RegInit(false.B)
+  val imem_data       = RegInit(0.U(p(ILen).W))
   val load_use_hazard = Wire(Bool())
-
-  val branch_taken       = RegInit(false.B)
-  val branch_target      = RegInit(0.U(p(XLen).W))
-  val branch_taken_next  = Wire(Bool())
-  val branch_target_next = Wire(UInt(p(XLen).W))
 
   // IF
   val pc      = RegInit(0.U(p(XLen).W))
   val next_pc = Wire(UInt(p(XLen).W))
-
-  val imem_pending = RegInit(false.B)
-  val imem_data    = RegInit(0.U(p(ILen).W))
 
   imem.req.valid     := !imem_pending
   imem.req.bits.op   := MemoryOp.READ
@@ -69,7 +64,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // IF/ID
   if_id.STALL    := imem_pending
-  if_id.FLUSH    := branch_taken
+  if_id.FLUSH    := bru.taken
   if_id.IF.pc    := pc
   if_id.IF.instr := Mux(imem.resp.fire, imem.resp.bits.data, imem_data)
 
@@ -113,14 +108,23 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
   )
 
-  // hazard detection
+  // BRU
+  bru.en     := decoder.decoded.branch
+  bru.pc     := if_id.ID.pc
+  bru.src1   := id_rs1_data
+  bru.src2   := id_rs2_data
+  bru.imm    := imm_gen.imm
+  bru.brType := decoder.decoded.br_type
+
+  // Hazard Detection
   load_use_hazard := lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
     (id_ex.EX.rd === rs1 || id_ex.EX.rd === rs2) &&
-    id_ex.EX.rd =/= 0.U
+    id_ex.EX.rd =/= 0.U &&
+    id_ex.EX.decoded_output.regwrite
 
   // ID/EX
   id_ex.STALL             := load_use_hazard
-  id_ex.FLUSH             := branch_taken
+  id_ex.FLUSH             := bru.taken
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
@@ -155,20 +159,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
   )
 
-  // BRU
-  bru.en     := id_ex.EX.decoded_output.branch
-  bru.pc     := id_ex.EX.pc
-  bru.src1   := ex_rs1_data
-  bru.src2   := ex_rs2_data
-  bru.imm    := id_ex.EX.imm
-  bru.brType := id_ex.EX.decoded_output.brFn
-
-  branch_taken_next  := bru.taken && id_ex.EX.decoded_output.branch
-  branch_target_next := bru.target
-
-  branch_taken  := branch_taken_next
-  branch_target := branch_target_next
-
   // ALU
   val alu_rs1_data = MuxLookup(id_ex.EX.decoded_output.alu_sel1, 0.U(p(XLen).W))(
     Seq(
@@ -178,7 +168,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
   )
 
-  // TODO: A2_FOUR not always for different ISAs
+  // TODO: A2_FOUR not always the case for different ISAs
   val alu_rs2_data = MuxLookup(id_ex.EX.decoded_output.alu_sel2, 0.U(p(XLen).W))(
     Seq(
       A2_ZERO.value.U(SZ_A2.W) -> 0.U(p(XLen).W),
@@ -235,8 +225,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_en   := mem_wb.WB.regwrite
 
   // PC Update Logic
-  next_pc := Mux(branch_taken, branch_target, pc + 4.U)
-
+  next_pc := Mux(bru.taken, bru.target, if_id.ID.pc + 4.U)
   when(!load_use_hazard && !imem_pending) {
     pc := next_pc
   }

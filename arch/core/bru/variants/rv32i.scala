@@ -18,12 +18,10 @@ trait RV32IBranchConsts extends Consts {
 }
 
 class RV32BruUtilitiesImpl extends BruUtilities with RV32IBranchConsts {
-  def hasJump: Boolean                               = true
-  def hasJalr: Boolean                               = true
   def branchTypeWidth: Int                           = SZ_BR
-  def isJump(fnType: UInt): Bool                     = fnType(2, 1) === "b11".U
-  def isJalr(fnType: UInt): Bool                     = fnType === BR_JALR
-  def fn(src1: UInt, src2: UInt, fnType: UInt): Bool = {
+  def hasJalr: Boolean                               = true
+  def isJalr(brType: UInt): Bool                     = brType === BR_JALR
+  def fn(src1: UInt, src2: UInt, brType: UInt): Bool = {
     val eq  = src1 === src2
     val lt  = src1.asSInt < src2.asSInt
     val ltu = src1 < src2
@@ -31,14 +29,14 @@ class RV32BruUtilitiesImpl extends BruUtilities with RV32IBranchConsts {
     MuxCase(
       false.B,
       Seq(
-        (fnType === BR_EQ)   -> eq,
-        (fnType === BR_NE)   -> !eq,
-        (fnType === BR_LT)   -> lt,
-        (fnType === BR_GE)   -> !lt,
-        (fnType === BR_LTU)  -> ltu,
-        (fnType === BR_GEU)  -> !ltu,
-        (fnType === BR_JAL)  -> true.B,
-        (fnType === BR_JALR) -> true.B
+        (brType === BR_EQ.value.U(SZ_BR.W))   -> eq,
+        (brType === BR_NE.value.U(SZ_BR.W))   -> !eq,
+        (brType === BR_LT.value.U(SZ_BR.W))   -> lt,
+        (brType === BR_GE.value.U(SZ_BR.W))   -> !lt,
+        (brType === BR_LTU.value.U(SZ_BR.W))  -> ltu,
+        (brType === BR_GEU.value.U(SZ_BR.W))  -> !ltu,
+        (brType === BR_JAL.value.U(SZ_BR.W))  -> true.B,
+        (brType === BR_JALR.value.U(SZ_BR.W)) -> true.B
       )
     )
   }
