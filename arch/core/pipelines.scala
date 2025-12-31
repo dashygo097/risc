@@ -23,6 +23,7 @@ class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
   val rs1_data       = UInt(p(XLen).W)
   val rs2            = UInt(regfile_utils.width.W)
   val rs2_data       = UInt(p(XLen).W)
+  val imm            = UInt(p(XLen).W)
 }
 
 class ExcutionBundle(implicit p: Parameters) extends Bundle {

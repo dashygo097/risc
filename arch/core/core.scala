@@ -74,6 +74,9 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // ID
   decoder.instr := if_id.ID.instr
 
+  imm_gen.instr   := if_id.ID.instr
+  imm_gen.immType := decoder.decoded.imm_type
+
   val rs1 = regfile_utils.getRs1(if_id.ID.instr)
   val rs2 = regfile_utils.getRs2(if_id.ID.instr)
   val rd  = regfile_utils.getRd(if_id.ID.instr)
@@ -133,6 +136,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   id_ex.ID.rs1_data       := id_rs1_data
   id_ex.ID.rs2            := rs2
   id_ex.ID.rs2_data       := id_rs2_data
+  id_ex.ID.imm            := imm_gen.imm
 
   // EX
   ex_fwd.ex_rs1       := id_ex.EX.rs1
@@ -158,10 +162,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
   )
 
-  // Imm
-  imm_gen.instr   := id_ex.EX.instr
-  imm_gen.immType := id_ex.EX.decoded_output.imm_type
-
   // ALU
   val alu_rs1_data = MuxLookup(id_ex.EX.decoded_output.alu_sel1, 0.U(p(XLen).W))(
     Seq(
@@ -175,7 +175,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     Seq(
       A2_ZERO.value.U(SZ_A2.W) -> 0.U(p(XLen).W),
       A2_RS2.value.U(SZ_A2.W)  -> ex_rs2_data,
-      A2_IMM.value.U(SZ_A2.W)  -> imm_gen.imm,
+      A2_IMM.value.U(SZ_A2.W)  -> id_ex.EX.imm
     )
   )
 
