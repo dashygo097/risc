@@ -26,7 +26,8 @@ RESET   := \033[0m
 
 C_SOURCES := $(wildcard $(ASM_DIR)/*.c)
 ASM_SOURCES := $(wildcard $(ASM_DIR)/*.asm)
-S_SOURCES   := $(wildcard $(ASM_DIR)/*.S) 
+S_SOURCES   := $(wildcard $(ASM_DIR)/*.S)
+START_SRC := start.S
 
 C_TESTS   := $(patsubst $(ASM_DIR)/%.c,%,$(C_SOURCES))
 ASM_TESTS := $(patsubst $(ASM_DIR)/%.asm,%,$(ASM_SOURCES))
@@ -61,7 +62,8 @@ $(BIN_DIR):
 $(ELF_DIR)/%.elf: $(ASM_DIR)/%.c $(LINKER_SCRIPT)
 	@echo "$(BLUE)Building $@$(RESET)"
 	$(CC) $(CFLAGS) -c $< -o $(BIN_DIR)/$*.o
-	$(LD) $(LDFLAGS) $(BIN_DIR)/$*.o -o $@
+	$(CC) $(CFLAGS) -c $(START_SRC) -o $(BIN_DIR)/start.o
+	$(LD) $(LDFLAGS) $(BIN_DIR)/start.o $(BIN_DIR)/$*.o -o $@
 	@rm -f $(BIN_DIR)/$*.o
 
 $(ELF_DIR)/%.elf: $(ASM_DIR)/%.asm $(LINKER_SCRIPT)
