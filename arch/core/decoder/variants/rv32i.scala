@@ -85,7 +85,7 @@ class RV32IDecoderUtilitiesImpl extends DecoderUtilities with RV32IDecodeConsts 
       RV32I.LHU -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_LHU),
 
       // Jump
-      RV32I.JALR -> List(Y, N, IMM_I, N, BR_JALR, Y, A1_PC, A2_IMM, N, AFN_ADD, N, M_X),
+      RV32I.JALR -> List(Y, Y, IMM_I, Y, BR_JALR, Y, A1_PC, A2_FOUR, N, AFN_ADD, N, M_X),
 
       // S-Type
       // Store
@@ -109,7 +109,7 @@ class RV32IDecoderUtilitiesImpl extends DecoderUtilities with RV32IDecodeConsts 
 
       // J-Type
       // Jump and Link
-      RV32I.JAL -> List(Y, Y, IMM_J, N, BR_JAL, Y, A1_PC, A2_IMM, N, AFN_ADD, N, M_X)
+      RV32I.JAL -> List(Y, Y, IMM_J, Y, BR_JAL, Y, A1_PC, A2_FOUR, N, AFN_ADD, N, M_X)
     )
 
 }
