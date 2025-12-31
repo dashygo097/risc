@@ -80,7 +80,8 @@ void CPUSimulator::handle_imem_interface() {
       _imem_pending = 1;
     }
   } else {
-    _dut->imem_resp_bits_data = _imem->read_word(_imem_pending_addr);
+    word_t instr = _imem->read_word(_imem_pending_addr);
+    _dut->imem_resp_bits_data = instr;
     _dut->imem_resp_valid = 1;
 
     if (_dut->imem_resp_ready) {
@@ -101,22 +102,30 @@ void CPUSimulator::handle_dmem_interface() {
     }
   } else {
     if (_dmem_pending_op) {
+      // Write operation
       _dmem->write_word(_dmem_pending_addr, _dmem_pending_data);
       _dut->dmem_resp_bits_data = 0;
+
       if (_verbose) {
-        std::cout << "  [DMEM WRITE] addr=0x" << std::hex << _dmem_pending_addr
-                  << " data=0x" << _dmem_pending_data << std::dec << std::endl;
+        std::cout << "  [DMEM WRITE] addr=0x" << std::hex << std::setw(8)
+                  << std::setfill('0') << _dmem_pending_addr << " data=0x"
+                  << std::setw(8) << _dmem_pending_data << std::dec
+                  << std::endl;
       }
     } else {
+      // Read operation
       addr_t aligned_addr = _dmem_pending_addr & ~0x3;
       word_t data = _dmem->read_word(aligned_addr);
       _dut->dmem_resp_bits_data = data;
+
       if (_verbose) {
-        std::cout << "  [DMEM READ] addr=0x" << std::hex << _dmem_pending_addr
-                  << " aligned=0x" << aligned_addr << " data=0x" << data
-                  << std::dec << std::endl;
+        std::cout << "  [DMEM READ] addr=0x" << std::hex << std::setw(8)
+                  << std::setfill('0') << _dmem_pending_addr << " aligned=0x"
+                  << std::setw(8) << aligned_addr << " data=0x" << std::setw(8)
+                  << data << std::dec << std::endl;
       }
     }
+
     _dut->dmem_resp_valid = 1;
 
     if (_dut->dmem_resp_ready) {
@@ -126,6 +135,7 @@ void CPUSimulator::handle_dmem_interface() {
 }
 
 void CPUSimulator::clock_tick() {
+  // Falling edge: prepare inputs
   _dut->clock = 0;
   _dut->eval();
 
@@ -135,6 +145,7 @@ void CPUSimulator::clock_tick() {
   }
 #endif
 
+  // Rising edge: clock the DUT, handle interfaces
   _dut->clock = 1;
   handle_imem_interface();
   handle_dmem_interface();
@@ -146,8 +157,7 @@ void CPUSimulator::clock_tick() {
   }
 #endif
 
-  if (_dut->debug_reg_we && _dut->debug_reg_addr != 0 && _dut->imem_req_valid &&
-      _dut->imem_req_ready) {
+  if (_dut->debug_reg_we && _dut->debug_reg_addr != 0) {
     word_t reg_data = static_cast<word_t>(_dut->debug_reg_data);
     _register_values[_dut->debug_reg_addr] = reg_data;
     _inst_count++;

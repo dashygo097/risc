@@ -38,6 +38,4 @@ _start:
     lbu x13, 20(x10)       # x13 = 0x000000F0 (zero-extended)
 
 
-    nop
-    nop
     ebreak

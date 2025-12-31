@@ -5,7 +5,6 @@ import mem.cache._
 import chisel3._
 import chisel3.util._
 
-// TODO: Abstraction for different ISAs
 class Lsu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_lsu"
 
