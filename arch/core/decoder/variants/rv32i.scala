@@ -38,7 +38,7 @@ class RV32IDecoderUtilitiesImpl extends DecoderUtilities with RV32IDecodeConsts 
     sigs.regwrite := decoder(1).asBool
     sigs.imm_type := decoder(2)
     sigs.branch   := decoder(3).asBool
-    sigs.brFn     := decoder(4)
+    sigs.br_type  := decoder(4)
     sigs.alu      := decoder(5).asBool
     sigs.alu_sel1 := decoder(6)
     sigs.alu_sel2 := decoder(7)
