@@ -15,8 +15,10 @@ class Bru(implicit p: Parameters) extends Module {
   val imm    = IO(Input(UInt(p(XLen).W)))
   val brType = IO(Input(UInt(utils.branchTypeWidth.W)))
   val taken  = IO(Output(Bool()))
+  val jump   = IO(Output(Bool()))
   val target = IO(Output(UInt(p(XLen).W)))
 
+  jump  := en && utils.isJump(brType)
   taken := en && utils.fn(src1, src2, brType)
 
   if (utils.hasJalr) {

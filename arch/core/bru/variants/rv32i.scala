@@ -19,8 +19,10 @@ trait RV32IBranchConsts extends Consts {
 
 class RV32BruUtilitiesImpl extends BruUtilities with RV32IBranchConsts {
   def branchTypeWidth: Int                           = SZ_BR
+  def hasJump: Boolean                               = true
   def hasJalr: Boolean                               = true
   def isJalr(brType: UInt): Bool                     = brType === BR_JALR
+  def isJump(brType: UInt): Bool                     = brType(2, 1) === "b11".U
   def fn(src1: UInt, src2: UInt, brType: UInt): Bool = {
     val eq  = src1 === src2
     val lt  = src1.asSInt < src2.asSInt
