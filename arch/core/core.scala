@@ -231,7 +231,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_en   := mem_wb.WB.regwrite
 
   // PC Update Logic
-  next_pc := Mux(branch_taken_reg, branch_target, Mux(bru.taken, bru.target, pc + 4.U))
+  next_pc := Mux(bru.taken, bru.target, pc + 4.U)
   when(!imem_pending) {
     pc := next_pc
   }
