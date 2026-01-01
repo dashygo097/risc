@@ -67,7 +67,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // IF/ID
   if_id.STALL    := imem_pending
-  if_id.FLUSH    := !bru.jump && (bru.taken || branch_taken_reg)
+  if_id.FLUSH    := bru.taken || branch_taken_reg
   if_id.IF.pc    := pc
   if_id.IF.instr := Mux(imem.resp.fire, imem.resp.bits.data, imem_data)
 
@@ -130,7 +130,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // ID/EX
   id_ex.STALL             := false.B
-  id_ex.FLUSH             := !bru.jump && (bru.taken || branch_taken_reg)
+  id_ex.FLUSH             := bru.taken || branch_taken_reg
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
