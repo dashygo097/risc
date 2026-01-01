@@ -39,9 +39,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val mem_wb = Module(new MEM_WB)
 
   // Control Signals
-  val imem_pending    = RegInit(false.B)
-  val imem_data       = RegInit(0.U(p(ILen).W))
-  val load_use_hazard = Wire(Bool())
+  val imem_pending = RegInit(false.B)
+  val imem_data    = RegInit(0.U(p(ILen).W))
 
   // IF
   val pc      = RegInit(0.U(p(XLen).W))
@@ -117,13 +116,9 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   bru.brType := decoder.decoded.br_type
 
   // Hazard Detection
-  load_use_hazard := lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
-    (id_ex.EX.rd === rs1 || id_ex.EX.rd === rs2) &&
-    id_ex.EX.rd =/= 0.U &&
-    id_ex.EX.decoded_output.regwrite
 
   // ID/EX
-  id_ex.STALL             := load_use_hazard
+  id_ex.STALL             := false.B
   id_ex.FLUSH             := bru.taken
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
@@ -226,7 +221,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // PC Update Logic
   next_pc := Mux(bru.taken, bru.target, pc + 4.U)
-  when(!load_use_hazard && !imem_pending) {
+  when(!imem_pending) {
     pc := next_pc
   }
 

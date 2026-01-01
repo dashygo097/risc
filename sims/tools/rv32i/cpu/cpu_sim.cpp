@@ -161,14 +161,16 @@ void CPUSimulator::clock_tick() {
     word_t reg_data = static_cast<word_t>(_dut->debug_reg_data);
     _register_values[_dut->debug_reg_addr] = reg_data;
     _inst_count++;
+  }
 
+  if (_dut->debug_reg_addr != 0) {
     if (_trace_enabled) {
       demu::TraceEntry entry;
       entry.cycle = _dut->debug_cycles;
       entry.pc = static_cast<addr_t>(_dut->debug_pc);
       entry.inst = static_cast<instr_t>(_dut->debug_instr);
       entry.rd = _dut->debug_reg_addr;
-      entry.rd_val = reg_data;
+      entry.rd_val = static_cast<word_t>(_dut->debug_reg_data);
       entry.regwrite = _dut->debug_reg_we;
       Instruction inst(entry.inst);
       entry.disasm = inst.to_string();
@@ -179,7 +181,6 @@ void CPUSimulator::clock_tick() {
       addr_t pc = static_cast<addr_t>(_dut->debug_pc);
       _pc_histogram[pc]++;
     }
-
     if (_verbose) {
       std::cout << "Cycle " << std::dec << std::setw(6) << _dut->debug_cycles
                 << " | PC=0x" << std::hex << std::setw(8) << std::setfill('0')
