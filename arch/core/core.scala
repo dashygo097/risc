@@ -42,6 +42,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(0.U(p(ILen).W))
 
+  val branch_pc        = RegInit(0.U(p(XLen).W))
+  val branch_target    = RegInit(0.U(p(XLen).W))
+  val branch_taken_reg = RegInit(false.B)
+
   // IF
   val pc      = RegInit(0.U(p(XLen).W))
   val next_pc = Wire(UInt(p(XLen).W))
@@ -63,7 +67,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // IF/ID
   if_id.STALL    := imem_pending
-  if_id.FLUSH    := bru.taken
+  if_id.FLUSH    := bru.taken || branch_taken_reg
   if_id.IF.pc    := pc
   if_id.IF.instr := Mux(imem.resp.fire, imem.resp.bits.data, imem_data)
 
@@ -115,11 +119,18 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   bru.imm    := imm_gen.imm
   bru.brType := decoder.decoded.br_type
 
+  when(bru.taken && !branch_taken_reg) {
+    branch_taken_reg := true.B
+    branch_target    := bru.target
+  }.otherwise {
+    branch_taken_reg := false.B
+  }
+
   // Hazard Detection
 
   // ID/EX
   id_ex.STALL             := false.B
-  id_ex.FLUSH             := bru.taken
+  id_ex.FLUSH             := bru.taken || branch_taken_reg
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
@@ -220,7 +231,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_en   := mem_wb.WB.regwrite
 
   // PC Update Logic
-  next_pc := Mux(bru.taken, bru.target, pc + 4.U)
+  next_pc := Mux(branch_taken_reg, branch_target, Mux(bru.taken, bru.target, pc + 4.U))
   when(!imem_pending) {
     pc := next_pc
   }

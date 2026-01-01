@@ -7,7 +7,7 @@ _start:
     # Test 1: BEQ (Branch if Equal)
     addi x1, x0, 10       # x1 = 10
     addi x2, x0, 10       # x2 = 10
-    beq x1, x2, bb1 # Should branch (equal)
+    beq x1, x2, beq_taken # Should branch (equal)
     addi x3, x0, 99       # Should NOT execute
     j beq_end
 beq_taken:
