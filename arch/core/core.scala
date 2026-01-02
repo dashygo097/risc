@@ -23,15 +23,14 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
 
   // Modules
-  val hazard_unit = Module(new HazardUnit)
-  val decoder     = Module(new Decoder)
-  val bru         = Module(new Bru)
-  val regfile     = Module(new Regfile)
-  val id_fwd      = Module(new IDForwardingUnit)
-  val ex_fwd      = Module(new EXForwardingUnit)
-  val imm_gen     = Module(new ImmGen)
-  val alu         = Module(new Alu)
-  val lsu         = Module(new Lsu)
+  val decoder = Module(new Decoder)
+  val bru     = Module(new Bru)
+  val regfile = Module(new Regfile)
+  val id_fwd  = Module(new IDForwardingUnit)
+  val ex_fwd  = Module(new EXForwardingUnit)
+  val imm_gen = Module(new ImmGen)
+  val alu     = Module(new Alu)
+  val lsu     = Module(new Lsu)
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -46,9 +45,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val branch_pc        = RegInit(0.U(p(XLen).W))
   val branch_target    = RegInit(0.U(p(XLen).W))
   val branch_taken_reg = RegInit(false.B)
-
-  // Hazard Unit
-  hazard_unit.imem_pending := imem_pending
 
   // IF
   val pc      = RegInit(0.U(p(XLen).W))
@@ -70,7 +66,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   }
 
   // IF/ID
-  if_id.STALL    := hazard_unit.if_stall
+  if_id.STALL    := false.B
   if_id.FLUSH    := branch_taken_reg
   if_id.IF.pc    := pc
   if_id.IF.instr := imem_data
@@ -133,7 +129,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // Hazard Detection
 
   // ID/EX
-  id_ex.STALL             := hazard_unit.id_stall
+  id_ex.STALL             := false.B
   id_ex.FLUSH             := bru.taken && !bru.jump
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
@@ -195,7 +191,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   alu.mode   := id_ex.EX.decoded_output.alu_mode
 
   // EX/MEM
-  ex_mem.STALL         := hazard_unit.ex_stall
+  ex_mem.STALL         := false.B
   ex_mem.FLUSH         := false.B
   ex_mem.EX.alu_result := alu.result
   ex_mem.EX.instr      := id_ex.EX.instr
@@ -221,7 +217,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   )
 
   // MEM/WB
-  mem_wb.STALL        := hazard_unit.mem_stall
+  mem_wb.STALL        := false.B
   mem_wb.FLUSH        := false.B
   mem_wb.MEM.wb_data  := mem_wb_data
   mem_wb.MEM.instr    := ex_mem.MEM.instr

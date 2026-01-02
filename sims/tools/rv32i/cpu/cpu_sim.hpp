@@ -71,10 +71,12 @@ private:
   bool _trace_enabled;
 
   demu::isa::addr_t _imem_pending_addr;
+  uint64_t _imem_pending_latency;
   bool _imem_pending;
 
   demu::isa::addr_t _dmem_pending_addr;
   demu::isa::word_t _dmem_pending_data;
+  uint64_t _dmem_pending_latency;
   bool _dmem_pending_op;
   bool _dmem_pending;
 
