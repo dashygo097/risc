@@ -46,6 +46,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val branch_target    = RegInit(0.U(p(XLen).W))
   val branch_taken_reg = RegInit(false.B)
 
+  val load_store_hazard = Wire(Bool())
+
   // IF
   val pc      = RegInit(0.U(p(XLen).W))
   val next_pc = Wire(UInt(p(XLen).W))
@@ -69,7 +71,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   if_id.STALL    := imem_pending
   if_id.FLUSH    := branch_taken_reg
   if_id.IF.pc    := pc
-  if_id.IF.instr := Mux(imem.resp.fire, imem.resp.bits.data, imem_data)
+  if_id.IF.instr := imem_data
 
   // ID
   decoder.instr := if_id.ID.instr
@@ -127,10 +129,12 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   }
 
   // Hazard Detection
+  load_store_hazard := (id_fwd.forward_rs1 === FWD_EX.value.U(SZ_FWD.W)) ||
+    (id_fwd.forward_rs2 === FWD_EX.value.U(SZ_FWD.W))
 
   // ID/EX
   id_ex.STALL             := false.B
-  id_ex.FLUSH             := bru.taken && !bru.jump
+  id_ex.FLUSH             := (bru.taken && !bru.jump) || load_store_hazard
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
