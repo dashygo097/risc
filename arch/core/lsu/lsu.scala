@@ -29,6 +29,7 @@ class Lsu(implicit p: Parameters) extends Module {
 
   // Internal state
   val pending_reg = RegInit(false.B)
+  val rdata_reg   = RegInit(0.U(p(XLen).W))
 
   val byte_offset = addr(1, 0)
 
@@ -78,8 +79,9 @@ class Lsu(implicit p: Parameters) extends Module {
 
   when(mem.resp.fire) {
     pending_reg := false.B
-    rdata       := loaded_data
+    rdata_reg   := loaded_data
   }
 
   pending := pending_reg
+  rdata   := rdata_reg
 }
