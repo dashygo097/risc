@@ -7,8 +7,7 @@ import chisel3.util._
 
 class Lsu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_lsu"
-
-  val utils = LsuUtilitiesFactory.getOrThrow(p(ISA))
+  val utils                        = LsuUtilitiesFactory.getOrThrow(p(ISA))
 
   // Control inputs
   val en  = IO(Input(Bool()))
@@ -28,37 +27,37 @@ class Lsu(implicit p: Parameters) extends Module {
   val mem_read  = IO(Output(Bool()))
   val mem_write = IO(Output(Bool()))
 
-  // Internal Signals
+  // Internal state
   val pending_reg = RegInit(false.B)
-  val byte_offset = addr(1, 0)
-  val half_offset = addr(1)
 
+  val byte_offset = addr(1, 0)
+
+  rdata     := 0.U(p(XLen).W)
   unsigned  := en && utils.isUnsigned(cmd)
   mem_read  := utils.isMemRead(en, cmd)
   mem_write := utils.isMemWrite(en, cmd)
 
+  // Write data alignment
   val aligned_wdata = MuxCase(
     wdata,
     Seq(
-      utils.isByte(cmd) -> Cat(
-        Fill(24, 0.U),
-        wdata(7, 0)
-      ),
+      utils.isByte(cmd) -> Cat(Fill(24, 0.U), wdata(7, 0)),
       utils.isHalf(cmd) -> Cat(Fill(16, 0.U), wdata(15, 0)),
       utils.isWord(cmd) -> wdata
     )
   )
 
+  // Read data processing
   val shifted_rdata = mem.resp.bits.data >> (byte_offset << 3)
   val loaded_data   = MuxCase(
     shifted_rdata,
     Seq(
       utils.isByte(cmd) -> Cat(
-        Fill(24, !unsigned && shifted_rdata(7)),
+        Fill(24, !utils.isUnsigned(cmd) && shifted_rdata(7)),
         shifted_rdata(7, 0)
       ),
       utils.isHalf(cmd) -> Cat(
-        Fill(16, !unsigned && shifted_rdata(15)),
+        Fill(16, !utils.isUnsigned(cmd) && shifted_rdata(15)),
         shifted_rdata(15, 0)
       ),
       utils.isWord(cmd) -> shifted_rdata
@@ -66,22 +65,21 @@ class Lsu(implicit p: Parameters) extends Module {
   )
 
   // Memory request
-  mem.req.valid     := (mem_read || mem_write) && !pending
+  mem.req.valid     := !pending_reg && (mem_read || mem_write)
   mem.req.bits.op   := Mux(mem_write, MemoryOp.WRITE, MemoryOp.READ)
   mem.req.bits.addr := addr
   mem.req.bits.data := aligned_wdata
+  mem.resp.ready    := true.B
 
-  mem.resp.ready := true.B
-
-  // Pending
+  // State machine
   when(mem.req.fire) {
     pending_reg := true.B
   }
+
   when(mem.resp.fire) {
     pending_reg := false.B
+    rdata       := loaded_data
   }
-  pending := pending_reg
 
-  // Read Data
-  rdata := Mux(mem.resp.fire, loaded_data, 0.U)
+  pending := pending_reg
 }

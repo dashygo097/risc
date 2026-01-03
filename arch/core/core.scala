@@ -23,14 +23,15 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
 
   // Modules
-  val decoder = Module(new Decoder)
-  val bru     = Module(new Bru)
-  val regfile = Module(new Regfile)
-  val id_fwd  = Module(new IDForwardingUnit)
-  val ex_fwd  = Module(new EXForwardingUnit)
-  val imm_gen = Module(new ImmGen)
-  val alu     = Module(new Alu)
-  val lsu     = Module(new Lsu)
+  val pipeline_ctrl = Module(new PipelineController)
+  val decoder       = Module(new Decoder)
+  val bru           = Module(new Bru)
+  val regfile       = Module(new Regfile)
+  val id_fwd        = Module(new IDForwardingUnit)
+  val ex_fwd        = Module(new EXForwardingUnit)
+  val imm_gen       = Module(new ImmGen)
+  val alu           = Module(new Alu)
+  val lsu           = Module(new Lsu)
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -42,18 +43,24 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(0.U(p(ILen).W))
 
+  val load_use_hazard = Wire(Bool())
+
   val branch_pc        = RegInit(0.U(p(XLen).W))
   val branch_target    = RegInit(0.U(p(XLen).W))
   val branch_taken_reg = RegInit(false.B)
+
+  pipeline_ctrl.if_imem_pending    := imem_pending
+  pipeline_ctrl.id_load_use_hazard := load_use_hazard
+  pipeline_ctrl.mem_dmem_pending   := lsu.pending
 
   // IF
   val pc      = RegInit(0.U(p(XLen).W))
   val next_pc = Wire(UInt(p(XLen).W))
 
-  imem.req.valid     := !imem_pending
+  imem.req.valid     := !imem_pending && !pipeline_ctrl.if_id_stall
   imem.req.bits.op   := MemoryOp.READ
   imem.req.bits.addr := pc
-  imem.req.bits.data := DontCare
+  imem.req.bits.data := 0.U(p(XLen).W)
   imem.resp.ready    := true.B
 
   when(imem.req.fire) {
@@ -66,8 +73,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   }
 
   // IF/ID
-  if_id.STALL    := false.B
-  if_id.FLUSH    := branch_taken_reg
+  if_id.STALL    := pipeline_ctrl.if_id_stall
+  if_id.FLUSH    := pipeline_ctrl.if_id_flush // branch_taken_reg
   if_id.IF.pc    := pc
   if_id.IF.instr := imem_data
 
@@ -127,10 +134,12 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   }
 
   // Hazard Detection
+  load_use_hazard := lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
+    ((id_ex.EX.rd === rs1) || (id_ex.EX.rd === rs2))
 
   // ID/EX
-  id_ex.STALL             := false.B
-  id_ex.FLUSH             := bru.taken && !bru.jump
+  id_ex.STALL             := pipeline_ctrl.id_ex_stall
+  id_ex.FLUSH             := pipeline_ctrl.id_ex_flush // bru.taken && !jump
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
@@ -191,8 +200,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   alu.mode   := id_ex.EX.decoded_output.alu_mode
 
   // EX/MEM
-  ex_mem.STALL         := false.B
-  ex_mem.FLUSH         := false.B
+  ex_mem.STALL         := pipeline_ctrl.ex_mem_stall
+  ex_mem.FLUSH         := pipeline_ctrl.ex_mem_flush
   ex_mem.EX.alu_result := alu.result
   ex_mem.EX.instr      := id_ex.EX.instr
   ex_mem.EX.pc         := id_ex.EX.pc
@@ -211,14 +220,14 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   dmem <> lsu.mem
 
   val mem_wb_data = Mux(
-    lsu.mem_read,
+    dmem.resp.fire,
     lsu.rdata,
     ex_mem.MEM.alu_result
   )
 
   // MEM/WB
-  mem_wb.STALL        := false.B
-  mem_wb.FLUSH        := false.B
+  mem_wb.STALL        := pipeline_ctrl.mem_wb_stall
+  mem_wb.FLUSH        := pipeline_ctrl.mem_wb_flush
   mem_wb.MEM.wb_data  := mem_wb_data
   mem_wb.MEM.instr    := ex_mem.MEM.instr
   mem_wb.MEM.pc       := ex_mem.MEM.pc
@@ -231,8 +240,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_en   := mem_wb.WB.regwrite
 
   // PC Update Logic
-  next_pc := Mux(bru.taken, bru.target, pc + 4.U)
-  when(!imem_pending) {
+  next_pc := Mux(bru.taken, bru.target, pc + 4.U(p(XLen).W))
+  when(pipeline_ctrl.pc_should_update) {
     pc := next_pc
   }
 
