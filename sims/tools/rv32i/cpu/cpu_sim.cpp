@@ -102,7 +102,7 @@ void CPUSimulator::handle_imem_interface() {
 }
 
 void CPUSimulator::handle_dmem_interface() {
-  const int DMEM_LATENCY = 3;
+  const int DMEM_LATENCY = 5;
 
   if (!_dmem_pending) {
     _dut->dmem_resp_valid = 0;

@@ -15,6 +15,11 @@ class PipelineController(implicit p: Parameters) extends Module {
   val ex_mem_stall = IO(Output(Bool()))
   val mem_wb_stall = IO(Output(Bool()))
 
+  val if_id_flush  = IO(Output(Bool()))
+  val id_ex_flush  = IO(Output(Bool()))
+  val ex_mem_flush = IO(Output(Bool()))
+  val mem_wb_flush = IO(Output(Bool()))
+
   val pc_should_update = IO(Output(Bool()))
 
   // Default values
@@ -22,24 +27,36 @@ class PipelineController(implicit p: Parameters) extends Module {
   id_ex_stall      := false.B
   ex_mem_stall     := false.B
   mem_wb_stall     := false.B
+  if_id_flush      := false.B
+  id_ex_flush      := false.B
+  ex_mem_flush     := false.B
+  mem_wb_flush     := false.B
   pc_should_update := true.B
 
-  when(if_imem_pending) {
+  // Stall logic with priority
+  when(mem_dmem_pending) {
     if_id_stall      := true.B
     id_ex_stall      := true.B
     ex_mem_stall     := true.B
-    mem_wb_stall     := true.B
+    mem_wb_stall     := false.B
     pc_should_update := false.B
+
+    mem_wb_flush := true.B
   }.elsewhen(id_load_use_hazard) {
     if_id_stall      := true.B
-    id_ex_stall      := true.B
+    id_ex_stall      := false.B
     ex_mem_stall     := false.B
     mem_wb_stall     := false.B
     pc_should_update := false.B
-  }.elsewhen(mem_dmem_pending) {
-    ex_mem_stall     := true.B
-    mem_wb_stall     := true.B
-    pc_should_update := false.B
-  }
 
+    id_ex_flush := true.B
+  }.elsewhen(if_imem_pending) {
+    if_id_stall      := false.B
+    id_ex_stall      := false.B
+    ex_mem_stall     := false.B
+    mem_wb_stall     := false.B
+    pc_should_update := false.B
+
+    if_id_flush := true.B
+  }
 }
