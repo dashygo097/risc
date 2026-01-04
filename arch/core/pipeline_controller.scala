@@ -6,9 +6,9 @@ import chisel3._
 class PipelineController(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_pipeline_ctrl"
 
-  val if_imem_pending    = IO(Input(Bool()))
+  val if_fetch_busy      = IO(Input(Bool()))
   val id_load_use_hazard = IO(Input(Bool()))
-  val mem_dmem_pending   = IO(Input(Bool()))
+  val mem_lsu_busy       = IO(Input(Bool()))
 
   val if_id_stall  = IO(Output(Bool()))
   val id_ex_stall  = IO(Output(Bool()))
@@ -35,7 +35,7 @@ class PipelineController(implicit p: Parameters) extends Module {
   mem_wb_flush := false.B
 
   // Stall/Flush logic with priority
-  when(mem_dmem_pending) {
+  when(mem_lsu_busy) {
     if_id_stall      := true.B
     id_ex_stall      := true.B
     ex_mem_stall     := true.B
@@ -51,7 +51,7 @@ class PipelineController(implicit p: Parameters) extends Module {
     pc_should_update := false.B
 
     id_ex_flush := true.B
-  }.elsewhen(if_imem_pending) {
+  }.elsewhen(if_fetch_busy) {
     if_id_stall      := false.B
     id_ex_stall      := false.B
     ex_mem_stall     := false.B

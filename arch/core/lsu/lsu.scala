@@ -22,7 +22,7 @@ class Lsu(implicit p: Parameters) extends Module {
 
   // Outputs
   val rdata     = IO(Output(UInt(p(XLen).W)))
-  val pending   = IO(Output(Bool()))
+  val busy      = IO(Output(Bool()))
   val unsigned  = IO(Output(Bool()))
   val mem_read  = IO(Output(Bool()))
   val mem_write = IO(Output(Bool()))
@@ -80,7 +80,7 @@ class Lsu(implicit p: Parameters) extends Module {
     resp_received := true.B
   }
 
-  pending := (mem_read || mem_write) && (!resp_received || mem.req.fire)
+  busy := !resp_received || mem.req.fire
 
   // Memory request
   mem.req.valid     := (mem_read || mem_write) && !req_fired
