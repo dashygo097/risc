@@ -47,9 +47,7 @@ class MemoryBundle(implicit p: Parameters) extends Bundle {
   val pc       = UInt(p(XLen).W)
   val rd       = UInt(regfile_utils.width.W)
   val regwrite = Bool()
-  val lsu      = Bool()
   val wb_data  = UInt(p(XLen).W)
-  val rdata    = UInt(p(XLen).W)
 }
 
 class IF_ID(implicit p: Parameters) extends Module {
