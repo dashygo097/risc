@@ -51,6 +51,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   pipeline_ctrl.if_imem_pending    := imem_pending
   pipeline_ctrl.id_load_use_hazard := load_use_hazard
+  pipeline_ctrl.id_branch_taken    := bru.taken
   pipeline_ctrl.mem_dmem_pending   := lsu.pending
 
   // IF
@@ -67,7 +68,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_pending := true.B
   }
 
-  when(imem.resp.fire) {
+  when(bru.taken) {
+    imem_pending := false.B
+  }
+  when(imem.resp.fire && imem_pending) {
     imem_data    := imem.resp.bits.data
     imem_pending := false.B
   }

@@ -101,7 +101,7 @@ void CPUSimulator::handle_imem_interface() {
 }
 
 void CPUSimulator::handle_dmem_interface() {
-  const int DMEM_LATENCY = 5;
+  const int DMEM_LATENCY = 3;
 
   if (!_dmem_pending) {
     _dut->dmem_resp_valid = 0;
@@ -194,6 +194,16 @@ void CPUSimulator::clock_tick() {
     _inst_count++;
   }
 
+  if (_show_pipeline) {
+    std::cout << "Cycle " << std::dec << std::setw(6) << _dut->debug_cycles
+              << " | IF: " << std::hex << std::setw(8) << std::setfill('0')
+              << _dut->debug_if_instr << " | ID: " << std::setw(8)
+              << _dut->debug_id_instr << " | EX: " << std::setw(8)
+              << _dut->debug_ex_instr << " | MEM: " << std::setw(8)
+              << _dut->debug_mem_instr << " | WB: " << std::setw(8)
+              << _dut->debug_wb_instr << std::dec << std::endl;
+  }
+
   if (_dut->debug_reg_addr != 0) {
     if (_trace_enabled) {
       demu::TraceEntry entry;
@@ -217,16 +227,6 @@ void CPUSimulator::clock_tick() {
                 << std::setw(8) << _dut->debug_reg_data << std::dec
                 << std::endl;
     }
-  }
-
-  if (_show_pipeline) {
-    std::cout << "Cycle " << std::dec << std::setw(6) << _dut->debug_cycles
-              << " | IF: " << std::hex << std::setw(8) << std::setfill('0')
-              << _dut->debug_if_instr << " | ID: " << std::setw(8)
-              << _dut->debug_id_instr << " | EX: " << std::setw(8)
-              << _dut->debug_ex_instr << " | MEM: " << std::setw(8)
-              << _dut->debug_mem_instr << " | WB: " << std::setw(8)
-              << _dut->debug_wb_instr << std::dec << std::endl;
   }
 }
 
