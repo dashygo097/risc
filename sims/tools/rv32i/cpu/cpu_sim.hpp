@@ -43,7 +43,7 @@ public:
   // Simulator configuration
   void verbose(bool verbose) { _verbose = verbose; }
   void timeout(uint64_t timeout) { _timeout = timeout; }
-  void profiling(bool enable) { _profiling = enable; }
+  void show_pipeline(bool show) { _show_pipeline = show; }
 
   // Debug output
   void dump_registers() const;
@@ -67,7 +67,7 @@ private:
   uint64_t _timeout;
   bool _terminate;
   bool _verbose;
-  bool _profiling;
+  bool _show_pipeline;
   bool _trace_enabled;
 
   demu::isa::addr_t _imem_pending_addr;
@@ -82,7 +82,6 @@ private:
 
   // Architecture state tracking
   std::map<uint8_t, demu::isa::word_t> _register_values;
-  std::map<demu::isa::addr_t, uint64_t> _pc_histogram;
 
   // Internal simulation methods
   void clock_tick();

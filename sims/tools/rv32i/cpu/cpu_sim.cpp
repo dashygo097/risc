@@ -10,8 +10,8 @@ CPUSimulator::CPUSimulator(bool enable_trace)
     : _dut(new Vrv32i_cpu), _imem(new demu::Memory(256 * 1024, 0x00000000)),
       _dmem(new demu::Memory(256 * 1024, 0x80000000)),
       _trace(new demu::ExecutionTrace()), _time_counter(0), _inst_count(0),
-      _timeout(1000000), _terminate(false), _verbose(false), _profiling(false),
-      _trace_enabled(enable_trace) {
+      _timeout(1000000), _terminate(false), _verbose(false),
+      _show_pipeline(false), _trace_enabled(enable_trace) {
 #ifdef ENABLE_TRACE
   if (_trace_enabled) {
     Verilated::traceEverOn(true);
@@ -64,7 +64,6 @@ void CPUSimulator::reset() {
   _inst_count = 0;
   _terminate = false;
   _register_values.clear();
-  _pc_histogram.clear();
   _trace->clear();
 
   _imem_pending = 0;
@@ -209,10 +208,6 @@ void CPUSimulator::clock_tick() {
       _trace->add_entry(entry);
     }
 
-    if (_profiling) {
-      addr_t pc = static_cast<addr_t>(_dut->debug_pc);
-      _pc_histogram[pc]++;
-    }
     if (_verbose) {
       std::cout << "Cycle " << std::dec << std::setw(6) << _dut->debug_cycles
                 << " | PC=0x" << std::hex << std::setw(8) << std::setfill('0')
@@ -222,6 +217,16 @@ void CPUSimulator::clock_tick() {
                 << std::setw(8) << _dut->debug_reg_data << std::dec
                 << std::endl;
     }
+  }
+
+  if (_show_pipeline) {
+    std::cout << "Cycle " << std::dec << std::setw(6) << _dut->debug_cycles
+              << " | IF: " << std::hex << std::setw(8) << std::setfill('0')
+              << _dut->debug_if_instr << " | ID: " << std::setw(8)
+              << _dut->debug_id_instr << " | EX: " << std::setw(8)
+              << _dut->debug_ex_instr << " | MEM: " << std::setw(8)
+              << _dut->debug_mem_instr << " | WB: " << std::setw(8)
+              << _dut->debug_wb_instr << std::dec << std::endl;
   }
 }
 

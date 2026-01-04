@@ -28,8 +28,9 @@ class Lsu(implicit p: Parameters) extends Module {
   val mem_write = IO(Output(Bool()))
 
   // Internal state
-  val pending_reg = RegInit(false.B)
-  val rdata_reg   = RegInit(0.U(p(XLen).W))
+  val rdata_reg     = RegInit(0.U(p(XLen).W))
+  val req_fired     = RegInit(false.B)
+  val resp_received = RegInit(true.B)
 
   val byte_offset = addr(1, 0)
 
@@ -65,23 +66,32 @@ class Lsu(implicit p: Parameters) extends Module {
     )
   )
 
+  // Memory request FSM
+  when(!en) {
+    req_fired := false.B
+  }
+
+  when(mem.req.fire) {
+    req_fired     := true.B
+    resp_received := false.B
+  }
+
+  when(mem.resp.fire) {
+    resp_received := true.B
+  }
+
+  pending := (mem_read || mem_write) && (!resp_received || mem.req.fire)
+
   // Memory request
-  mem.req.valid     := !pending_reg && (mem_read || mem_write)
+  mem.req.valid     := (mem_read || mem_write) && !req_fired
   mem.req.bits.op   := Mux(mem_write, MemoryOp.WRITE, MemoryOp.READ)
   mem.req.bits.addr := addr
   mem.req.bits.data := aligned_wdata
   mem.resp.ready    := true.B
 
-  // State machine
-  when(mem.req.fire) {
-    pending_reg := true.B
-  }
-
   when(mem.resp.fire) {
-    pending_reg := false.B
-    rdata_reg   := loaded_data
+    rdata_reg := loaded_data
   }
 
-  pending := pending_reg
-  rdata   := rdata_reg
+  rdata := rdata_reg
 }

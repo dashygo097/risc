@@ -212,31 +212,31 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ex_mem.EX.lsu_cmd    := id_ex.EX.decoded_output.lsu_cmd
 
   // MEM
-  lsu.en    := ex_mem.MEM.lsu && !pipeline_ctrl.mem_wb_stall
+  lsu.en    := ex_mem.MEM.lsu
   lsu.cmd   := ex_mem.MEM.lsu_cmd
   lsu.addr  := ex_mem.MEM.alu_result
   lsu.wdata := ex_mem.MEM.rs2_data
 
   dmem <> lsu.mem
 
-  val mem_wb_data = Mux(
-    lsu.mem_read,
-    lsu.rdata,
-    ex_mem.MEM.alu_result
-  )
-
   // MEM/WB
   mem_wb.STALL        := pipeline_ctrl.mem_wb_stall
   mem_wb.FLUSH        := pipeline_ctrl.mem_wb_flush
-  mem_wb.MEM.wb_data  := mem_wb_data
   mem_wb.MEM.instr    := ex_mem.MEM.instr
   mem_wb.MEM.pc       := ex_mem.MEM.pc
   mem_wb.MEM.rd       := ex_mem.MEM.rd
   mem_wb.MEM.regwrite := ex_mem.MEM.regwrite
+  mem_wb.MEM.lsu      := ex_mem.MEM.lsu
+  mem_wb.MEM.wb_data  := ex_mem.MEM.alu_result
+  mem_wb.MEM.rdata    := lsu.rdata
 
   // WB
   regfile.write_addr := mem_wb.WB.rd
-  regfile.write_data := mem_wb.WB.wb_data
+  regfile.write_data := Mux(
+    mem_wb.WB.lsu,
+    mem_wb.WB.rdata,
+    mem_wb.WB.wb_data
+  )
   regfile.write_en   := mem_wb.WB.regwrite
 
   // PC Update Logic
@@ -254,6 +254,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val debug_reg_addr = IO(Output(UInt(regfile_utils.width.W)))
     val debug_reg_data = IO(Output(UInt(p(XLen).W)))
 
+    // pipeline debug
+    val debug_if_instr  = IO(Output(UInt(p(ILen).W)))
+    val debug_id_instr  = IO(Output(UInt(p(ILen).W)))
+    val debug_ex_instr  = IO(Output(UInt(p(ILen).W)))
+    val debug_mem_instr = IO(Output(UInt(p(ILen).W)))
+    val debug_wb_instr  = IO(Output(UInt(p(ILen).W)))
+
     val cycle_counter = RegInit(0.U(64.W))
 
     // cycle counter
@@ -265,8 +272,14 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_cycles   := cycle_counter
     debug_pc       := mem_wb.WB.pc
     debug_instr    := mem_wb.WB.instr
-    debug_reg_addr := mem_wb.WB.rd
-    debug_reg_we   := mem_wb.WB.regwrite
-    debug_reg_data := mem_wb.WB.wb_data
+    debug_reg_addr := regfile.write_addr
+    debug_reg_we   := regfile.write_en
+    debug_reg_data := regfile.write_data
+
+    debug_if_instr  := imem_data
+    debug_id_instr  := if_id.ID.instr
+    debug_ex_instr  := id_ex.EX.instr
+    debug_mem_instr := ex_mem.MEM.instr
+    debug_wb_instr  := mem_wb.WB.instr
   }
 }
