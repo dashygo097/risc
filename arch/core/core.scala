@@ -64,7 +64,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_pending := true.B
   }
 
-  when(imem.resp.fire && imem_pending) {
+  when(imem.resp.fire) {
     imem_data    := imem.resp.bits.data
     imem_pending := false.B
   }
