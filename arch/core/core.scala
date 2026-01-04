@@ -24,6 +24,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // Modules
   val pipeline_ctrl = Module(new PipelineController)
+  // val ibuffer       = Module(new IBuffer)
   val decoder       = Module(new Decoder)
   val bru           = Module(new Bru)
   val regfile       = Module(new Regfile)
@@ -45,13 +46,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   val load_use_hazard = Wire(Bool())
 
-  val branch_pc        = RegInit(0.U(p(XLen).W))
-  val branch_target    = RegInit(0.U(p(XLen).W))
-  val branch_taken_reg = RegInit(false.B)
-
   pipeline_ctrl.if_imem_pending    := imem_pending
   pipeline_ctrl.id_load_use_hazard := load_use_hazard
-  pipeline_ctrl.id_branch_taken    := bru.taken
   pipeline_ctrl.mem_dmem_pending   := lsu.pending
 
   // IF
@@ -68,9 +64,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_pending := true.B
   }
 
-  when(bru.taken) {
-    imem_pending := false.B
-  }
   when(imem.resp.fire && imem_pending) {
     imem_data    := imem.resp.bits.data
     imem_pending := false.B
@@ -78,7 +71,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // IF/ID
   if_id.STALL    := pipeline_ctrl.if_id_stall
-  if_id.FLUSH    := pipeline_ctrl.if_id_flush // branch_taken_reg
+  if_id.FLUSH    := pipeline_ctrl.if_id_flush
   if_id.IF.pc    := pc
   if_id.IF.instr := imem_data
 
@@ -130,20 +123,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   bru.imm    := imm_gen.imm
   bru.brType := decoder.decoded.br_type
 
-  when(bru.taken && !branch_taken_reg) {
-    branch_taken_reg := true.B
-    branch_target    := bru.target
-  }.otherwise {
-    branch_taken_reg := false.B
-  }
-
   // Hazard Detection
   load_use_hazard := lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
     ((id_ex.EX.rd === rs1) || (id_ex.EX.rd === rs2))
 
   // ID/EX
   id_ex.STALL             := pipeline_ctrl.id_ex_stall
-  id_ex.FLUSH             := pipeline_ctrl.id_ex_flush // bru.taken && !jump
+  id_ex.FLUSH             := pipeline_ctrl.id_ex_flush
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
