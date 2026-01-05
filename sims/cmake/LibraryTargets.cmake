@@ -14,6 +14,21 @@ verilate(demu
   TRACE_THREADS 2
 )
 
+if(ENABLE_SYSTEM)
+  verilate(demu
+    SOURCES ${SYSTEM_RTL_SOURCE}
+    VERILATOR_ARGS
+      -Wall
+      -Wno-WIDTH
+      -Wno-UNUSED
+      -Wno-UNOPTFLAT
+      -Wno-DECLFILENAME
+    --top-module ${ISA}_system
+    PREFIX V${ISA}_system
+    TRACE_THREADS 2
+  )
+endif()
+
 target_include_directories(demu PUBLIC 
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
