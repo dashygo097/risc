@@ -60,6 +60,7 @@ class PipelineController(implicit p: Parameters) extends Module {
     pc_should_update := true.B
 
     if_id_flush := true.B
+    id_ex_flush := true.B
   }.elsewhen(if_fetch_busy) {
     if_id_stall      := false.B
     id_ex_stall      := false.B

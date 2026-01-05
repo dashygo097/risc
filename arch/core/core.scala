@@ -46,6 +46,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(0.U(p(ILen).W))
   val imem_pc      = RegInit(0.U(p(XLen).W))
+  val imem_valid   = RegInit(false.B)
 
   val load_use_hazard = Wire(Bool())
 
@@ -65,6 +66,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   when(imem.req.fire) {
     imem_pending := true.B
     imem_pc      := pc
+    imem_valid   := true.B
+  }
+
+  when(bru.taken) {
+    imem_valid := false.B
   }
 
   when(imem.resp.fire) {
@@ -74,7 +80,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // IF/ID
   if_id.STALL    := pipeline_ctrl.if_id_stall
-  if_id.FLUSH    := pipeline_ctrl.if_id_flush
+  if_id.FLUSH    := pipeline_ctrl.if_id_flush || !imem_valid
   if_id.IF.pc    := imem_pc
   if_id.IF.instr := imem_data
 
@@ -132,7 +138,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // ID/EX
   id_ex.STALL             := pipeline_ctrl.id_ex_stall
-  id_ex.FLUSH             := pipeline_ctrl.id_ex_flush
+  id_ex.FLUSH             := pipeline_ctrl.id_ex_flush && !bru.jump
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
