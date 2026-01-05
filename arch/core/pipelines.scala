@@ -8,14 +8,12 @@ import arch.configs._
 import chisel3._
 
 class InstructionFetchBundle(implicit p: Parameters) extends Bundle {
-  val instr = UInt(p(ILen).W)
-  val pc    = UInt(p(XLen).W)
+  val pc = UInt(p(XLen).W)
 }
 
 class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
 
-  val instr          = UInt(p(ILen).W)
   val pc             = UInt(p(XLen).W)
   val rd             = UInt(regfile_utils.width.W)
   val decoded_output = new DecodedOutput
@@ -30,7 +28,6 @@ class ExcutionBundle(implicit p: Parameters) extends Bundle {
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
 
-  val instr      = UInt(p(ILen).W)
   val pc         = UInt(p(XLen).W)
   val rd         = UInt(regfile_utils.width.W)
   val alu_result = UInt(p(XLen).W)
@@ -43,7 +40,6 @@ class ExcutionBundle(implicit p: Parameters) extends Bundle {
 class MemoryBundle(implicit p: Parameters) extends Bundle {
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
 
-  val instr    = UInt(p(ILen).W)
   val pc       = UInt(p(XLen).W)
   val rd       = UInt(regfile_utils.width.W)
   val regwrite = Bool()
@@ -55,8 +51,12 @@ class IF_ID(implicit p: Parameters) extends Module {
 
   val STALL = IO(Input(Bool()))
   val FLUSH = IO(Input(Bool()))
-  val IF    = IO(Input(new InstructionFetchBundle))
-  val ID    = IO(Output(new InstructionFetchBundle))
+  val BUSY  = IO(Output(Bool()))
+
+  val IF_INSTR = IO(Input(UInt(p(ILen).W)))
+  val IF       = IO(Input(new InstructionFetchBundle))
+  val ID_INSTR = IO(Output(UInt(p(ILen).W)))
+  val ID       = IO(Output(new InstructionFetchBundle))
 
   val stage = Module(
     new PipelineStage(new InstructionFetchBundle)
@@ -64,8 +64,12 @@ class IF_ID(implicit p: Parameters) extends Module {
 
   stage.stall := STALL
   stage.flush := FLUSH
-  stage.sin   := IF
-  ID          := stage.sout
+  BUSY        := stage.busy
+
+  stage.sin_instr := IF_INSTR
+  stage.sin_extra := IF
+  ID_INSTR        := stage.sout_instr
+  ID              := stage.sout_extra
 }
 
 class ID_EX(implicit p: Parameters) extends Module {
@@ -73,8 +77,12 @@ class ID_EX(implicit p: Parameters) extends Module {
 
   val STALL = IO(Input(Bool()))
   val FLUSH = IO(Input(Bool()))
-  val ID    = IO(Input(new InstructionDecodeBundle))
-  val EX    = IO(Output(new InstructionDecodeBundle))
+  val BUSY  = IO(Output(Bool()))
+
+  val ID_INSTR = IO(Input(UInt(p(ILen).W)))
+  val ID       = IO(Input(new InstructionDecodeBundle))
+  val EX_INSTR = IO(Output(UInt(p(ILen).W)))
+  val EX       = IO(Output(new InstructionDecodeBundle))
 
   val stage = Module(
     new PipelineStage(new InstructionDecodeBundle)
@@ -82,8 +90,12 @@ class ID_EX(implicit p: Parameters) extends Module {
 
   stage.stall := STALL
   stage.flush := FLUSH
-  stage.sin   := ID
-  EX          := stage.sout
+  BUSY        := stage.busy
+
+  stage.sin_instr := ID_INSTR
+  stage.sin_extra := ID
+  EX_INSTR        := stage.sout_instr
+  EX              := stage.sout_extra
 }
 
 class EX_MEM(implicit p: Parameters) extends Module {
@@ -91,8 +103,12 @@ class EX_MEM(implicit p: Parameters) extends Module {
 
   val STALL = IO(Input(Bool()))
   val FLUSH = IO(Input(Bool()))
-  val EX    = IO(Input(new ExcutionBundle))
-  val MEM   = IO(Output(new ExcutionBundle))
+  val BUSY  = IO(Output(Bool()))
+
+  val EX_INSTR  = IO(Input(UInt(p(ILen).W)))
+  val EX        = IO(Input(new ExcutionBundle))
+  val MEM_INSTR = IO(Output(UInt(p(ILen).W)))
+  val MEM       = IO(Output(new ExcutionBundle))
 
   val stage = Module(
     new PipelineStage(new ExcutionBundle)
@@ -100,8 +116,12 @@ class EX_MEM(implicit p: Parameters) extends Module {
 
   stage.stall := STALL
   stage.flush := FLUSH
-  stage.sin   := EX
-  MEM         := stage.sout
+  BUSY        := stage.busy
+
+  stage.sin_instr := EX_INSTR
+  stage.sin_extra := EX
+  MEM_INSTR       := stage.sout_instr
+  MEM             := stage.sout_extra
 }
 
 class MEM_WB(implicit p: Parameters) extends Module {
@@ -109,8 +129,12 @@ class MEM_WB(implicit p: Parameters) extends Module {
 
   val STALL = IO(Input(Bool()))
   val FLUSH = IO(Input(Bool()))
-  val MEM   = IO(Input(new MemoryBundle))
-  val WB    = IO(Output(new MemoryBundle))
+  val BUSY  = IO(Output(Bool()))
+
+  val MEM_INSTR = IO(Input(UInt(p(ILen).W)))
+  val MEM       = IO(Input(new MemoryBundle))
+  val WB_INSTR  = IO(Output(UInt(p(ILen).W)))
+  val WB        = IO(Output(new MemoryBundle))
 
   val stage = Module(
     new PipelineStage(new MemoryBundle)
@@ -118,6 +142,10 @@ class MEM_WB(implicit p: Parameters) extends Module {
 
   stage.stall := STALL
   stage.flush := FLUSH
-  stage.sin   := MEM
-  WB          := stage.sout
+  BUSY        := stage.busy
+
+  stage.sin_instr := MEM_INSTR
+  stage.sin_extra := MEM
+  WB              := stage.sout_extra
+  WB_INSTR        := stage.sout_instr
 }
