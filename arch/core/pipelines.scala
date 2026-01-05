@@ -3,59 +3,51 @@ package arch.core
 import common._
 import decoder._
 import regfile._
+import lsu._
 import arch.configs._
 import chisel3._
 
 class InstructionFetchBundle(implicit p: Parameters) extends Bundle {
-  val pc    = UInt(p(XLen).W)
   val instr = UInt(p(ILen).W)
+  val pc    = UInt(p(XLen).W)
 }
 
 class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
-  val decode_utils = DecoderUtilitiesFactory.get(p(ISA)) match {
-    case Some(u) => u
-    case None    => throw new Exception(s"Decoder utilities for ISA ${p(ISA)} not found!")
-  }
+  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
 
-  val regfile_utils = RegfileUtilitiesFactory.get(p(ISA)) match {
-    case Some(u) => u
-    case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
-  }
-
-  val decoded_output = new DecodedOutput
   val instr          = UInt(p(ILen).W)
   val pc             = UInt(p(XLen).W)
+  val rd             = UInt(regfile_utils.width.W)
+  val decoded_output = new DecodedOutput
   val rs1            = UInt(regfile_utils.width.W)
   val rs1_data       = UInt(p(XLen).W)
   val rs2            = UInt(regfile_utils.width.W)
   val rs2_data       = UInt(p(XLen).W)
-  val rd             = UInt(regfile_utils.width.W)
+  val imm            = UInt(p(XLen).W)
 }
 
 class ExcutionBundle(implicit p: Parameters) extends Bundle {
-  val regfile_utils = RegfileUtilitiesFactory.get(p(ISA)) match {
-    case Some(u) => u
-    case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
-  }
+  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
+  val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
 
-  val alu_result = UInt(p(XLen).W)
   val instr      = UInt(p(ILen).W)
   val pc         = UInt(p(XLen).W)
   val rd         = UInt(regfile_utils.width.W)
+  val alu_result = UInt(p(XLen).W)
+  val rs2_data   = UInt(p(XLen).W)
   val regwrite   = Bool()
+  val lsu        = Bool()
+  val lsu_cmd    = UInt(lsu_utils.cmdWidth.W)
 }
 
 class MemoryBundle(implicit p: Parameters) extends Bundle {
-  val regfile_utils = RegfileUtilitiesFactory.get(p(ISA)) match {
-    case Some(u) => u
-    case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
-  }
+  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
 
-  val wb_data  = UInt(p(XLen).W)
   val instr    = UInt(p(ILen).W)
   val pc       = UInt(p(XLen).W)
   val rd       = UInt(regfile_utils.width.W)
   val regwrite = Bool()
+  val wb_data  = UInt(p(XLen).W)
 }
 
 class IF_ID(implicit p: Parameters) extends Module {

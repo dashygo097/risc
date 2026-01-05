@@ -14,12 +14,23 @@ else
     BUILD_CMD = cmake --build $(BUILD_DIR)
 endif
 
-.PHONY: all config build clean help
+.PHONY: all config build reconfigure clean help
 
 all: build
 
+# Configure CMake project
+config:
+	@echo "==> Configuring project..."
+	@mkdir -p $(BUILD_DIR)
+	@if [ ! -f $(BUILD_DIR)/config.cmake ]; then \
+		echo "Copying default config.cmake to build directory..."; \
+		cp $(CMAKE_DIR)/config.cmake $(BUILD_DIR)/config.cmake; \
+	else \
+		echo "Using existing config.cmake in build directory"; \
+	fi
+
 # Build the project
-build:
+build: config
 	@mkdir -p $(BUILD_DIR)
 	@if [ ! -f $(BUILD_DIR)/CMakeCache.txt ]; then \
 		echo "Running CMake with generator: $(GENERATOR)"; \
@@ -30,6 +41,12 @@ build:
 	@echo "==> Building project with $(GENERATOR)..."
 	@$(BUILD_CMD)
 
+# Force reconfigure
+reconfigure:
+	@echo "==> Forcing reconfiguration..."
+	@rm -f $(BUILD_DIR)/CMakeCache.txt
+	@$(MAKE) config
+
 # Clean build artifacts
 clean:
 	@echo "==> Cleaning build directory..."
@@ -39,7 +56,9 @@ clean:
 help:
 	@echo "Available targets:"
 	@echo "  all              - Configure and build (default)"
+	@echo "  config           - Configure the project with CMake"
 	@echo "  build            - Build the project"
+	@echo "  reconfigure      - Force reconfiguration of the project"
 	@echo "  clean            - Remove build directory"
 	@echo "  help             - Show this help message"
 	@echo ""

@@ -3,7 +3,11 @@ package arch
 package object configs {
   // User Options
   // You should only modify these parameters
-  object ISA                extends Field[String]("rv32i")
+  object ISA     extends Field[String]("rv32i")
+  object BusType extends Field[String]("axi4")
+  object IsDebug extends Field[Boolean](true)
+
+  object IBufferSize        extends Field[Int](4)
   object IsRegfileUseBypass extends Field[Boolean](true)
 
   // Derived Parameters
@@ -33,3 +37,5 @@ package object configs {
 package object isa {}
 
 package object core {}
+
+package object system {}

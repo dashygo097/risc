@@ -17,38 +17,40 @@ trait RV32IAluConsts extends AluConsts {
   def AFN_AND  = BitPat("b111")
 }
 
-class RV32IAluUtilitiesImpl extends AluUtilities with RV32IAluConsts {
-  def sel1Width: Int                                             = SZ_A1
-  def sel2Width: Int                                             = SZ_A2
-  def fnTypeWidth: Int                                           = SZ_AFN
+class RV32IAluUtilitiesImpl(implicit p: Parameters) extends AluUtilities with RV32IAluConsts {
+  def sel1Width: Int   = SZ_A1
+  def sel2Width: Int   = SZ_A2
+  def fnTypeWidth: Int = SZ_AFN
+
   def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt = {
-    val result = Wire(UInt(p(XLen).W))
+    val lt  = src1.asSInt < src2.asSInt
+    val ltu = src1 < src2
 
-    // ADD/SUB
     val src2_inv  = Mux(mode, ~src2, src2)
-    val adder_out = src1 + src2_inv + mode.asUInt
+    val adder_out = (src1 + src2_inv + mode.asUInt)(p(XLen) - 1, 0)
 
-    // SRL/SRA
-    val shift_right_out = Mux(
+    val shamt   = src2(4, 0)
+    val sll_out = (src1 << shamt)(p(XLen) - 1, 0)
+    val srl_out = Mux(
       mode,
-      (src1.asSInt >> src2(4, 0)).asUInt,
-      src1 >> src2(4, 0)
-    )
+      (src1.asSInt >> shamt).asUInt,
+      src1 >> shamt
+    )(p(XLen) - 1, 0)
 
-    result := MuxLookup(fnType, 0.U(SZ_AFN.W))(
+    val arith_result = MuxLookup(fnType, 0.U(p(XLen).W))(
       Seq(
         AFN_ADD.value.U(SZ_AFN.W)  -> adder_out,
-        AFN_SLL.value.U(SZ_AFN.W)  -> (src1 << src2(4, 0)),
-        AFN_SLT.value.U(SZ_AFN.W)  -> Mux(src1.asSInt < src2.asSInt, 1.U, 0.U),
-        AFN_SLTU.value.U(SZ_AFN.W) -> Mux(src1 < src2, 1.U, 0.U),
+        AFN_SLL.value.U(SZ_AFN.W)  -> sll_out,
+        AFN_SLT.value.U(SZ_AFN.W)  -> lt.asUInt,
+        AFN_SLTU.value.U(SZ_AFN.W) -> ltu.asUInt,
         AFN_XOR.value.U(SZ_AFN.W)  -> (src1 ^ src2),
-        AFN_SRL.value.U(SZ_AFN.W)  -> shift_right_out,
+        AFN_SRL.value.U(SZ_AFN.W)  -> srl_out,
         AFN_OR.value.U(SZ_AFN.W)   -> (src1 | src2),
         AFN_AND.value.U(SZ_AFN.W)  -> (src1 & src2)
       )
     )
 
-    result
+    arith_result
   }
 }
 

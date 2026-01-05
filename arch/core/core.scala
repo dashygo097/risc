@@ -2,74 +2,97 @@ package arch.core
 
 import decoder._
 import imm._
+import bru._
 import alu._
 import regfile._
+import lsu._
 import arch.configs._
+import mem.cache._
 import chisel3._
 import chisel3.util._
 
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
-  val regfile_utils = RegfileUtilitiesFactory.get(p(ISA)) match {
-    case Some(u) => u
-    case None    => throw new Exception(s"Regfile utilities for ISA ${p(ISA)} not found!")
-  }
+  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
+  val bru_utils     = BruUtilitiesFactory.getOrThrow(p(ISA))
+  val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA))
+  val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
 
-  // TODO: Frontend Interface need to be impled as well as the cpu simulator
-  // TEMPORARY Memory Interface
-  val IMEM_ADDR = IO(Output(UInt(p(XLen).W)))
-  val IMEM_INST = IO(Input(UInt(p(ILen).W)))
-
-  val DMEM_ADDR       = IO(Output(UInt(p(XLen).W)))
-  val DMEM_WRITE_DATA = IO(Output(UInt(p(XLen).W)))
-  val DMEM_WRITE_STRB = IO(Output(UInt((p(XLen) / 8).W)))
-  val DMEM_WRITE_EN   = IO(Output(Bool()))
-  val DMEM_READ_DATA  = IO(Input(UInt(p(XLen).W)))
-  val DMEM_READ_EN    = IO(Output(Bool()))
-
-  val DEBUG_PC       = IO(Output(UInt(p(XLen).W)))
-  val DEBUG_INST     = IO(Output(UInt(p(ILen).W)))
-  val DEBUG_REG_WE   = IO(Output(Bool()))
-  val DEBUG_REG_ADDR = IO(Output(UInt(regfile_utils.width.W)))
-  val DEBUG_REG_DATA = IO(Output(UInt(p(XLen).W)))
+  val imem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
+  val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
 
   // Modules
-  val decoder = Module(new Decoder)
-  val regfile = Module(new Regfile)
-  val id_fwd  = Module(new IDForwardingUnit)
-  val ex_fwd  = Module(new EXForwardingUnit)
-  val imm_gen = Module(new ImmGen)
-  val alu     = Module(new Alu)
+  val pipeline_ctrl = Module(new PipelineController)
+  // val ibuffer       = Module(new Queue(new IBufferEntry, p(IBufferSize)))
+  val decoder       = Module(new Decoder)
+  val bru           = Module(new Bru)
+  val regfile       = Module(new Regfile)
+  val id_fwd        = Module(new IDForwardingUnit)
+  val ex_fwd        = Module(new EXForwardingUnit)
+  val imm_gen       = Module(new ImmGen)
+  val alu           = Module(new Alu)
+  val lsu           = Module(new Lsu)
 
-  // pipeline
+  // Pipelines
   val if_id  = Module(new IF_ID)
   val id_ex  = Module(new ID_EX)
   val ex_mem = Module(new EX_MEM)
   val mem_wb = Module(new MEM_WB)
 
-  // control signals
-  val stall = Wire(Bool())
-  val flush = Wire(Bool())
+  // Control Signals
+  val pc = RegInit(0.U(p(XLen).W))
+
+  val imem_pending = RegInit(false.B)
+  val imem_data    = RegInit(0.U(p(ILen).W))
+  val imem_pc      = RegInit(0.U(p(XLen).W))
+  val imem_valid   = RegInit(false.B)
+
+  val load_use_hazard = Wire(Bool())
+
+  pipeline_ctrl.if_fetch_busy      := imem_pending
+  pipeline_ctrl.id_load_use_hazard := load_use_hazard
+  pipeline_ctrl.id_branch_taken    := bru.taken
+  pipeline_ctrl.mem_lsu_busy       := lsu.busy
 
   // IF
-  val pc      = RegInit(0.U(p(XLen).W))
-  val next_pc = Wire(UInt(p(XLen).W))
 
-  IMEM_ADDR := pc
+  imem.req.valid     := !imem_pending && !pipeline_ctrl.if_id_stall
+  imem.req.bits.op   := MemoryOp.READ
+  imem.req.bits.addr := pc
+  imem.req.bits.data := 0.U(p(XLen).W)
+  imem.resp.ready    := true.B
+
+  when(imem.req.fire) {
+    imem_pending := true.B
+    imem_pc      := pc
+    imem_valid   := true.B
+  }
+
+  when(bru.taken) {
+    imem_valid := false.B
+  }
+
+  when(imem.resp.fire) {
+    imem_data    := imem.resp.bits.data
+    imem_pending := false.B
+  }
 
   // IF/ID
-  if_id.STALL    := stall
-  if_id.FLUSH    := flush
-  if_id.IF.pc    := pc
-  if_id.IF.instr := IMEM_INST
+  if_id.STALL    := pipeline_ctrl.if_id_stall
+  if_id.FLUSH    := pipeline_ctrl.if_id_flush || !imem_valid
+  if_id.IF.pc    := imem_pc
+  if_id.IF.instr := imem_data
 
   // ID
   decoder.instr := if_id.ID.instr
 
-  val rs1 = if_id.ID.instr(19, 15)
-  val rs2 = if_id.ID.instr(24, 20)
-  val rd  = if_id.ID.instr(11, 7)
+  imm_gen.instr   := if_id.ID.instr
+  imm_gen.immType := decoder.decoded.imm_type
+
+  val rs1 = regfile_utils.getRs1(if_id.ID.instr)
+  val rs2 = regfile_utils.getRs2(if_id.ID.instr)
+  val rd  = regfile_utils.getRd(if_id.ID.instr)
 
   regfile.rs1_addr := rs1
   regfile.rs2_addr := rs2
@@ -85,46 +108,48 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   val id_rs1_data = MuxLookup(id_fwd.forward_rs1, 0.U(p(XLen).W))(
     Seq(
-      F_SAFE.value.U(SZ_F.W) -> regfile.rs1_data,
-      F_EX.value.U(SZ_F.W)   -> alu.result,
-      F_MEM.value.U(SZ_F.W)  -> ex_mem.MEM.alu_result,
-      F_WB.value.U(SZ_F.W)   -> mem_wb.WB.wb_data
+      FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs1_data,
+      FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
 
   val id_rs2_data = MuxLookup(id_fwd.forward_rs2, 0.U(p(XLen).W))(
     Seq(
-      F_SAFE.value.U(SZ_F.W) -> regfile.rs2_data,
-      F_EX.value.U(SZ_F.W)   -> alu.result,
-      F_MEM.value.U(SZ_F.W)  -> ex_mem.MEM.alu_result,
-      F_WB.value.U(SZ_F.W)   -> mem_wb.WB.wb_data
+      FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs2_data,
+      FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
 
-  // hazard detection
-  val load_use_hazard = (id_ex.EX.rd === rs1 && rs1 =/= 0.U) || (id_ex.EX.rd === rs2 && rs2 =/= 0.U)
+  // BRU
+  bru.en     := decoder.decoded.branch
+  bru.pc     := if_id.ID.pc
+  bru.src1   := id_rs1_data
+  bru.src2   := id_rs2_data
+  bru.imm    := imm_gen.imm
+  bru.brType := decoder.decoded.br_type
 
-  stall := false.B
+  // Hazard Detection
+  load_use_hazard := lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd) &&
+    ((id_ex.EX.rd === rs1) || (id_ex.EX.rd === rs2))
 
-  // branch decision
-
-  flush                   := false.B // for now, no branch implemented
   // ID/EX
-  id_ex.STALL             := stall
-  id_ex.FLUSH             := flush || stall
+  id_ex.STALL             := pipeline_ctrl.id_ex_stall
+  id_ex.FLUSH             := pipeline_ctrl.id_ex_flush && !bru.jump
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.instr          := if_id.ID.instr
   id_ex.ID.pc             := if_id.ID.pc
+  id_ex.ID.rd             := rd
   id_ex.ID.rs1            := rs1
   id_ex.ID.rs1_data       := id_rs1_data
   id_ex.ID.rs2            := rs2
   id_ex.ID.rs2_data       := id_rs2_data
-  id_ex.ID.rd             := rd
+  id_ex.ID.imm            := imm_gen.imm
 
   // EX
-  imm_gen.instr   := id_ex.EX.instr
-  imm_gen.immType := id_ex.EX.decoded_output.imm_type
-
   ex_fwd.ex_rs1       := id_ex.EX.rs1
   ex_fwd.ex_rs2       := id_ex.EX.rs2
   ex_fwd.mem_rd       := ex_mem.MEM.rd
@@ -134,20 +159,21 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   val ex_rs1_data = MuxLookup(ex_fwd.forward_rs1, 0.U(p(XLen).W))(
     Seq(
-      F_SAFE.value.U(SZ_F.W) -> id_ex.EX.rs1_data,
-      F_MEM.value.U(SZ_F.W)  -> ex_mem.MEM.alu_result,
-      F_WB.value.U(SZ_F.W)   -> mem_wb.WB.wb_data
+      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.EX.rs1_data,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
 
   val ex_rs2_data = MuxLookup(ex_fwd.forward_rs2, 0.U(p(XLen).W))(
     Seq(
-      F_SAFE.value.U(SZ_F.W) -> id_ex.EX.rs2_data,
-      F_MEM.value.U(SZ_F.W)  -> ex_mem.MEM.alu_result,
-      F_WB.value.U(SZ_F.W)   -> mem_wb.WB.wb_data
+      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.EX.rs2_data,
+      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
 
+  // ALU
   val alu_rs1_data = MuxLookup(id_ex.EX.decoded_output.alu_sel1, 0.U(p(XLen).W))(
     Seq(
       A1_ZERO.value.U(SZ_A1.W) -> 0.U(p(XLen).W),
@@ -156,11 +182,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
   )
 
+  // TODO: A2_FOUR not always the case for different ISAs
   val alu_rs2_data = MuxLookup(id_ex.EX.decoded_output.alu_sel2, 0.U(p(XLen).W))(
     Seq(
       A2_ZERO.value.U(SZ_A2.W) -> 0.U(p(XLen).W),
       A2_RS2.value.U(SZ_A2.W)  -> ex_rs2_data,
-      A2_IMM.value.U(SZ_A2.W)  -> imm_gen.imm,
+      A2_IMM.value.U(SZ_A2.W)  -> id_ex.EX.imm,
+      A2_FOUR.value.U(SZ_A2.W) -> 4.U(p(XLen).W)
     )
   )
 
@@ -171,48 +199,109 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   alu.mode   := id_ex.EX.decoded_output.alu_mode
 
   // EX/MEM
-  ex_mem.STALL := false.B
-  ex_mem.FLUSH := false.B
-
+  ex_mem.STALL         := pipeline_ctrl.ex_mem_stall
+  ex_mem.FLUSH         := pipeline_ctrl.ex_mem_flush
   ex_mem.EX.alu_result := alu.result
   ex_mem.EX.instr      := id_ex.EX.instr
   ex_mem.EX.pc         := id_ex.EX.pc
   ex_mem.EX.rd         := id_ex.EX.rd
+  ex_mem.EX.rs2_data   := ex_rs2_data
   ex_mem.EX.regwrite   := id_ex.EX.decoded_output.regwrite
+  ex_mem.EX.lsu        := id_ex.EX.decoded_output.lsu
+  ex_mem.EX.lsu_cmd    := id_ex.EX.decoded_output.lsu_cmd
 
   // MEM
-  DMEM_ADDR       := ex_mem.MEM.alu_result
-  DMEM_READ_EN    := false.B
-  DMEM_WRITE_EN   := false.B
-  DMEM_WRITE_DATA := ex_rs2_data
-  DMEM_WRITE_STRB := "b1111".U((p(XLen) / 8).W)
-  val mem_read_data = DMEM_READ_DATA
+  lsu.en    := ex_mem.MEM.lsu
+  lsu.cmd   := ex_mem.MEM.lsu_cmd
+  lsu.addr  := ex_mem.MEM.alu_result
+  lsu.wdata := ex_mem.MEM.rs2_data
+
+  dmem <> lsu.mem
+  val mem_wb_data = Mux(
+    lsu.mem_read,
+    lsu.rdata,
+    ex_mem.MEM.alu_result
+  )
 
   // MEM/WB
-  mem_wb.STALL        := false.B
-  mem_wb.FLUSH        := false.B
-  mem_wb.MEM.wb_data  := ex_mem.MEM.alu_result
+  mem_wb.STALL        := pipeline_ctrl.mem_wb_stall
+  mem_wb.FLUSH        := pipeline_ctrl.mem_wb_flush
   mem_wb.MEM.instr    := ex_mem.MEM.instr
   mem_wb.MEM.pc       := ex_mem.MEM.pc
   mem_wb.MEM.rd       := ex_mem.MEM.rd
   mem_wb.MEM.regwrite := ex_mem.MEM.regwrite
+  mem_wb.MEM.wb_data  := mem_wb_data
 
   // WB
   regfile.write_addr := mem_wb.WB.rd
   regfile.write_data := mem_wb.WB.wb_data
   regfile.write_en   := mem_wb.WB.regwrite
 
-  // PC update
-  next_pc := pc + 4.U
-
-  when(!stall) {
-    pc := next_pc
+  // PC Update Logic
+  when(bru.taken) {
+    pc := bru.target
+  }.elsewhen(!imem_pending && !pipeline_ctrl.if_id_stall) {
+    pc := pc + 4.U(p(XLen).W)
   }
 
-  // debug ports
-  DEBUG_PC       := mem_wb.WB.pc
-  DEBUG_INST     := mem_wb.WB.instr
-  DEBUG_REG_WE   := mem_wb.WB.regwrite
-  DEBUG_REG_ADDR := mem_wb.WB.rd
-  DEBUG_REG_DATA := mem_wb.WB.wb_data
+  // Debug
+  if (p(IsDebug)) {
+    val debug_cycles   = IO(Output(UInt(64.W)))
+    val debug_pc       = IO(Output(UInt(p(XLen).W)))
+    val debug_instr    = IO(Output(UInt(p(ILen).W)))
+    val debug_reg_we   = IO(Output(Bool()))
+    val debug_reg_addr = IO(Output(UInt(regfile_utils.width.W)))
+    val debug_reg_data = IO(Output(UInt(p(XLen).W)))
+
+    // pipeline debug
+    val debug_if_instr  = IO(Output(UInt(p(ILen).W)))
+    val debug_id_instr  = IO(Output(UInt(p(ILen).W)))
+    val debug_ex_instr  = IO(Output(UInt(p(ILen).W)))
+    val debug_mem_instr = IO(Output(UInt(p(ILen).W)))
+    val debug_wb_instr  = IO(Output(UInt(p(ILen).W)))
+
+    val cycle_counter = RegInit(0.U(64.W))
+
+    // cycle counter
+    when(!cycle_counter(63)) { // prevent overflow
+      cycle_counter := cycle_counter + 1.U
+    }
+
+    // debug ports
+    debug_cycles   := cycle_counter
+    debug_pc       := mem_wb.WB.pc
+    debug_instr    := mem_wb.WB.instr
+    debug_reg_addr := regfile.write_addr
+    debug_reg_we   := regfile.write_en
+    debug_reg_data := regfile.write_data
+
+    debug_if_instr  := imem_data
+    debug_id_instr  := if_id.ID.instr
+    debug_ex_instr  := id_ex.EX.instr
+    debug_mem_instr := ex_mem.MEM.instr
+    debug_wb_instr  := mem_wb.WB.instr
+  }
 }
+
+/*
+ *
+ *
+ *  // IF
+  imem.req.valid     := !ibuffer_full
+  imem.req.bits.op   := MemoryOp.READ
+  imem.req.bits.addr := pc
+  imem.req.bits.data := 0.U(p(XLen).W)
+  imem.resp.ready    := true.B
+
+  ibuffer.io.enq.valid      := imem.resp.fire && !ibuffer_full
+  ibuffer.io.enq.bits.pc    := pc
+  ibuffer.io.enq.bits.instr := imem.resp.bits.data
+  ibuffer.io.deq.ready      := !ibuffer_empty && !pipeline_ctrl.if_id_stall && !pipeline_ctrl.if_id_flush
+
+  // IF/ID
+  if_id.STALL    := pipeline_ctrl.if_id_stall
+  if_id.FLUSH    := pipeline_ctrl.if_id_flush
+  if_id.IF.pc    := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.pc, 0.U(p(XLen).W))
+  if_id.IF.instr := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.instr, 0.U(p(XLen).W))
+ *
+ */
