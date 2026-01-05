@@ -1,2 +1,5 @@
 add_subdirectory(cpu)
-add_subdirectory(system)
+
+if(ENABLE_SYSTEM)
+  add_subdirectory(system)
+endif()
