@@ -8,6 +8,7 @@ class PipelineController(implicit p: Parameters) extends Module {
 
   val if_fetch_busy      = IO(Input(Bool()))
   val id_load_use_hazard = IO(Input(Bool()))
+  val id_branch_taken    = IO(Input(Bool()))
   val mem_lsu_busy       = IO(Input(Bool()))
 
   val if_id_stall  = IO(Output(Bool()))
@@ -51,6 +52,14 @@ class PipelineController(implicit p: Parameters) extends Module {
     pc_should_update := false.B
 
     id_ex_flush := true.B
+  }.elsewhen(id_branch_taken) {
+    if_id_stall      := false.B
+    id_ex_stall      := false.B
+    ex_mem_stall     := false.B
+    mem_wb_stall     := false.B
+    pc_should_update := true.B
+
+    if_id_flush := true.B
   }.elsewhen(if_fetch_busy) {
     if_id_stall      := false.B
     id_ex_stall      := false.B
