@@ -41,18 +41,20 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val mem_wb = Module(new MEM_WB)
 
   // Control Signals
+  val pc = RegInit(0.U(p(XLen).W))
+
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(0.U(p(ILen).W))
+  val imem_pc      = RegInit(0.U(p(XLen).W))
 
   val load_use_hazard = Wire(Bool())
 
   pipeline_ctrl.if_fetch_busy      := imem_pending
   pipeline_ctrl.id_load_use_hazard := load_use_hazard
+  pipeline_ctrl.id_branch_taken    := bru.taken
   pipeline_ctrl.mem_lsu_busy       := lsu.busy
 
   // IF
-  val pc      = RegInit(0.U(p(XLen).W))
-  val next_pc = Wire(UInt(p(XLen).W))
 
   imem.req.valid     := !imem_pending && !pipeline_ctrl.if_id_stall
   imem.req.bits.op   := MemoryOp.READ
@@ -62,6 +64,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   when(imem.req.fire) {
     imem_pending := true.B
+    imem_pc      := pc
   }
 
   when(imem.resp.fire) {
@@ -72,7 +75,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // IF/ID
   if_id.STALL    := pipeline_ctrl.if_id_stall
   if_id.FLUSH    := pipeline_ctrl.if_id_flush
-  if_id.IF.pc    := pc
+  if_id.IF.pc    := imem_pc
   if_id.IF.instr := imem_data
 
   // ID
@@ -229,9 +232,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_en   := mem_wb.WB.regwrite
 
   // PC Update Logic
-  next_pc := Mux(bru.taken, bru.target, pc + 4.U(p(XLen).W))
-  when(pipeline_ctrl.pc_should_update) {
-    pc := next_pc
+  when(bru.taken) {
+    pc := bru.target
+  }.elsewhen(!imem_pending && !pipeline_ctrl.if_id_stall) {
+    pc := pc + 4.U(p(XLen).W)
   }
 
   // Debug
