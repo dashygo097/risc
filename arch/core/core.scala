@@ -14,6 +14,7 @@ import chisel3.util._
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
+  val decoder_utils = DecoderUtilitiesFactory.getOrThrow(p(ISA))
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
   val bru_utils     = BruUtilitiesFactory.getOrThrow(p(ISA))
   val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA))
@@ -42,7 +43,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val pc = RegInit(0.U(p(XLen).W))
 
   val imem_pending = RegInit(false.B)
-  val imem_data    = RegInit(0.U(p(ILen).W))
+  val imem_data    = RegInit(decoder_utils.bubble.value.U(p(ILen).W))
   val imem_pc      = RegInit(0.U(p(XLen).W))
   val imem_valid   = RegInit(false.B)
 

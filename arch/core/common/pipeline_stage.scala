@@ -18,7 +18,7 @@ class PipelineStage[T <: Data](gen: T)(implicit p: Parameters) extends Module {
   val sout_instr = IO(Output(UInt(p(ILen).W)))
   val sout_extra = IO(Output(gen.cloneType))
 
-  val sinstr_reg  = RegInit(0.U(p(ILen).W))
+  val sinstr_reg  = RegInit(decoder_utils.bubble.value.U(p(ILen).W))
   val sextra_regs = RegInit(0.U.asTypeOf(gen))
 
   when(flush) {
