@@ -6,10 +6,10 @@ SYNTH_DIR = $(BASE_DIR)/synth
 TB_DIR = $(SIM_DIR)/tb
 
 LIB ?= arch 
-FZF ?= false
+FZF ?= $(shell [ -x "$$(command -v fzf)" ] && echo true || echo false)
 STA_TOOL ?= yosys
 
-.PHONY: pre fmt build run clean update localpublish tb sta sta-yosys sta-vivado
+.PHONY: pre fmt build run clean update tb sta sta-yosys sta-vivado
 
 pre:
 	@mkdir -p $(BUILD_DIR)
@@ -38,7 +38,7 @@ update:
 
 tb: pre
 	@if [ "$(FZF)" = "true" ] ; then \
-		bash $(SCRIPTS_DIR)/tb_fzf.sh ; \
+		FZF=true bash $(SCRIPTS_DIR)/tb.sh ; \
 	else \
 		bash $(SCRIPTS_DIR)/tb.sh ; \
 	fi

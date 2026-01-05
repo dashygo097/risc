@@ -1,25 +1,11 @@
 add_executable(${ISA}_cpu_verilated)
 
-verilate(${ISA}_cpu_verilated
-  SOURCES ${CPU_RTL_SOURCE}
-  VERILATOR_ARGS 
-    -Wall
-    -Wno-WIDTH
-    -Wno-UNUSED
-    -Wno-UNOPTFLAT
-    -Wno-DECLFILENAME
-    --top-module ${ISA}_cpu
-  PREFIX V${ISA}_cpu
-  TRACE_THREADS 2
-)
-
 # Simulator sources
 target_sources(${ISA}_cpu_verilated PRIVATE cpu_sim.cpp cpu_main.cpp)
 target_include_directories(${ISA}_cpu_verilated PRIVATE
   cpu_sim.hpp
 )
 
-find_package(Threads REQUIRED)
 target_link_libraries(${ISA}_cpu_verilated PRIVATE demu Threads::Threads)
 
 set_target_properties(${ISA}_cpu_verilated PROPERTIES

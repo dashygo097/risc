@@ -3,6 +3,7 @@
 # 3rdparty 
 include_directories(3rdparty)
 
+find_package(Threads REQUIRED)
 find_package(verilator HINTS $ENV{VERILATOR_ROOT})
 if(NOT verilator_FOUND)
   message(FATAL_ERROR "Verilator not found. Please install Verilator or set VERILATOR_ROOT")

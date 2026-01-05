@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <string>
 
+#define BREAK 0x00100073
+
 namespace demu::isa {
 enum InstType { R_TYPE, I_TYPE, S_TYPE, B_TYPE, U_TYPE, J_TYPE, UNKNOWN };
 
