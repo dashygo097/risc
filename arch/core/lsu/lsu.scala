@@ -67,7 +67,7 @@ class Lsu(implicit p: Parameters) extends Module {
   )
 
   // Memory request FSM
-  when(!en) {
+  when(!busy) {
     req_fired := false.B
   }
 
@@ -83,7 +83,7 @@ class Lsu(implicit p: Parameters) extends Module {
   busy := !resp_received || mem.req.fire
 
   // Memory request
-  mem.req.valid     := (mem_read || mem_write) && !req_fired
+  mem.req.valid     := en && !req_fired
   mem.req.bits.op   := Mux(mem_write, MemoryOp.WRITE, MemoryOp.READ)
   mem.req.bits.addr := addr
   mem.req.bits.data := aligned_wdata

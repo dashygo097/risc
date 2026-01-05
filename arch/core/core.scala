@@ -11,6 +11,11 @@ import mem.cache._
 import chisel3._
 import chisel3.util._
 
+class IBufferEntry(implicit p: Parameters) extends Bundle {
+  val pc    = UInt(p(XLen).W)
+  val instr = UInt(p(ILen).W)
+}
+
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
@@ -25,6 +30,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // Modules
   val decoder = Module(new Decoder)
+  val ibuffer = Module(new Queue(new IBufferEntry, p(IBufferSize)))
   val bru     = Module(new Bru)
   val regfile = Module(new Regfile)
   val id_fwd  = Module(new IDForwardingUnit)
@@ -42,6 +48,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // Control Signals
   val pc = RegInit(0.U(p(XLen).W))
 
+  val reset_ibuffer = RegInit(false.B)
+  val ibuffer_empty = ibuffer.io.count === 0.U
+  val ibuffer_full  = ibuffer.io.count === p(IBufferSize).U
+
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(decoder_utils.bubble.value.U(p(ILen).W))
   val imem_pc      = RegInit(0.U(p(XLen).W))
@@ -50,7 +60,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val load_use_hazard = Wire(Bool())
 
   // IF Stage
-  imem.req.valid     := !imem_pending && !if_id.STALL
+  imem.req.valid     := !imem_pending && !ibuffer_full
   imem.req.bits.op   := MemoryOp.READ
   imem.req.bits.addr := pc
   imem.req.bits.data := 0.U(p(XLen).W)
@@ -71,11 +81,28 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_pending := false.B
   }
 
+  reset_ibuffer := false.B
+  when(reset_ibuffer) {
+    imem_valid := false.B
+  }
+  when(bru.taken) {
+    reset_ibuffer := true.B
+  }
+  when(ibuffer_empty) {
+    reset_ibuffer := false.B
+  }
+
+  ibuffer.io.enq.valid      := imem.resp.fire && imem_valid && !ibuffer_full
+  ibuffer.io.enq.bits.pc    := imem_pc
+  ibuffer.io.enq.bits.instr := imem.resp.bits.data
+
+  ibuffer.io.deq.ready := (!ibuffer_empty && !if_id.STALL && !if_id.FLUSH) || reset_ibuffer
+
   // IF/ID Pipeline
   if_id.STALL    := id_ex.STALL || load_use_hazard
-  if_id.FLUSH    := bru.taken || imem_pending || !imem_valid
-  if_id.IF.pc    := imem_pc
-  if_id.IF_INSTR := imem_data
+  if_id.FLUSH    := (bru.taken || !imem_valid || reset_ibuffer) && !lsu.busy
+  if_id.IF_INSTR := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.instr, decoder_utils.bubble.value.U(p(ILen).W))
+  if_id.IF.pc    := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.pc, decoder_utils.bubble.value.U(p(XLen).W))
 
   // ID Stage
   decoder.instr := if_id.ID_INSTR
@@ -133,7 +160,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // ID/EX Pipeline
   id_ex.STALL             := ex_mem.STALL
-  id_ex.FLUSH             := load_use_hazard || (bru.taken && !bru.jump)
+  id_ex.FLUSH             := (load_use_hazard || (bru.taken && !bru.jump)) && !lsu.busy
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID_INSTR          := if_id.ID_INSTR
   id_ex.ID.pc             := if_id.ID.pc
@@ -235,7 +262,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // PC Update Logic
   when(bru.taken) {
     pc := bru.target
-  }.elsewhen(!imem_pending && !if_id.STALL) {
+  }.elsewhen(ibuffer.io.enq.fire) {
     pc := pc + 4.U(p(XLen).W)
   }
 
@@ -267,33 +294,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_reg_we   := regfile.write_en
     debug_reg_data := regfile.write_data
 
-    debug_if_instr  := imem_data
+    debug_if_instr  := Mux(ibuffer.io.deq.fire && !reset_ibuffer, ibuffer.io.deq.bits.instr, decoder_utils.bubble.value.U(p(ILen).W))
     debug_id_instr  := if_id.ID_INSTR
     debug_ex_instr  := id_ex.EX_INSTR
     debug_mem_instr := ex_mem.MEM_INSTR
     debug_wb_instr  := mem_wb.WB_INSTR
   }
 }
-
-/*
- *
- *
- *  // IF
-  imem.req.valid     := !ibuffer_full
-  imem.req.bits.op   := MemoryOp.READ
-  imem.req.bits.addr := pc
-  imem.req.bits.data := 0.U(p(XLen).W)
-  imem.resp.ready    := true.B
-
-  ibuffer.io.enq.valid      := imem.resp.fire && !ibuffer_full
-  ibuffer.io.enq.bits.pc    := pc
-  ibuffer.io.enq.bits.instr := imem.resp.bits.data
-  ibuffer.io.deq.ready      := !ibuffer_empty && !pipeline_ctrl.if_id_stall && !pipeline_ctrl.if_id_flush
-
-  // IF/ID
-  if_id.STALL    := pipeline_ctrl.if_id_stall
-  if_id.FLUSH    := pipeline_ctrl.if_id_flush
-  if_id.IF.pc    := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.pc, 0.U(p(XLen).W))
-  if_id.IF_INSTR := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.instr, 0.U(p(XLen).W))
- *
- */

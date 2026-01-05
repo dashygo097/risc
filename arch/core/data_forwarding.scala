@@ -35,18 +35,18 @@ class IDForwardingUnit(implicit p: Parameters) extends Module with ForwardingCon
   forward_rs1 := MuxCase(
     FWD_SAFE.value.U(SZ_FWD.W),
     Seq(
-      (ex_regwrite && (ex_rd === id_rs1))   -> FWD_EX.value.U(SZ_FWD.W),
-      (mem_regwrite && (mem_rd === id_rs1)) -> FWD_MEM.value.U(SZ_FWD.W),
-      (wb_regwrite && (wb_rd === id_rs1))   -> FWD_WB.value.U(SZ_FWD.W)
+      (ex_regwrite && (ex_rd === id_rs1) && (ex_rd =/= 0.U))    -> FWD_EX.value.U(SZ_FWD.W),
+      (mem_regwrite && (mem_rd === id_rs1) && (mem_rd =/= 0.U)) -> FWD_MEM.value.U(SZ_FWD.W),
+      (wb_regwrite && (wb_rd === id_rs1) && (wb_rd =/= 0.U))    -> FWD_WB.value.U(SZ_FWD.W)
     )
   )
 
   forward_rs2 := MuxCase(
     FWD_SAFE.value.U(SZ_FWD.W),
     Seq(
-      (ex_regwrite && (ex_rd === id_rs2))   -> FWD_EX.value.U(SZ_FWD.W),
-      (mem_regwrite && (mem_rd === id_rs2)) -> FWD_MEM.value.U(SZ_FWD.W),
-      (wb_regwrite && (wb_rd === id_rs2))   -> FWD_WB.value.U(SZ_FWD.W)
+      (ex_regwrite && (ex_rd === id_rs2) && (ex_rd =/= 0.U))    -> FWD_EX.value.U(SZ_FWD.W),
+      (mem_regwrite && (mem_rd === id_rs2) && (mem_rd =/= 0.U)) -> FWD_MEM.value.U(SZ_FWD.W),
+      (wb_regwrite && (wb_rd === id_rs2) && (wb_rd =/= 0.U))    -> FWD_WB.value.U(SZ_FWD.W)
     )
   )
 }
@@ -69,16 +69,16 @@ class EXForwardingUnit(implicit p: Parameters) extends Module with ForwardingCon
   forward_rs1 := MuxCase(
     FWD_SAFE.value.U(SZ_FWD.W),
     Seq(
-      (mem_regwrite && (mem_rd === ex_rs1)) -> FWD_MEM.value.U(SZ_FWD.W),
-      (wb_regwrite && (wb_rd === ex_rs1))   -> FWD_WB.value.U(SZ_FWD.W)
+      (mem_regwrite && (mem_rd === ex_rs1) && (mem_rd =/= 0.U)) -> FWD_MEM.value.U(SZ_FWD.W),
+      (wb_regwrite && (wb_rd === ex_rs1) && (wb_rd =/= 0.U))    -> FWD_WB.value.U(SZ_FWD.W)
     )
   )
 
   forward_rs2 := MuxCase(
     FWD_SAFE.value.U(SZ_FWD.W),
     Seq(
-      (mem_regwrite && (mem_rd === ex_rs2)) -> FWD_MEM.value.U(SZ_FWD.W),
-      (wb_regwrite && (wb_rd === ex_rs2))   -> FWD_WB.value.U(SZ_FWD.W)
+      (mem_regwrite && (mem_rd === ex_rs2) && (mem_rd =/= 0.U)) -> FWD_MEM.value.U(SZ_FWD.W),
+      (wb_regwrite && (wb_rd === ex_rs2) && (wb_rd =/= 0.U))    -> FWD_WB.value.U(SZ_FWD.W)
     )
   )
 }
