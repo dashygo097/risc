@@ -3,8 +3,8 @@
 #include "Vrv32i_cpu.h"
 #include "verilated.h"
 #include <cstdint>
+#include <demu/hardware/memory.hh>
 #include <demu/isa/isa.hh>
-#include <demu/memory.hh>
 #include <demu/trace.hh>
 #include <map>
 #include <memory>
@@ -53,8 +53,8 @@ public:
 private:
   // DUT and memory
   std::unique_ptr<Vrv32i_cpu> _dut;
-  std::unique_ptr<demu::Memory> _imem;
-  std::unique_ptr<demu::Memory> _dmem;
+  std::unique_ptr<demu::hardware::Memory> _imem;
+  std::unique_ptr<demu::hardware::Memory> _dmem;
   std::unique_ptr<demu::ExecutionTrace> _trace;
 
 #ifdef ENABLE_TRACE

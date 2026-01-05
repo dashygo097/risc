@@ -1,10 +1,10 @@
-#include "demu/memory.hh"
+#include "demu/hardware/memory.hh"
 #include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 
-namespace demu {
+namespace demu::hardware {
 Memory::Memory(size_t size, addr_t base_addr)
     : _memory(size, 0), _base_addr(base_addr) {}
 
@@ -130,4 +130,4 @@ addr_t Memory::translate_addr(addr_t addr) const noexcept {
   return addr - _base_addr;
 }
 
-} // namespace demu
+} // namespace demu::hardware

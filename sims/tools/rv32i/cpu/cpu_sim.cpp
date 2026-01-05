@@ -7,8 +7,9 @@
 using namespace demu::isa;
 
 CPUSimulator::CPUSimulator(bool enable_trace)
-    : _dut(new Vrv32i_cpu), _imem(new demu::Memory(256 * 1024, 0x00000000)),
-      _dmem(new demu::Memory(256 * 1024, 0x80000000)),
+    : _dut(new Vrv32i_cpu),
+      _imem(new demu::hardware::Memory(256 * 1024, 0x00000000)),
+      _dmem(new demu::hardware::Memory(256 * 1024, 0x80000000)),
       _trace(new demu::ExecutionTrace()), _time_counter(0), _inst_count(0),
       _timeout(1000000), _terminate(false), _verbose(false),
       _show_pipeline(false), _trace_enabled(enable_trace) {
@@ -331,8 +332,8 @@ void CPUSimulator::save_trace(const std::string &filename) {
 }
 
 void CPUSimulator::check_termination() {
-  instr_t ebreak_instr = 0x00100073;
-  if (static_cast<instr_t>(_dut->debug_instr) == ebreak_instr) {
+  instr_t break_instr = BREAK;
+  if (static_cast<instr_t>(_dut->debug_instr) == break_instr) {
     if (_verbose) {
       std::cout << "\n[TERMINATION] EBREAK instruction at PC=0x" << std::hex
                 << _dut->debug_pc << std::dec << std::endl;

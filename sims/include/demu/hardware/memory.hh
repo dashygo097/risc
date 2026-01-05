@@ -1,11 +1,11 @@
 #pragma once
 
-#include "./isa/isa.hh"
+#include "../isa/isa.hh"
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace demu {
+namespace demu::hardware {
 using namespace isa;
 
 class Memory {
@@ -36,4 +36,4 @@ private:
   [[nodiscard]] addr_t translate_addr(addr_t addr) const noexcept;
 };
 
-} // namespace demu
+} // namespace demu::hardware

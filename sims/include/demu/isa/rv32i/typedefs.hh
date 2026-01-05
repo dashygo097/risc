@@ -2,9 +2,8 @@
 
 #include <cstdint>
 
-#ifdef __ISA_RV32I__
 #define NUM_GPRS 32
-#endif
+#define INCLUDE_VERILATOR #include "Vrv32i_cpu.h"
 
 namespace demu::isa {
 using instr_t = uint32_t;
