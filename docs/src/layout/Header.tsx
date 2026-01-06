@@ -1,8 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Cpu, BookOpen, Code, Sun, Moon, Github } from "lucide-react";
-
-import "../styles/layout/header.css";
+import { Cpu, BookOpen, User, Code, Sun, Moon, Github } from "lucide-react";
+import "@styles/layout/header.css";
 
 interface HeaderProps {
   theme?: "light" | "dark";
@@ -13,11 +12,16 @@ const Header: React.FC<HeaderProps> = ({ theme = "light", onThemeToggle }) => {
   const location = useLocation();
 
   const navItems = [
-    { path: "/", label: "Main", icon: <BookOpen size={20} /> },
+    { path: "/", label: "Main", icon: <BookOpen size={16} /> },
+    {
+      path: "/user-guide/quick-start",
+      label: "User",
+      icon: <User size={16} />,
+    },
     {
       path: "/dev-guide/todo-list",
       label: "Dev",
-      icon: <Code size={20} />,
+      icon: <Code size={16} />,
     },
   ];
 
@@ -28,7 +32,9 @@ const Header: React.FC<HeaderProps> = ({ theme = "light", onThemeToggle }) => {
           <Cpu size={28} />
           <span>RISC Framework Docs</span>
         </Link>
+      </div>
 
+      <div className="app-header__right">
         <nav className="app-header__nav">
           {navItems.map((item) => (
             <Link
@@ -43,9 +49,7 @@ const Header: React.FC<HeaderProps> = ({ theme = "light", onThemeToggle }) => {
             </Link>
           ))}
         </nav>
-      </div>
 
-      <div className="app-header__right">
         {onThemeToggle && (
           <button
             className="app-header__theme-toggle"

@@ -1,8 +1,7 @@
 import React from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
-
-import "../styles/layout/layout.css";
+import "@styles/layout/layout.css";
 
 interface LayoutProps {
   children?: React.ReactNode;
