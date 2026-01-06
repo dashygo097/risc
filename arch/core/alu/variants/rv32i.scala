@@ -54,7 +54,7 @@ class RV32IAluUtilitiesImpl(implicit p: Parameters) extends AluUtilities with RV
   }
 }
 
-object RV32IAluUtilities extends RegisteredAluUtilities with RV32IAluConsts {
+object RV32IAluUtilities extends RegisteredAluUtilities {
   override def isaName: String     = "rv32i"
   override def utils: AluUtilities = new RV32IAluUtilitiesImpl
 }

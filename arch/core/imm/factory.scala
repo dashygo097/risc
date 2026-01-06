@@ -32,5 +32,5 @@ trait RegisteredImmUtilities {
 }
 
 object ImmInit {
-  val rv32Utils = RV32ImmUtilities
+  val rv32iUtils = RV32IImmUtilities
 }

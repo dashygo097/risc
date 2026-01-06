@@ -39,7 +39,7 @@ class RV32ILsuUtilitiesImpl extends LsuUtilities with RV32ILsuConsts {
   def isMemWrite(is_mem: Bool, cmd: UInt): Bool = is_mem && !cmd(3)
 }
 
-object RV32ILsuUtilities extends RegisteredLsuUtilities with RV32ILsuConsts {
+object RV32ILsuUtilities extends RegisteredLsuUtilities {
   override def isaName: String     = "rv32i"
   override def utils: LsuUtilities = new RV32ILsuUtilitiesImpl
 }

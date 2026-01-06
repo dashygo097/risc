@@ -17,7 +17,7 @@ trait RV32IBranchConsts extends Consts {
   def BR_JALR = BitPat("b111")
 }
 
-class RV32BruUtilitiesImpl extends BruUtilities with RV32IBranchConsts {
+class RV32IBruUtilitiesImpl extends BruUtilities with RV32IBranchConsts {
   def branchTypeWidth: Int                           = SZ_BR
   def hasJump: Boolean                               = true
   def hasJalr: Boolean                               = true
@@ -44,7 +44,7 @@ class RV32BruUtilitiesImpl extends BruUtilities with RV32IBranchConsts {
   }
 }
 
-object RV32BruUtilities extends RegisteredBruUtilities with RV32IBranchConsts {
+object RV32BruUtilities extends RegisteredBruUtilities {
   override def isaName: String     = "rv32i"
-  override def utils: BruUtilities = new RV32BruUtilitiesImpl
+  override def utils: BruUtilities = new RV32IBruUtilitiesImpl
 }

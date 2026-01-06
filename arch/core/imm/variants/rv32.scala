@@ -4,7 +4,7 @@ import arch.core.common.Consts
 import chisel3._
 import chisel3.util._
 
-trait RV32ImmConsts extends Consts {
+trait RV32IImmConsts extends Consts {
   def IMM_X  = BitPat("b???")
   def SZ_IMM = IMM_X.getWidth
   def IMM_I  = BitPat("b000")
@@ -14,7 +14,7 @@ trait RV32ImmConsts extends Consts {
   def IMM_J  = BitPat("b100")
 }
 
-class RV32ImmUtilitiesImpl extends ImmUtilities with RV32ImmConsts {
+class RV32IImmUtilitiesImpl extends ImmUtilities with RV32IImmConsts {
   def immTypeWidth: Int                        = SZ_IMM
   def createBundle: UInt                       = UInt(32.W)
   def genImm(instr: UInt, immType: UInt): UInt =
@@ -43,7 +43,7 @@ class RV32ImmUtilitiesImpl extends ImmUtilities with RV32ImmConsts {
     )
 }
 
-object RV32ImmUtilities extends RegisteredImmUtilities with RV32ImmConsts {
+object RV32IImmUtilities extends RegisteredImmUtilities {
   override def isaName: String     = "rv32i"
-  override def utils: ImmUtilities = new RV32ImmUtilitiesImpl
+  override def utils: ImmUtilities = new RV32IImmUtilitiesImpl
 }
