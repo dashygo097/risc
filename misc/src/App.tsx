@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "./layout";
-import HomePage from "./assets/home.mdx";
-import TodoListPage from "./assets/dev-guide/todo-list.mdx";
-import "./styles/global.css";
+import "@styles/global.css";
+
+import HomePage from "@assets/home.mdx";
+import QuickStartPage from "@assets/user-guide/quick-start.mdx";
+import TodoListPage from "@assets/dev-guide/todo-list.mdx";
 
 const App: React.FC = () => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -18,6 +20,10 @@ const App: React.FC = () => {
         <Layout theme={theme} onThemeToggle={toggleTheme}>
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route
+              path="/user-guide/quick-start"
+              element={<QuickStartPage />}
+            />
             <Route path="/dev-guide/todo-list" element={<TodoListPage />} />
           </Routes>
         </Layout>
