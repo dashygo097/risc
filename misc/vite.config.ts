@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import remarkGfm from "remark-gfm";
 import { resolve } from "path";
 import react from "@vitejs/plugin-react";
 import mdx from "@mdx-js/rollup";
@@ -17,6 +18,7 @@ export default defineConfig({
     react(),
     mdx({
       providerImportSource: "@mdx-js/react",
+      remarkPlugins: [remarkGfm],
     }),
   ],
   optimizeDeps: {

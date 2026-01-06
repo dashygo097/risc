@@ -1,4 +1,14 @@
 {
+  "userGuide": {
+    "title": "User Guide",
+    "path": "/user-guide",
+    "sections": [
+      {
+        "title": "Getting Started",
+        "path": "/user-guide/getting-started"
+      }
+    ]
+  },
   "devGuide": {
     "title": "Developer Guide",
     "path": "/dev-guide",
