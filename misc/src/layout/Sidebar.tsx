@@ -29,10 +29,10 @@ interface NavigationConfig {
 const Sidebar: React.FC = () => {
   const [expanded, setExpanded] = useState(true);
   const location = useLocation();
-  const config = navigationConfig as NavigationConfig;
+  const config = navigationConfig as unknown as NavigationConfig;
 
-  const getIcon = (iconName?: string): JSX.Element => {
-    const icons: Record<string, JSX.Element> = {
+  const getIcon = (iconName?: string): React.ReactElement => {
+    const icons: Record<string, React.ReactElement> = {
       cpu: <Cpu size={14} />,
       memory: <MemoryStick size={14} />,
       code: <Code size={14} />,
