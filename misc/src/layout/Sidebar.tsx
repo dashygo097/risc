@@ -19,6 +19,11 @@ interface Section {
 }
 
 interface NavigationConfig {
+  userGuide: {
+    title: string;
+    path: string;
+    sections: Section[];
+  };
   devGuide: {
     title: string;
     path: string;
@@ -60,8 +65,29 @@ const Sidebar: React.FC = () => {
       </div>
 
       <div className="app-sidebar__section-group">
-        <h4 className="app-sidebar__group-title">Developer Guide</h4>
+        <h4 className="app-sidebar__group-title">User Guide</h4>
+        <ul className="app-sidebar__section-list">
+          {config.userGuide.sections.map((section: Section) => (
+            <li key={section.path} className="app-sidebar__section-item">
+              <Link
+                to={section.path}
+                className={`app-sidebar__section-link ${
+                  location.pathname === section.path ? "active" : ""
+                }`}
+                title={expanded ? section.description : section.title}
+              >
+                <span className="app-sidebar__section-icon">
+                  {getIcon(section.icon)}
+                </span>
+                <span className="app-sidebar__section-text">
+                  {section.title}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
 
+        <h4 className="app-sidebar__group-title">Developer Guide</h4>
         <ul className="app-sidebar__section-list">
           {config.devGuide.sections.map((section: Section) => (
             <li key={section.path} className="app-sidebar__section-item">

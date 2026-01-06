@@ -4,7 +4,7 @@ import { Layout } from "./layout";
 import "@styles/global.css";
 
 import HomePage from "@assets/home.mdx";
-import QuickStartPage from "@assets/user-guide/quick-start.mdx";
+import QuickStartPage from "@assets/user-guide/getting-started.mdx";
 import TodoListPage from "@assets/dev-guide/todo-list.mdx";
 
 const App: React.FC = () => {
@@ -21,7 +21,7 @@ const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route
-              path="/user-guide/quick-start"
+              path="/user-guide/getting-started"
               element={<QuickStartPage />}
             />
             <Route path="/dev-guide/todo-list" element={<TodoListPage />} />
