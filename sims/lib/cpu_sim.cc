@@ -9,8 +9,8 @@ using namespace isa;
 CPUSimulator::CPUSimulator(bool enable_trace)
     : _dut(new cpu_t), _imem(new hardware::Memory(256 * 1024, 0x00000000)),
       _dmem(new hardware::Memory(256 * 1024, 0x80000000)),
-      _trace(new ExecutionTrace()), _time_counter(0), _instr_count(0),
-      _timeout(1000000), _terminate(false), _verbose(false),
+      _trace(new ExecutionTrace()), _time_counter(0), _cycle_count(0),
+      _instr_count(0), _timeout(1000000), _terminate(false), _verbose(false),
       _show_pipeline(false), _trace_enabled(enable_trace) {
 #ifdef ENABLE_TRACE
   if (_trace_enabled) {
@@ -35,7 +35,7 @@ bool CPUSimulator::load_bin(const std::string &filename, addr_t base_addr) {
 }
 
 bool CPUSimulator::load_elf(const std::string &filename) {
-  return demu::ELFLoader::load(*_imem, filename);
+  return ELFLoader::load(*_imem, filename);
 }
 
 void CPUSimulator::reset() {
@@ -61,6 +61,7 @@ void CPUSimulator::reset() {
   _dut->reset = 0;
   _dut->eval();
 
+  _cycle_count = 0;
   _instr_count = 0;
   _terminate = false;
   _register_values.clear();
@@ -184,26 +185,16 @@ void CPUSimulator::clock_tick() {
   }
 #endif
 
-  if (_dut->debug_reg_we && _dut->debug_reg_addr != 0) {
-    word_t reg_data = static_cast<word_t>(_dut->debug_reg_data);
-    _register_values[_dut->debug_reg_addr] = reg_data;
-    _instr_count++;
-  }
-
-  if (_show_pipeline) {
-    std::cout << "Cycle " << std::dec << std::setw(6) << _dut->debug_cycles
-              << " | IF: " << std::hex << std::setw(8) << std::setfill('0')
-              << _dut->debug_if_instr << " | ID: " << std::setw(8)
-              << _dut->debug_id_instr << " | EX: " << std::setw(8)
-              << _dut->debug_ex_instr << " | MEM: " << std::setw(8)
-              << _dut->debug_mem_instr << " | WB: " << std::setw(8)
-              << _dut->debug_wb_instr << std::dec << std::endl;
-  }
+  _cycle_count++;
 
   if (_dut->debug_reg_addr != 0) {
+    if (_dut->debug_reg_we) {
+      word_t reg_data = static_cast<word_t>(_dut->debug_reg_data);
+      _register_values[_dut->debug_reg_addr] = reg_data;
+    }
     if (_trace_enabled) {
-      demu::TraceEntry entry;
-      entry.cycle = _dut->debug_cycles;
+      TraceEntry entry;
+      entry.cycle = _cycle_count;
       entry.pc = static_cast<addr_t>(_dut->debug_pc);
       entry.inst = static_cast<instr_t>(_dut->debug_instr);
       entry.rd = _dut->debug_reg_addr;
@@ -213,15 +204,27 @@ void CPUSimulator::clock_tick() {
       entry.disasm = inst.to_string();
       _trace->add_entry(entry);
     }
+  }
 
+  if (_show_pipeline) {
+    std::cout << "Cycle " << std::dec << std::setw(6) << _cycle_count
+              << " | IF: " << std::hex << std::setw(8) << std::setfill('0')
+              << _dut->debug_if_instr << " | ID: " << std::setw(8)
+              << _dut->debug_id_instr << " | EX: " << std::setw(8)
+              << _dut->debug_ex_instr << " | MEM: " << std::setw(8)
+              << _dut->debug_mem_instr << " | WB: " << std::setw(8)
+              << _dut->debug_wb_instr << std::dec << std::endl;
+  }
+
+  if (_dut->debug_wb_instr != BUBBLE) {
+    _instr_count++;
     if (_verbose) {
-      std::cout << "Cycle " << std::dec << std::setw(6) << _dut->debug_cycles
+      Instruction inst(static_cast<instr_t>(_dut->debug_wb_instr));
+      std::cout << "Cycle " << std::dec << std::setw(6) << _cycle_count
                 << " | PC=0x" << std::hex << std::setw(8) << std::setfill('0')
                 << _dut->debug_pc << " | Inst=0x" << std::setw(8)
-                << _dut->debug_instr << " | x" << std::dec
-                << (int)_dut->debug_reg_addr << "=0x" << std::hex
-                << std::setw(8) << _dut->debug_reg_data << std::dec
-                << std::endl;
+                << _dut->debug_wb_instr << " (" << inst.to_string() << ")"
+                << std::dec << std::endl;
     }
   }
 }
@@ -234,20 +237,19 @@ void CPUSimulator::step(uint64_t cycles) {
 
 void CPUSimulator::run(uint64_t max_cycles) {
   uint64_t target = max_cycles > 0 ? max_cycles : _timeout;
-  while (_dut->debug_cycles < target && !_terminate) {
+  while (_cycle_count < target && !_terminate) {
     clock_tick();
     check_termination();
   }
 
   if (_verbose) {
-    std::cout << "\nSimulation completed after " << _dut->debug_cycles
-              << " cycles\n";
+    std::cout << "\nSimulation completed after " << _cycle_count << " cycles\n";
   }
 }
 
 void CPUSimulator::run_until(addr_t pc) {
-  while (static_cast<addr_t>(_dut->debug_pc) != pc &&
-         _dut->debug_cycles < _timeout && !_terminate) {
+  while (static_cast<addr_t>(_dut->debug_pc) != pc && _cycle_count < _timeout &&
+         !_terminate) {
     clock_tick();
     check_termination();
   }
@@ -311,8 +313,8 @@ void CPUSimulator::save_trace(const std::string &filename) {
 }
 
 void CPUSimulator::check_termination() {
-  instr_t break_instr = BREAK;
-  if (static_cast<instr_t>(_dut->debug_instr) == break_instr) {
+  instr_t ebreak_instr = EBREAK;
+  if (static_cast<instr_t>(_dut->debug_instr) == ebreak_instr) {
     if (_verbose) {
       std::cout << "\n[TERMINATION] EBREAK instruction at PC=0x" << std::hex
                 << _dut->debug_pc << std::dec << std::endl;

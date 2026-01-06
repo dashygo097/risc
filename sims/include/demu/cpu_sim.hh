@@ -43,19 +43,16 @@ public:
   void write_mem(addr_t addr, word_t data);
 
   // Simulator statistics
-  [[nodiscard]] uint64_t cycle_count() const noexcept {
-    return _dut->debug_cycles;
-  }
+  [[nodiscard]] uint64_t cycle_count() const noexcept { return _cycle_count; }
   [[nodiscard]] uint64_t instr_count() const { return _instr_count; }
   [[nodiscard]] double ipc() const noexcept {
-    return _dut->debug_cycles > 0 ? (double)_instr_count / _dut->debug_cycles
-                                  : 0.0;
+    return _cycle_count > 0 ? (double)_instr_count / _cycle_count : 0.0;
   };
 
   // Simulator configuration
-  void verbose(bool verbose) { _verbose = verbose; }
-  void timeout(uint64_t timeout) { _timeout = timeout; }
-  void show_pipeline(bool show) { _show_pipeline = show; }
+  void verbose(bool verbose) noexcept { _verbose = verbose; }
+  void timeout(uint64_t timeout) noexcept { _timeout = timeout; }
+  void show_pipeline(bool show) noexcept { _show_pipeline = show; }
 
   // Debug output
   void dump_registers() const;
@@ -75,6 +72,7 @@ private:
 
   // Simulator state
   uint64_t _time_counter;
+  uint64_t _cycle_count;
   uint64_t _instr_count;
   uint64_t _timeout;
   bool _terminate;
