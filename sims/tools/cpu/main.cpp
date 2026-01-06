@@ -1,6 +1,6 @@
-#include "cpu_sim.hpp"
 #include <cstdlib>
 #include <cstring>
+#include <demu.hh>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  CPUSimulator sim(enable_trace);
+  demu::CPUSimulator sim(enable_trace);
   sim.verbose(verbose);
   sim.show_pipeline(show_pipeline);
 
@@ -122,10 +122,10 @@ int main(int argc, char **argv) {
   std::cout << "\n========================================\n";
   std::cout << "Simulation Statistics\n";
   std::cout << "========================================\n";
-  std::cout << "Cycles:       " << sim.get_cycle_count() << "\n";
-  std::cout << "Instructions: " << sim.get_inst_count() << "\n";
+  std::cout << "Cycles:       " << sim.cycle_count() << "\n";
+  std::cout << "Instructions: " << sim.instr_count() << "\n";
   std::cout << "IPC:          " << std::fixed << std::setprecision(3)
-            << sim.get_ipc() << "\n";
+            << sim.ipc() << "\n";
   std::cout << "Runtime:      " << duration << " ms\n";
   std::cout << "========================================\n\n";
 

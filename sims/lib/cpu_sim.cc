@@ -1,16 +1,15 @@
-#include "cpu_sim.hpp"
-#include <demu/elf_loader.hh>
-#include <demu/isa/isa.hh>
+#include "demu/cpu_sim.hh"
+#include "demu/elf_loader.hh"
 #include <iomanip>
 #include <iostream>
 
-using namespace demu::isa;
+namespace demu {
+using namespace isa;
 
 CPUSimulator::CPUSimulator(bool enable_trace)
-    : _dut(new Vrv32i_cpu),
-      _imem(new demu::hardware::Memory(256 * 1024, 0x00000000)),
-      _dmem(new demu::hardware::Memory(256 * 1024, 0x80000000)),
-      _trace(new demu::ExecutionTrace()), _time_counter(0), _inst_count(0),
+    : _dut(new cpu_t), _imem(new hardware::Memory(256 * 1024, 0x00000000)),
+      _dmem(new hardware::Memory(256 * 1024, 0x80000000)),
+      _trace(new ExecutionTrace()), _time_counter(0), _instr_count(0),
       _timeout(1000000), _terminate(false), _verbose(false),
       _show_pipeline(false), _trace_enabled(enable_trace) {
 #ifdef ENABLE_TRACE
@@ -36,7 +35,7 @@ bool CPUSimulator::load_bin(const std::string &filename, addr_t base_addr) {
 }
 
 bool CPUSimulator::load_elf(const std::string &filename) {
-  return demu::ELFLoader::load(filename, *_imem);
+  return demu::ELFLoader::load(*_imem, filename);
 }
 
 void CPUSimulator::reset() {
@@ -62,7 +61,7 @@ void CPUSimulator::reset() {
   _dut->reset = 0;
   _dut->eval();
 
-  _inst_count = 0;
+  _instr_count = 0;
   _terminate = false;
   _register_values.clear();
   _trace->clear();
@@ -72,8 +71,6 @@ void CPUSimulator::reset() {
 }
 
 void CPUSimulator::handle_imem_interface() {
-  const int IMEM_LATENCY = 2;
-
   if (!_imem_pending) {
     _dut->imem_resp_valid = 0;
     _dut->imem_resp_bits_data = 0;
@@ -102,8 +99,6 @@ void CPUSimulator::handle_imem_interface() {
 }
 
 void CPUSimulator::handle_dmem_interface() {
-  const int DMEM_LATENCY = 3;
-
   if (!_dmem_pending) {
     _dut->dmem_resp_valid = 0;
     _dut->dmem_resp_bits_data = 0;
@@ -192,7 +187,7 @@ void CPUSimulator::clock_tick() {
   if (_dut->debug_reg_we && _dut->debug_reg_addr != 0) {
     word_t reg_data = static_cast<word_t>(_dut->debug_reg_data);
     _register_values[_dut->debug_reg_addr] = reg_data;
-    _inst_count++;
+    _instr_count++;
   }
 
   if (_show_pipeline) {
@@ -231,7 +226,7 @@ void CPUSimulator::clock_tick() {
   }
 }
 
-void CPUSimulator::step(int cycles) {
+void CPUSimulator::step(uint64_t cycles) {
   for (int i = 0; i < cycles; i++) {
     clock_tick();
   }
@@ -258,17 +253,6 @@ void CPUSimulator::run_until(addr_t pc) {
   }
 }
 
-addr_t CPUSimulator::get_pc() const {
-  return static_cast<addr_t>(_dut->debug_pc);
-}
-
-word_t CPUSimulator::get_reg(uint8_t reg) const {
-  if (reg == 0)
-    return 0;
-  auto it = _register_values.find(reg);
-  return it != _register_values.end() ? it->second : 0;
-}
-
 word_t CPUSimulator::read_mem(addr_t addr) const {
   if (addr >= _dmem->base_addr()) {
     return _dmem->read_word(addr);
@@ -284,20 +268,15 @@ void CPUSimulator::write_mem(addr_t addr, word_t data) {
   }
 }
 
-double CPUSimulator::get_ipc() const {
-  return _dut->debug_cycles > 0 ? (double)_inst_count / _dut->debug_cycles
-                                : 0.0;
-}
-
 void CPUSimulator::dump_registers() const {
   std::cout << "\n========================================\n";
   std::cout << "Register Dump\n";
   std::cout << "========================================\n";
   std::cout << "x00 = 0x" << std::hex << std::setw(8) << std::setfill('0')
-            << get_reg(0) << "  ";
+            << reg(0) << "  ";
   for (int i = 1; i < NUM_GPRS; i++) {
     std::cout << "x" << std::dec << std::setw(2) << i << " = 0x" << std::hex
-              << std::setw(8) << std::setfill('0') << get_reg(i);
+              << std::setw(8) << std::setfill('0') << reg(i);
     if (i % 4 == 3)
       std::cout << "\n";
     else
@@ -341,3 +320,5 @@ void CPUSimulator::check_termination() {
     _terminate = true;
   }
 }
+
+} // namespace demu
