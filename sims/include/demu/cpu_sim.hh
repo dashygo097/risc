@@ -1,0 +1,106 @@
+#pragma once
+
+#include "./hardware/memory.hh"
+#include "./trace.hh"
+#include "Vrv32i_cpu.h"
+#include "verilated.h"
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <string>
+
+#ifdef ENABLE_TRACE
+#include "verilated_vcd_c.h"
+#endif
+
+namespace demu {
+using namespace isa;
+
+class CPUSimulator {
+public:
+  CPUSimulator(bool enable_trace = false);
+  ~CPUSimulator();
+
+  // Program loading
+  bool load_bin(const std::string &filename, addr_t base_addr = 0x0);
+  bool load_elf(const std::string &filename);
+
+  // Simulation control
+  void reset();
+  void step(uint64_t cycles = 1);
+  void run(uint64_t max_cycles = 0);
+  void run_until(addr_t pc);
+
+  // Architecture state access
+  [[nodiscard]] addr_t pc() const noexcept {
+    return static_cast<addr_t>(_dut->debug_pc);
+  };
+  [[nodiscard]] word_t reg(uint8_t reg) const noexcept {
+    auto it = _register_values.find(reg);
+    return it != _register_values.end() ? it->second : 0;
+  };
+  word_t read_mem(addr_t addr) const;
+  void write_mem(addr_t addr, word_t data);
+
+  // Simulator statistics
+  [[nodiscard]] uint64_t cycle_count() const noexcept { return _cycle_count; }
+  [[nodiscard]] uint64_t instr_count() const { return _instr_count; }
+  [[nodiscard]] double ipc() const noexcept {
+    return _cycle_count > 0 ? (double)_instr_count / _cycle_count : 0.0;
+  };
+
+  // Simulator configuration
+  void verbose(bool verbose) noexcept { _verbose = verbose; }
+  void timeout(uint64_t timeout) noexcept { _timeout = timeout; }
+  void show_pipeline(bool show) noexcept { _show_pipeline = show; }
+
+  // Debug output
+  void dump_registers() const;
+  void dump_memory(addr_t start, size_t size) const;
+  void save_trace(const std::string &filename);
+
+private:
+  // DUT and memory
+  std::unique_ptr<cpu_t> _dut;
+  std::unique_ptr<hardware::Memory> _imem;
+  std::unique_ptr<hardware::Memory> _dmem;
+  std::unique_ptr<ExecutionTrace> _trace;
+
+#ifdef ENABLE_TRACE
+  std::unique_ptr<VerilatedVcdC> _vcd;
+#endif
+
+  // Simulator state
+  uint64_t _time_counter;
+  uint64_t _cycle_count;
+  uint64_t _instr_count;
+  uint64_t _timeout;
+  bool _terminate;
+  bool _verbose;
+  bool _show_pipeline;
+  bool _trace_enabled;
+
+  addr_t _imem_pending_addr;
+  uint64_t _imem_pending_latency;
+  bool _imem_pending;
+
+  addr_t _dmem_pending_addr;
+  word_t _dmem_pending_data;
+  uint64_t _dmem_pending_latency;
+  bool _dmem_pending_op;
+  bool _dmem_pending;
+
+  // Architecture state tracking
+  std::map<uint8_t, word_t> _register_values;
+
+  // Internal simulation methods
+  void clock_tick();
+  void handle_imem_interface();
+  void handle_dmem_interface();
+  void check_termination();
+
+  static const int IMEM_LATENCY = 2;
+  static const int DMEM_LATENCY = 3;
+};
+
+} // namespace demu

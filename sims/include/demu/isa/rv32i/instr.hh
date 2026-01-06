@@ -4,24 +4,36 @@
 #include <cstdint>
 #include <string>
 
+#define EBREAK 0x00100073
+#define BUBBLE 0x00000013
+
 namespace demu::isa {
-enum InstType { R_TYPE, I_TYPE, S_TYPE, B_TYPE, U_TYPE, J_TYPE, UNKNOWN };
+enum InstType {
+  R_TYPE,
+  I_TYPE,
+  S_TYPE,
+  B_TYPE,
+  U_TYPE,
+  J_TYPE,
+  SYSTEM,
+  UNKNOWN
+};
 
 class Instruction {
 public:
   explicit Instruction(instr_t raw);
 
-  [[nodiscard]] InstType get_type() const noexcept;
-  [[nodiscard]] std::string get_mnemonic() const noexcept;
+  [[nodiscard]] InstType type() const noexcept;
+  [[nodiscard]] std::string mnemonic() const noexcept;
   [[nodiscard]] std::string to_string() const;
 
-  uint8_t get_opcode() const { return _opcode; }
-  uint8_t get_rd() const { return _rd; }
-  uint8_t get_rs1() const { return _rs1; }
-  uint8_t get_rs2() const { return _rs2; }
-  uint8_t get_funct3() const { return _funct3; }
-  uint8_t get_funct7() const { return _funct7; }
-  int32_t get_imm() const { return _imm; }
+  [[nodiscard]] uint8_t opcode() const noexcept { return _opcode; }
+  [[nodiscard]] uint8_t rd() const noexcept { return _rd; }
+  [[nodiscard]] uint8_t rs1() const noexcept { return _rs1; }
+  [[nodiscard]] uint8_t rs2() const noexcept { return _rs2; }
+  [[nodiscard]] uint8_t funct3() const noexcept { return _funct3; }
+  [[nodiscard]] uint8_t funct7() const noexcept { return _funct7; }
+  [[nodiscard]] int32_t imm() const noexcept { return _imm; }
 
 private:
   instr_t _raw;

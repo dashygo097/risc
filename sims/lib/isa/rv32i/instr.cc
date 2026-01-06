@@ -13,7 +13,7 @@ void Instruction::decode() {
   _rs2 = (_raw >> 20) & 0x1F;
   _funct7 = (_raw >> 25) & 0x7F;
 
-  switch (get_type()) {
+  switch (type()) {
   case I_TYPE:
     _imm = decode_i_imm();
     break;
@@ -35,7 +35,7 @@ void Instruction::decode() {
   }
 }
 
-InstType Instruction::get_type() const noexcept {
+InstType Instruction::type() const noexcept {
   switch (_opcode) {
   case 0b0110011:
     return R_TYPE;
@@ -55,12 +55,14 @@ InstType Instruction::get_type() const noexcept {
     return U_TYPE;
   case 0b1101111:
     return J_TYPE;
+  case 0b1110011:
+    return SYSTEM;
   default:
     return UNKNOWN;
   }
 }
 
-std::string Instruction::get_mnemonic() const noexcept {
+std::string Instruction::mnemonic() const noexcept {
   switch (_opcode) {
   case 0b0110011:
     switch (_funct3) {
@@ -155,6 +157,13 @@ std::string Instruction::get_mnemonic() const noexcept {
     return "lui";
   case 0b0010111:
     return "auipc";
+
+  case 0b1110011:
+    if (_raw == 0b00000000000000000000000001110011)
+      return "ecall";
+    else if (_raw == EBREAK)
+      return "ebreak";
+    break;
   }
 
   return "unknown";
@@ -162,12 +171,12 @@ std::string Instruction::get_mnemonic() const noexcept {
 
 std::string Instruction::to_string() const {
   std::ostringstream oss;
-  std::string mnemonic = get_mnemonic();
+  std::string mnemonic_str = mnemonic();
 
-  oss << std::left << std::setw(8) << mnemonic;
+  oss << std::left << std::setw(8) << mnemonic_str;
 
-  InstType type = get_type();
-  switch (type) {
+  InstType instr_type = type();
+  switch (instr_type) {
   case R_TYPE:
     oss << "x" << (int)_rd << ", x" << (int)_rs1 << ", x" << (int)_rs2;
     break;
@@ -194,6 +203,10 @@ std::string Instruction::to_string() const {
 
   case J_TYPE:
     oss << "x" << (int)_rd << ", " << std::dec << _imm;
+    break;
+
+  case SYSTEM:
+    oss << "";
     break;
 
   default:

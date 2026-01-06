@@ -16,7 +16,7 @@ bool ELFLoader::is_elf(const std::string &filename) {
           magic[3] == 'F');
 }
 
-bool ELFLoader::load(const std::string &filename, Memory &mem) {
+bool ELFLoader::load(hardware::Memory &mem, const std::string &filename) {
   if (!is_elf(filename)) {
     std::cerr << "Not a valid ELF file" << std::endl;
     return false;
@@ -62,8 +62,8 @@ bool ELFLoader::load(const std::string &filename, Memory &mem) {
   return true;
 }
 
-bool ELFLoader::load(const std::string &filename,
-                     std::vector<ELFSection> &sections, uint32_t &entry_point) {
+bool ELFLoader::load(std::vector<ELFSection> &sections, uint32_t &entry_point,
+                     const std::string &filename) {
   sections.clear();
   entry_point = 0;
   return false;

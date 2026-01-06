@@ -4,14 +4,16 @@
 #include <string>
 #include <vector>
 
+#include "./isa/isa.hh"
+
 namespace demu {
 struct TraceEntry {
   uint64_t cycle;
-  uint32_t pc;
-  uint32_t inst;
+  isa::addr_t pc;
+  isa::instr_t inst;
   std::string disasm;
   uint8_t rd;
-  uint32_t rd_val;
+  isa::word_t rd_val;
   bool regwrite;
 };
 
