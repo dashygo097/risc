@@ -8,9 +8,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import navigationConfig from "../assets/config/navigation.json";
-
-import "../styles/layout/sidebar.css";
+import navigationConfig from "@assets/config/navigation.json";
+import "@styles/layout/sidebar.css";
 
 interface Section {
   title: string;
@@ -56,16 +55,12 @@ const Sidebar: React.FC = () => {
         {expanded ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
       </button>
 
-      {expanded && (
-        <div className="app-sidebar__header">
-          <h3 className="app-sidebar__title">Navigation</h3>
-        </div>
-      )}
+      <div className="app-sidebar__header">
+        <h3 className="app-sidebar__title">Navigation</h3>
+      </div>
 
       <div className="app-sidebar__section-group">
-        {expanded && (
-          <h4 className="app-sidebar__group-title">Developer Guide</h4>
-        )}
+        <h4 className="app-sidebar__group-title">Developer Guide</h4>
 
         <ul className="app-sidebar__section-list">
           {config.devGuide.sections.map((section: Section) => (
@@ -80,11 +75,9 @@ const Sidebar: React.FC = () => {
                 <span className="app-sidebar__section-icon">
                   {getIcon(section.icon)}
                 </span>
-                {expanded && (
-                  <span className="app-sidebar__section-text">
-                    {section.title}
-                  </span>
-                )}
+                <span className="app-sidebar__section-text">
+                  {section.title}
+                </span>
               </Link>
             </li>
           ))}
