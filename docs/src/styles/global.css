@@ -1,0 +1,331 @@
+:root {
+  /* Colors */
+  --primary-color: #3b82f6;
+  --primary-dark: #2563eb;
+  --primary-light: #60a5fa;
+  --secondary-color: #8b5cf6;
+  --accent-color: #10b981;
+
+  /* Backgrounds */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-code: #1e293b;
+
+  /* Text */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-muted: #94a3b8;
+
+  /* Borders & Shadows */
+  --border-color: #e2e8f0;
+  --border-radius: 8px;
+  --border-radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Layout */
+  --header-height: 64px;
+  --sidebar-width: 280px;
+  --sidebar-collapsed: 60px;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+[data-theme="dark"] {
+  --primary-color: #60a5fa;
+  --primary-dark: #3b82f6;
+  --primary-light: #93c5fd;
+  --secondary-color: #a78bfa;
+  --accent-color: #34d399;
+
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-code: #0f172a;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-muted: #64748b;
+
+  --border-color: #334155;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  transition:
+    background-color var(--transition-base),
+    color var(--transition-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+.doc-h1 {
+  font-size: 2.75rem;
+  font-weight: 800;
+  margin: 2.5rem 0 1.5rem;
+  color: var(--text-primary);
+  border-bottom: 3px solid var(--primary-color);
+  padding-bottom: 0.75rem;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.doc-h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 2.25rem 0 1.25rem;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  position: relative;
+  padding-left: 1rem;
+}
+
+.doc-h2::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  width: 4px;
+  background: linear-gradient(
+    180deg,
+    var(--primary-color) 0%,
+    var(--secondary-color) 100%
+  );
+  border-radius: 2px;
+}
+
+.doc-h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1.75rem 0 1rem;
+  color: var(--text-secondary);
+  letter-spacing: -0.015em;
+  line-height: 1.4;
+}
+
+.doc-p {
+  font-size: 1rem;
+  line-height: 1.8;
+  margin: 1rem 0;
+  color: var(--text-secondary);
+}
+
+/* Code Blocks */
+.code-block {
+  background: var(--bg-code);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  margin: 1.75rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  font-family: "Fira Code", "Courier New", monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.code-block::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--primary-color) 0%,
+    var(--secondary-color) 100%
+  );
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+.inline-code {
+  background: var(--bg-tertiary);
+  color: var(--primary-dark);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: "Fira Code", "Courier New", monospace;
+  font-size: 0.875em;
+  border: 1px solid var(--border-color);
+  font-weight: 500;
+}
+
+/* Info Boxes */
+.tip-box,
+.warning-box,
+.note-box {
+  padding: 1.25rem 1.5rem;
+  margin: 1.75rem 0;
+  border-radius: var(--border-radius-lg);
+  border-left: 4px solid;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.tip-box::before,
+.warning-box::before,
+.note-box::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  opacity: 0.15;
+}
+
+.tip-box {
+  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+  border-left-color: var(--primary-color);
+  color: #1e40af;
+}
+
+.tip-box::before {
+  background: var(--primary-color);
+}
+
+.warning-box {
+  background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+  border-left-color: #f59e0b;
+  color: #92400e;
+}
+
+.warning-box::before {
+  background: #f59e0b;
+}
+
+.note-box {
+  background: linear-gradient(135deg, #f0f9ff 0%, #f0fdfa 100%);
+  border-left-color: #06b6d4;
+  color: #164e63;
+}
+
+.note-box::before {
+  background: #06b6d4;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .doc-h1 {
+    font-size: 2rem;
+  }
+
+  .doc-h2 {
+    font-size: 1.5rem;
+  }
+
+  .doc-h3 {
+    font-size: 1.25rem;
+  }
+
+  .code-block {
+    padding: 1rem;
+    margin: 1 25rem 0;
+  }
+}
+
+@media print {
+  .code-block {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+
+  .tip-box,
+  .warning-box,
+  .note-box {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+}

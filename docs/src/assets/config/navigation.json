@@ -1,0 +1,12 @@
+{
+  "devGuide": {
+    "title": "Developer Guide",
+    "path": "/dev-guide",
+    "sections": [
+      {
+        "title": "TODO",
+        "path": "/dev-guide/todo-list"
+      }
+    ]
+  }
+}
