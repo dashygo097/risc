@@ -1,6 +1,7 @@
 package arch.core.csr
 
 import arch.core.common.Consts
+import arch.configs._
 import chisel3.util.BitPat
 
 trait RV32ICsrConsts extends Consts {
@@ -52,12 +53,13 @@ trait RV32ICsrMap extends Consts {
   def CSR_MHARTID   = BitPat("hF14")
 }
 
-class RV32ICsrUtilitiesImpl extends CsrUtilities with RV32ICsrConsts with RV32ICsrMap {
-  def cmdWidth: Int  = SZ_C
-  def addrWidth: Int = SZ_CSR
-}
+object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsrConsts with RV32ICsrMap {
+  override def utils: CsrUtilities = new CsrUtilities {
+    override def name: String = "rv32i"
 
-object RV32ICsrUtilities extends RegisteredCsrUtilities {
-  override def isaName: String     = "rv32i"
-  override def utils: CsrUtilities = new RV32ICsrUtilitiesImpl
+    override def cmdWidth: Int  = SZ_C
+    override def addrWidth: Int = SZ_CSR
+  }
+
+  override def factory: UtilitiesFactory[CsrUtilities] = CsrUtilitiesFactory
 }
