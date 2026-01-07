@@ -14,12 +14,12 @@ const Header: React.FC<HeaderProps> = ({ theme = "light", onThemeToggle }) => {
   const navItems = [
     { path: "/", label: "Main", icon: <BookOpen size={16} /> },
     {
-      path: "/user-guide/getting-started",
+      path: "/user-guide/root",
       label: "User",
       icon: <User size={16} />,
     },
     {
-      path: "/dev-guide/todo-list",
+      path: "/dev-guide/root",
       label: "Dev",
       icon: <Code size={16} />,
     },

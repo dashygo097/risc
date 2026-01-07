@@ -3,6 +3,7 @@ import remarkGfm from "remark-gfm";
 import { resolve } from "path";
 import react from "@vitejs/plugin-react";
 import mdx from "@mdx-js/rollup";
+import { remarkWaveDrom } from "./lib/remark-wavedrom";
 
 export default defineConfig({
   resolve: {
@@ -18,7 +19,7 @@ export default defineConfig({
     react(),
     mdx({
       providerImportSource: "@mdx-js/react",
-      remarkPlugins: [remarkGfm],
+      remarkPlugins: [remarkGfm, remarkWaveDrom],
     }),
   ],
   optimizeDeps: {
