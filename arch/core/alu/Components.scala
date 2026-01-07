@@ -1,6 +1,7 @@
 package arch.core.alu
 
 import arch.core.common.Consts
+import arch.configs._
 import chisel3._
 import chisel3.util.BitPat
 
@@ -19,9 +20,16 @@ trait AluConsts extends Consts {
   def A2_FOUR = BitPat("b11")
 }
 
-trait AluUtilities {
+trait AluUtilities extends Utilities {
   def sel1Width: Int
   def sel2Width: Int
   def fnTypeWidth: Int
+
   def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt
+}
+
+object AluUtilitiesFactory extends UtilitiesFactory[AluUtilities]("ALU")
+
+object AluInit {
+  val rv32iUtils = RV32IAluUtilities
 }

@@ -1,6 +1,7 @@
 package arch.core.bru
 
 import arch.core.common.Consts
+import arch.configs._
 import chisel3._
 import chisel3.util._
 
@@ -17,34 +18,36 @@ trait RV32IBranchConsts extends Consts {
   def BR_JALR = BitPat("b111")
 }
 
-class RV32IBruUtilitiesImpl extends BruUtilities with RV32IBranchConsts {
-  def branchTypeWidth: Int                           = SZ_BR
-  def hasJump: Boolean                               = true
-  def hasJalr: Boolean                               = true
-  def isJalr(brType: UInt): Bool                     = brType === BR_JALR
-  def isJump(brType: UInt): Bool                     = brType(2, 1) === "b11".U
-  def fn(src1: UInt, src2: UInt, brType: UInt): Bool = {
-    val eq  = src1 === src2
-    val lt  = src1.asSInt < src2.asSInt
-    val ltu = src1 < src2
+object RV32IBruUtilities extends RegisteredUtilities[BruUtilities] with RV32IBranchConsts {
+  override def utils: BruUtilities = new BruUtilities {
+    override def name: String = "rv32i"
 
-    MuxCase(
-      false.B,
-      Seq(
-        (brType === BR_EQ.value.U(SZ_BR.W))   -> eq,
-        (brType === BR_NE.value.U(SZ_BR.W))   -> !eq,
-        (brType === BR_LT.value.U(SZ_BR.W))   -> lt,
-        (brType === BR_GE.value.U(SZ_BR.W))   -> !lt,
-        (brType === BR_LTU.value.U(SZ_BR.W))  -> ltu,
-        (brType === BR_GEU.value.U(SZ_BR.W))  -> !ltu,
-        (brType === BR_JAL.value.U(SZ_BR.W))  -> true.B,
-        (brType === BR_JALR.value.U(SZ_BR.W)) -> true.B
+    override def branchTypeWidth: Int       = SZ_BR
+    override def hasJump: Boolean           = true
+    override def hasJalr: Boolean           = true
+    override def isJalr(brType: UInt): Bool = brType === BR_JALR
+    override def isJump(brType: UInt): Bool = brType(2, 1) === "b11".U
+
+    override def fn(src1: UInt, src2: UInt, brType: UInt): Bool = {
+      val eq  = src1 === src2
+      val lt  = src1.asSInt < src2.asSInt
+      val ltu = src1 < src2
+
+      MuxCase(
+        false.B,
+        Seq(
+          (brType === BR_EQ.value.U(SZ_BR.W))   -> eq,
+          (brType === BR_NE.value.U(SZ_BR.W))   -> !eq,
+          (brType === BR_LT.value.U(SZ_BR.W))   -> lt,
+          (brType === BR_GE.value.U(SZ_BR.W))   -> !lt,
+          (brType === BR_LTU.value.U(SZ_BR.W))  -> ltu,
+          (brType === BR_GEU.value.U(SZ_BR.W))  -> !ltu,
+          (brType === BR_JAL.value.U(SZ_BR.W))  -> true.B,
+          (brType === BR_JALR.value.U(SZ_BR.W)) -> true.B
+        )
       )
-    )
+    }
   }
-}
 
-object RV32BruUtilities extends RegisteredBruUtilities {
-  override def isaName: String     = "rv32i"
-  override def utils: BruUtilities = new RV32IBruUtilitiesImpl
+  override def factory: UtilitiesFactory[BruUtilities] = BruUtilitiesFactory
 }
