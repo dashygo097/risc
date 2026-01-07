@@ -23,23 +23,22 @@ const Wavedrom: React.FC<WavedromProps> = ({ children, className }) => {
 
         containerRef.current.innerHTML = "";
 
-        let svg;
-        if (wavedrom.renderAny) {
-          svg = wavedrom.renderAny(0, waveformData, wavedrom.waveSkin);
-        } else if (wavedrom.renderWaveForm) {
-          svg = wavedrom.renderWaveForm(0, waveformData, wavedrom.waveSkin);
-        } else {
-          throw new Error(
-            "No suitable render function found in wavedrom module",
-          );
-        }
+        const onmlResult = wavedrom.renderAny(
+          0,
+          waveformData,
+          wavedrom.waveSkin,
+        );
 
-        if (!svg || !(svg instanceof Element)) {
-          throw new Error("Render function did not return a valid SVG element");
-        }
+        const svgString = wavedrom.onml.stringify(onmlResult);
 
         if (mounted && containerRef.current) {
-          containerRef.current.appendChild(svg);
+          containerRef.current.innerHTML = svgString;
+
+          const svg = containerRef.current.querySelector("svg");
+          if (svg) {
+            svg.style.maxWidth = "100%";
+            svg.style.height = "auto";
+          }
         }
       } catch (error) {
         console.error("WaveDrom rendering error:", error);
@@ -51,8 +50,8 @@ const Wavedrom: React.FC<WavedromProps> = ({ children, className }) => {
               color: #dc2626;
               padding: 1rem;
               background: #fee2e2;
-              border-radius:  0.375rem;
-              border-left:  4px solid #dc2626;
+              border-radius: 0.375rem;
+              border-left: 4px solid #dc2626;
               font-family: system-ui, -apple-system, sans-serif;
             ">
               <div style="font-weight: 600; margin-bottom: 0.5rem;">
@@ -62,17 +61,22 @@ const Wavedrom: React.FC<WavedromProps> = ({ children, className }) => {
                 margin: 0;
                 font-size: 0.875rem;
                 white-space: pre-wrap;
-                word-wrap: break-word;
+                word-wrap:  break-word;
                 font-family: 'Courier New', monospace;
+                color: #991b1b;
               ">${errorMsg}</pre>
-              <details style="margin-top: 0.5rem; font-size: 0.875rem;">
-                <summary style="cursor:  pointer; user-select: none;">View JSON</summary>
+              <details style="margin-top:  0.75rem; font-size: 0.875rem;">
+                <summary style="cursor: pointer; user-select: none; font-weight: 500;">
+                  View Source JSON
+                </summary>
                 <pre style="
-                  margin: 0.5rem 0 0 0;
-                  padding: 0.5rem;
+                  margin:  0.5rem 0 0 0;
+                  padding: 0.75rem;
                   background: white;
-                  border-radius: 0.25rem;
+                  border-radius:  0.25rem;
                   overflow-x: auto;
+                  font-size: 0.8125rem;
+                  border: 1px solid #fecaca;
                 ">${children}</pre>
               </details>
             </div>
@@ -95,6 +99,8 @@ const Wavedrom: React.FC<WavedromProps> = ({ children, className }) => {
       style={{
         margin: "1rem 0",
         minHeight: "50px",
+        display: "flex",
+        justifyContent: "center",
       }}
     />
   );

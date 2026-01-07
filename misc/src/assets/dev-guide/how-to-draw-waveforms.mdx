@@ -3,7 +3,39 @@ import { WaveDrom } from '@components'
 # WaveDrom Examples
 Here's a simple clock signal: 
 
+```json
+{ "signal" : [{ "name": "Alfa", "wave": "01.zx=ud.23.456789" }] }
+```
+
 
 ```wavedrom
 { "signal" : [{ "name": "Alfa", "wave": "01.zx=ud.23.456789" }] }
+```
+
+```json
+{ "signal": [{ "name": "clk",  "wave": "P......" }] }
+```
+
+```wavedrom
+{ "signal": [{ "name": "clk",  "wave": "P......" }] }
+```
+
+```json
+{ "signal": [
+  { "name": "clk",         "wave": "p.....|..." },
+  { "name": "Data",        "wave": "x.345x|=.x", "data": ["head", "body", "tail", "data"] },
+  { "name": "Request",     "wave": "0.1..0|1.0" },
+  {},
+  { "name": "Acknowledge", "wave": "1.....|01." }
+]}
+```
+
+```wavedrom
+{ "signal": [
+  { "name": "clk",         "wave": "p.....|..." },
+  { "name": "Data",        "wave": "x.345x|=.x", "data": ["head", "body", "tail", "data"] },
+  { "name": "Request",     "wave": "0.1..0|1.0" },
+  {},
+  { "name": "Acknowledge", "wave": "1.....|01." }
+]}
 ```
