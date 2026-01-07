@@ -15,6 +15,7 @@ const Wavedrom: React.FC<WavedromProps> = ({ children, className }) => {
 
     const renderWaveform = async () => {
       try {
+        // @ts-expect-error: Dynamic import
         const wavedrom = await import("wavedrom");
 
         if (!mounted || !containerRef.current) return;
