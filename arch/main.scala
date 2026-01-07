@@ -9,6 +9,7 @@ import core.regfile._
 import core.alu._
 import core.lsu._
 import core.imm._
+import core.csr._
 import configs._
 import utils._
 
@@ -19,6 +20,7 @@ object MainSystem extends App {
   AluInit
   LsuInit
   ImmInit
+  CsrInit
 
   BusBridgeInit
   VerilogEmitter.parse(new RiscSystem, s"${p(ISA)}_system.sv", lowering = true)
@@ -31,5 +33,7 @@ object MainCore extends App {
   AluInit
   LsuInit
   ImmInit
+  CsrInit
+
   VerilogEmitter.parse(new RiscCore, s"${p(ISA)}_cpu.sv", lowering = true)
 }
