@@ -2,7 +2,7 @@ package arch.core.regfile
 
 import arch.core.common.Consts
 import arch.configs._
-import utils.Register
+import vopts.utils.Register
 import chisel3._
 import chisel3.util.BitPat
 

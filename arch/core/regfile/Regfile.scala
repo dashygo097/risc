@@ -1,7 +1,7 @@
 package arch.core.regfile
 
 import arch.configs._
-import mem.register.DualPortRegFile
+import vopts.mem.register.DualPortRegFile
 import chisel3._
 import scala.math.pow
 

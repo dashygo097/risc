@@ -7,7 +7,7 @@ import alu._
 import regfile._
 import lsu._
 import arch.configs._
-import mem.cache._
+import vopts.mem.cache._
 import chisel3._
 import chisel3.util._
 

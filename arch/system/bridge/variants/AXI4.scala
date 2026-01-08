@@ -1,8 +1,8 @@
 package arch.system.bridge
 
 import arch.configs._
-import com.amba._
-import mem.cache._
+import vopts.com.amba._
+import vopts.mem.cache._
 import chisel3._
 import chisel3.util._
 
