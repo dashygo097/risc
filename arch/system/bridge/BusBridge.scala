@@ -1,7 +1,7 @@
 package arch.system.bridge
 
 import arch.configs._
-import mem.cache._
+import vopts.mem.cache._
 import chisel3._
 
 class BusBridge(implicit p: Parameters) extends Module {

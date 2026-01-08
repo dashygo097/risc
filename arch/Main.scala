@@ -11,7 +11,7 @@ import core.lsu._
 import core.imm._
 import core.csr._
 import configs._
-import utils._
+import vopts.utils._
 
 object MainSystem extends App {
   DecoderInit

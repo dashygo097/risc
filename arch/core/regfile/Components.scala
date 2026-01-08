@@ -1,7 +1,7 @@
 package arch.core.regfile
 
 import arch.configs._
-import utils.Register
+import vopts.utils.Register
 import chisel3._
 
 trait RegfileUtilities extends Utilities {
