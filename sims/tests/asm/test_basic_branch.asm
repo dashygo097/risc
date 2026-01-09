@@ -11,6 +11,11 @@ _start:
     addi x3, x0, -1       # Should NOT execute
 beq_taken:
     addi x3, x0, 1        # x3 = 1 (success)
-beq_end_0:
+
+    # BEQ (Branch if Equal) - Not Taken
+    addi x4, x0, 20       # x4 = 20
+    addi x5, x0, 30       # x5 = 30
+    beq x4, x5, beq_taken # Should NOT branch (not equal)
+    addi x6, x0, 2        # x6 = 2 (success)
 
     ebreak
