@@ -13,8 +13,8 @@ class BusBridge(implicit p: Parameters) extends Module {
   val imem = IO(Flipped(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1)))
   val dmem = IO(Flipped(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1)))
 
-  val ibus = IO(utils.busType())
-  val dbus = IO(utils.busType())
+  val ibus = IO(utils.busType)
+  val dbus = IO(utils.busType)
 
   ibus <> utils.createBridge(imem)
   dbus <> utils.createBridge(dmem)

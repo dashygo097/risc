@@ -3,12 +3,22 @@ package arch
 package object configs {
   // User Options
   // You should only modify these parameters
+  // Architecture Parameters
   object ISA     extends Field[String]("rv32i")
-  object BusType extends Field[String]("axi4")
   object IsDebug extends Field[Boolean](true)
 
+  // Core Parameters
   object IBufferSize        extends Field[Int](4)
   object IsRegfileUseBypass extends Field[Boolean](true)
+
+  // System Parameters
+  object BusType extends Field[String]("axi4")
+  object BusAddressMap
+      extends Field[Seq[(BigInt, BigInt)]](
+        Seq(
+          (0x00000000L, 0xffffffffL), // Memory
+        )
+      )
 
   // Derived Parameters
   object XLen

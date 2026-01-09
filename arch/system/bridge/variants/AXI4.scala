@@ -10,7 +10,7 @@ object AXI4BridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
   override def utils: BusBridgeUtilities = new BusBridgeUtilities {
     override def name: String = "axi4"
 
-    override def busType(): Bundle =
+    override def busType: Bundle =
       new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen))
 
     override def createBridge(memory: UnifiedMemoryIO): Bundle = {
