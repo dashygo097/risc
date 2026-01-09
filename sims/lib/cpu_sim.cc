@@ -227,6 +227,16 @@ void CPUSimulator::clock_tick() {
                 << std::dec << std::endl;
     }
   }
+
+  // TODO: Branch debugging
+  if (_dut->debug_branch_taken) {
+    if (_verbose) {
+      std::cout << "  [BRANCH TAKEN] PC=0x" << std::hex << std::setw(8)
+                << std::setfill('0') << _dut->debug_pc << " | Target=0x"
+                << std::setw(8) << _dut->debug_branch_target << std::dec
+                << std::endl;
+    }
+  }
 }
 
 void CPUSimulator::step(uint64_t cycles) {
