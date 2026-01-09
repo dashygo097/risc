@@ -274,6 +274,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val debug_reg_addr = IO(Output(UInt(regfile_utils.width.W)))
     val debug_reg_data = IO(Output(UInt(p(XLen).W)))
 
+    val debug_branch_taken  = IO(Output(Bool()))
+    val debug_branch_source = IO(Output(UInt(p(XLen).W)))
+    val debug_branch_target = IO(Output(UInt(p(XLen).W)))
+
     val debug_if_instr  = IO(Output(UInt(p(ILen).W)))
     val debug_id_instr  = IO(Output(UInt(p(ILen).W)))
     val debug_ex_instr  = IO(Output(UInt(p(ILen).W)))
@@ -286,6 +290,12 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_reg_we   := regfile.write_en
     debug_reg_data := regfile.write_data
 
+    // Branch Debugging
+    debug_branch_taken  := bru.taken
+    debug_branch_source := bru.pc
+    debug_branch_target := bru.target
+
+    // Pipelines Debugging
     debug_if_instr  := Mux(ibuffer.io.deq.fire && !reset_ibuffer, ibuffer.io.deq.bits.instr, decoder_utils.bubble.value.U(p(ILen).W))
     debug_id_instr  := if_id.ID_INSTR
     debug_ex_instr  := id_ex.EX_INSTR

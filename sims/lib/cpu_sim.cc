@@ -216,6 +216,15 @@ void CPUSimulator::clock_tick() {
               << _dut->debug_wb_instr << std::dec << std::endl;
   }
 
+  if (_dut->debug_branch_taken) {
+    if (_verbose) {
+      std::cout << "  [BRANCH TAKEN] Source=0x" << std::hex << std::setw(8)
+                << std::setfill('0') << _dut->debug_branch_source
+                << " | Target=0x" << std::setw(8) << _dut->debug_branch_target
+                << std::dec << std::endl;
+    }
+  }
+
   if (_dut->debug_wb_instr != BUBBLE) {
     _instr_count++;
     if (_verbose) {

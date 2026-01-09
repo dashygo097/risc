@@ -5,7 +5,7 @@ import vopts.mem.cache._
 import chisel3._
 
 trait BusBridgeUtilities extends Utilities {
-  def busType(): Bundle
+  def busType: Bundle
   def createBridge(memory: UnifiedMemoryIO): Bundle
 }
 

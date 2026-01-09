@@ -2,7 +2,7 @@ import { visit } from "unist-util-visit";
 import type { Root, Code } from "mdast";
 import type { Parent } from "unist";
 
-export function remarkWaveDrom() {
+export function remarkWaveDromChart() {
   return (tree: Root) => {
     visit(
       tree,
@@ -11,7 +11,7 @@ export function remarkWaveDrom() {
         if (node.lang === "wavedrom" && parent && typeof index === "number") {
           parent.children[index] = {
             type: "mdxJsxFlowElement",
-            name: "WaveDrom",
+            name: "WaveDromChart",
             attributes: [],
             children: [
               {
@@ -26,4 +26,4 @@ export function remarkWaveDrom() {
   };
 }
 
-export default remarkWaveDrom;
+export default remarkWaveDromChart;
