@@ -12,9 +12,7 @@ class RiscSystem(implicit p: Parameters) extends Module {
   val bridge_utils   = BusBridgeUtilitiesFactory.getOrThrow(p(BusType))
   val crossbar_utils = BusCrossbarUtilitiesFactory.getOrThrow(p(BusType))
 
-  // TODO: Temporarily for testing purposes only
-  val ibus = IO(bridge_utils.busType)
-  val dbus = IO(bridge_utils.busType)
+  val devices = IO(Vec(p(BusAddressMap).length, crossbar_utils.slaveType)).suggestName(s"M_${p(BusType)}".toUpperCase)
 
   // Modules
   val cpu      = Module(new RiscCore)
@@ -23,6 +21,8 @@ class RiscSystem(implicit p: Parameters) extends Module {
 
   cpu.imem <> bridge.imem
   cpu.dmem <> bridge.dmem
-  bridge.dbus <> dbus
-  bridge.ibus <> ibus
+  crossbar_utils.connectMaster(crossbar.ibus, bridge.ibus)
+  crossbar_utils.connectMaster(crossbar.dbus, bridge.dbus)
+  for (i <- devices.indices)
+    devices(i) <> crossbar.devices(i)
 }
