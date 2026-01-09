@@ -4,7 +4,7 @@ import { resolve } from "path";
 import react from "@vitejs/plugin-react";
 import mdx from "@mdx-js/rollup";
 import { remarkWaveDromChart } from "./lib/remark-wavedrom-chart";
-import { remarkInfoBox } from "./lib/remark-info-box";
+import { remarkBoxes } from "./lib/remark-boxes";
 
 export default defineConfig({
   resolve: {
@@ -21,7 +21,7 @@ export default defineConfig({
     react(),
     mdx({
       providerImportSource: "@mdx-js/react",
-      remarkPlugins: [remarkGfm, remarkWaveDromChart, remarkInfoBox],
+      remarkPlugins: [remarkGfm, remarkWaveDromChart, remarkBoxes],
     }),
   ],
   optimizeDeps: {
