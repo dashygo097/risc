@@ -122,8 +122,8 @@ int main(int argc, char **argv) {
   std::cout << "\n========================================\n";
   std::cout << "Simulation Statistics\n";
   std::cout << "========================================\n";
-  std::cout << "Cycles:       " << sim.cycle_count() << "\n";
-  std::cout << "Instructions: " << sim.instr_count() << "\n";
+  std::cout << "Cycles:       " << std::dec << sim.cycle_count() << "\n";
+  std::cout << "Instructions: " << std::dec << sim.instr_count() << "\n";
   std::cout << "IPC:          " << std::fixed << std::setprecision(3)
             << sim.ipc() << "\n";
   std::cout << "Runtime:      " << duration << " ms\n";
