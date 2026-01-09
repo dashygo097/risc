@@ -1,2 +1,2 @@
 export { default as WaveDromChart } from "./WaveDromChart";
-export { default as InfoBox } from "./InfoBox";
+export { TipBox, InfoBox, SuccessBox } from "./CustomBoxes";
