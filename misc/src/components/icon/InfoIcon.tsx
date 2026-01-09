@@ -17,14 +17,6 @@ export const InfoIcon = ({ size = 24, className = "" }) => {
             style={{ stopColor: "#0891b2", stopOpacity: 1 }}
           />
         </linearGradient>
-
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-          <feMerge>
-            <feMergeNode in="coloredBlur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
       </defs>
 
       <circle cx="12" cy="12" r="11" fill="url(#infoGradient)" opacity="0.2" />
