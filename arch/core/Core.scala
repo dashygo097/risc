@@ -146,7 +146,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   )
 
   // BRU
-  bru.en     := decoder.decoded.branch && !id_ex.STALL
+  bru.en     := decoder.decoded.branch
   bru.pc     := if_id.ID.pc
   bru.src1   := id_rs1_data
   bru.src2   := id_rs2_data
