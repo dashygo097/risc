@@ -4,4 +4,5 @@
 #include "./demu/elf_loader.hh"
 #include "./demu/hardware/memory.hh"
 #include "./demu/isa/isa.hh"
+#include "./demu/system_sim.hh"
 #include "./demu/trace.hh"
