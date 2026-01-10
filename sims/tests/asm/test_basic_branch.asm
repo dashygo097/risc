@@ -6,6 +6,7 @@ _start:
     addi x6, x0, 0        # Initialize x6 = 0
     addi x9, x0, 0        # Initialize x9 = 0
     addi x13, x0, 0       # Initialize x13 = 0
+    addi x16, x0, 0       # Initialize x16 = 0
     
     # BEQ (Branch if Equal) - Should Branch
     addi x1, x0, 10       # x1 = 10
@@ -43,10 +44,18 @@ test4:
     addi x12, x0, 25      # x12 = 25
     bge x11, x12, bge_fail # Should NOT branch (15 < 25)
     addi x13, x13, 1      # SUCCESS: x13 = 1 (branch not taken)
-    jal x0, end           # Skip failure marker
+    jal x0, test5           # Skip failure marker
 
 bge_fail:
     addi x13, x13, -2     # FAIL
 
-end:
+end: 
+    addi x16, x16, 1      # SUCCESS: x16 = 1
     ebreak
+
+test5:
+    # BGE (Branch if Greater or Equal) - Should Branch (jump backwards)
+    addi x14, x0, 100     # x14 = 100
+    addi x15, x0, 90      # x15 = 90
+    bge x14, x15, end # Should branch (100 >= 90)
+    addi x16, x16, -1     # FAIL: Should NOT execute
