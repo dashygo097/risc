@@ -2,6 +2,7 @@ package arch
 
 import system._
 import system.bridge._
+import system.crossbar._
 import core._
 import core.decoder._
 import core.bru._
@@ -23,6 +24,8 @@ object MainSystem extends App {
   CsrInit
 
   BusBridgeInit
+  BusCrossbarInit
+
   VerilogEmitter.parse(new RiscSystem, s"${p(ISA)}_system.sv", lowering = true)
 }
 

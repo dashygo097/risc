@@ -131,7 +131,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs1_data,
       FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
-      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem.MEM.alu_result),
       FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
@@ -140,13 +140,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs2_data,
       FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
-      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem.MEM.alu_result),
       FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
 
   // BRU
-  bru.en     := decoder.decoded.branch
+  bru.en     := decoder.decoded.branch && !load_use_hazard
   bru.pc     := if_id.ID.pc
   bru.src1   := id_rs1_data
   bru.src2   := id_rs2_data
@@ -182,7 +182,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val ex_rs1_data = MuxLookup(ex_fwd.forward_rs1, 0.U(p(XLen).W))(
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.EX.rs1_data,
-      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem.MEM.alu_result),
       FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
@@ -190,7 +190,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val ex_rs2_data = MuxLookup(ex_fwd.forward_rs2, 0.U(p(XLen).W))(
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.EX.rs2_data,
-      FWD_MEM.value.U(SZ_FWD.W)  -> ex_mem.MEM.alu_result,
+      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem.MEM.alu_result),
       FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.WB.wb_data
     )
   )
@@ -260,7 +260,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_en   := mem_wb.WB.regwrite
 
   // PC Update Logic
-  when(bru.taken) {
+  when(bru.taken && !lsu.busy) {
     pc := bru.target
   }.elsewhen(ibuffer.io.enq.fire) {
     pc := pc + 4.U(p(XLen).W)

@@ -8,7 +8,7 @@ import chisel3.util._
 
 object AXI4BridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
   override def utils: BusBridgeUtilities = new BusBridgeUtilities {
-    override def name: String = "axi4"
+    override def name: String = "axi"
 
     override def busType: Bundle =
       new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen))
