@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef ENABLE_SYSTEM
 #include "./hardware/memory.hh"
 #include "./trace.hh"
 #include "Vrv32i_system.h"
@@ -20,3 +21,4 @@ public:
 private:
 };
 } // namespace demu
+#endif

@@ -12,9 +12,9 @@ package object configs {
   object IsRegfileUseBypass extends Field[Boolean](true)
 
   // System Parameters
-  object BusType extends Field[String]("axi4")
+  object BusType extends Field[String]("axi")
   object BusAddressMap
-      extends Field[Seq[(BigInt, BigInt)]](
+      extends Field[Seq[(Long, Long)]](
         Seq(
           (0x00000000L, 0xffffffffL), // Memory
         )
