@@ -22,10 +22,8 @@ class IDForwardingUnit(implicit p: Parameters) extends Module with ForwardingCon
 
   val id_rs1       = IO(Input(UInt(regfile_utils.width.W)))
   val id_rs2       = IO(Input(UInt(regfile_utils.width.W)))
-  val ex_is_load   = IO(Input(Bool()))
   val ex_rd        = IO(Input(UInt(regfile_utils.width.W)))
   val ex_regwrite  = IO(Input(Bool()))
-  val mem_is_load  = IO(Input(Bool()))
   val mem_rd       = IO(Input(UInt(regfile_utils.width.W)))
   val mem_regwrite = IO(Input(Bool()))
   val wb_rd        = IO(Input(UInt(regfile_utils.width.W)))
@@ -60,7 +58,6 @@ class EXForwardingUnit(implicit p: Parameters) extends Module with ForwardingCon
 
   val ex_rs1       = IO(Input(UInt(regfile_utils.width.W)))
   val ex_rs2       = IO(Input(UInt(regfile_utils.width.W)))
-  val mem_is_load  = IO(Input(Bool()))
   val mem_rd       = IO(Input(UInt(regfile_utils.width.W)))
   val mem_regwrite = IO(Input(Bool()))
   val wb_rd        = IO(Input(UInt(regfile_utils.width.W)))
