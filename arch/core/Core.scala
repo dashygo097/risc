@@ -120,10 +120,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // ID Forwarding
   id_fwd.id_rs1       := rs1
   id_fwd.id_rs2       := rs2
-  id_fwd.ex_is_load   := lsu_utils.isMemRead(id_ex.EX.decoded_output.lsu, id_ex.EX.decoded_output.lsu_cmd)
   id_fwd.ex_rd        := id_ex.EX.rd
   id_fwd.ex_regwrite  := id_ex.EX.decoded_output.regwrite
-  id_fwd.mem_is_load  := lsu_utils.isMemRead(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
   id_fwd.mem_rd       := ex_mem.MEM.rd
   id_fwd.mem_regwrite := ex_mem.MEM.regwrite
   id_fwd.wb_rd        := mem_wb.WB.rd
@@ -176,7 +174,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // EX Stage
   ex_fwd.ex_rs1       := id_ex.EX.rs1
   ex_fwd.ex_rs2       := id_ex.EX.rs2
-  ex_fwd.mem_is_load  := lsu_utils.isMemRead(ex_mem.MEM.lsu, ex_mem.MEM.lsu_cmd)
   ex_fwd.mem_rd       := ex_mem.MEM.rd
   ex_fwd.mem_regwrite := ex_mem.MEM.regwrite
   ex_fwd.wb_rd        := mem_wb.WB.rd
