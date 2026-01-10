@@ -30,8 +30,10 @@ branch_taken:
     addi x9, x0, 20
     beq x8, x9, branch_not_taken
     addi x11, x11, 1 # success 
+    jal x0, end
 
 branch_not_taken:
-    addi x11, x11, -2 # failure
+    addi x11, x11, -1 # failure
 
+end:
     ebreak
