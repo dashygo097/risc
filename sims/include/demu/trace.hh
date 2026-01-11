@@ -7,13 +7,15 @@
 #include "./isa/isa.hh"
 
 namespace demu {
+using namespace isa;
+
 struct TraceEntry {
   uint64_t cycle;
-  isa::addr_t pc;
-  isa::instr_t inst;
+  addr_t pc;
+  instr_t inst;
   std::string disasm;
   uint8_t rd;
-  isa::word_t rd_val;
+  word_t rd_val;
   bool regwrite;
 };
 

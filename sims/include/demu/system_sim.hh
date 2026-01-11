@@ -6,7 +6,6 @@
 #include "Vrv32i_system.h"
 #include "verilated.h"
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <string>
 
@@ -36,27 +35,24 @@ public:
 
   // Debug output
   void dump_memory(addr_t start, size_t size) const;
-  void save_trace(const std::string &filename);
 
 private:
   // DUT
   std::unique_ptr<system_t> _dut;
 
-  // AXI Bus
-  std::unique_ptr<hal::AXIBusManager> _axi_bus;
-  hal::AXIMemory *_dmem;
-  hal::AXIMemory *_imem;
-
-  // Execution trace
-  bool _trace_enabled;
-  std::unique_ptr<ExecutionTrace> _trace;
 #ifdef ENABLE_TRACE
   std::unique_ptr<VerilatedVcdC> _vcd;
 #endif
 
+  // Devices
+  std::unique_ptr<hal::AXIBusManager> _axi_bus;
+  hal::AXIMemory *_dmem;
+  hal::AXIMemory *_imem;
+
   // Simulator state
   uint64_t _time_counter;
   uint64_t _timeout;
+  bool _trace_enabled;
   bool _terminate;
   bool _verbose;
 

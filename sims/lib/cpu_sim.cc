@@ -297,10 +297,7 @@ void CPUSimulator::dump_registers() const {
 }
 
 void CPUSimulator::dump_memory(addr_t start, size_t size) const {
-  std::cout << "\n========================================\n";
-  std::cout << "Memory Dump: 0x" << std::hex << start << " - 0x"
-            << (start + size) << "\n";
-  std::cout << "========================================\n";
+  printf("Memory dump [0x%08x - 0x%08zx]:\n", start, start + size);
   for (addr_t addr = start; addr < start + size; addr += 16) {
     std::cout << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";
     for (size_t i = 0; i < 16 && (addr + i) < (start + size); i += 4) {

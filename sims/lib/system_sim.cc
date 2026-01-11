@@ -1,32 +1,29 @@
 #ifdef ENABLE_SYSTEM
 
 #include "demu/system_sim.hh"
-#include "demu/elf_loader.hh"
-#include "demu/hal/hal.hh"
-#include <iomanip>
-#include <iostream>
 
 namespace demu {
 SystemSimulator::SystemSimulator(bool enabled_trace)
     : _dut(std::make_unique<Vrv32i_system>()),
-      _axi_bus(std::make_unique<hal::AXIBusManager>()),
-      _trace_enabled(enabled_trace), _time_counter(0), _timeout(0),
-      _terminate(false), _verbose(false) {
-
-  _dmem =
-      _axi_bus->register_slave<hal::AXIMemory>(0, "dmem", 4 * 1024, 0x80000000);
+      _axi_bus(std::make_unique<hal::AXIBusManager>()), _time_counter(0),
+      _timeout(0), _trace_enabled(enabled_trace), _terminate(false),
+      _verbose(false) {
 
   _imem =
-      _axi_bus->register_slave<hal::AXIMemory>(1, "imem", 4 * 1024, 0x00000000);
+      _axi_bus->register_slave<hal::AXIMemory>(0, "imem", 4 * 1024, 0x00000000);
 
-  printf("AXI Device Map:\n");
+  _dmem =
+      _axi_bus->register_slave<hal::AXIMemory>(1, "dmem", 4 * 1024, 0x80000000);
+
+  printf("Device Map:\n");
   _axi_bus->dump_device_map();
 
 #ifdef ENABLE_TRACE
   if (_trace_enabled) {
+    Verilated::traceEverOn(true);
     _vcd = std::make_unique<VerilatedVcdC>();
     _dut->trace(_vcd.get(), 99);
-    _vcd->open("waveform.vcd");
+    _vcd->open(strcpy(ISA_NAME, "_system.vcd"));
   }
 #endif
 
@@ -101,7 +98,7 @@ void SystemSimulator::dump_memory(addr_t start, size_t size) const {
     if (ptr) {
       for (size_t i = 0; i < size && (offset + i) < mem->address_range();
            i += 16) {
-        printf("%08x: ", start + i);
+        printf("%08zx: ", start + i);
 
         for (size_t j = 0; j < 16 && (i + j) < size; j++) {
           printf("%02x ", ptr[i + j]);
@@ -116,10 +113,6 @@ void SystemSimulator::dump_memory(addr_t start, size_t size) const {
       }
     }
   }
-}
-
-void SystemSimulator::save_trace(const std::string &filename) {
-  _trace->save(filename);
 }
 
 void SystemSimulator::clock_tick() {

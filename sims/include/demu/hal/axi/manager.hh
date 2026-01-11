@@ -81,7 +81,7 @@ public:
   void dump_device_map() const {
     for (size_t i = 0; i < _slaves.size(); i++) {
       if (_slaves[i]) {
-        printf("M_AXI_%zu: %s [0x%08x - 0x%08x]\n", i, _slave_names[i].c_str(),
+        printf("M_AXI_%zu: %s [0x%08x - 0x%08zx]\n", i, _slave_names[i].c_str(),
                _slaves[i]->base_address(),
                _slaves[i]->base_address() + _slaves[i]->address_range() - 1);
       }

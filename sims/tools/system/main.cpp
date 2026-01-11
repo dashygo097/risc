@@ -1,7 +1,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <demu.hh>
-#include <iomanip>
 #include <iostream>
 #include <string>
 
@@ -76,6 +75,9 @@ int main(int argc, char **argv) {
   demu::SystemSimulator sim(enable_trace);
   sim.verbose(verbose);
 
+  std::cout << "Resetting System..." << std::endl;
+  sim.reset();
+
   std::cout << "Loading program: " << program_file << std::endl;
 
   bool loaded = false;
@@ -92,9 +94,6 @@ int main(int argc, char **argv) {
     std::cerr << "Error: Failed to load program\n";
     return 1;
   }
-
-  std::cout << "Resetting System..." << std::endl;
-  sim.reset();
 
   std::cout << "Running simulation";
   if (max_cycles > 0) {
@@ -121,8 +120,7 @@ int main(int argc, char **argv) {
   }
 
   if (enable_trace) {
-    sim.save_trace("trace.log");
-    std::cout << "Trace saved to trace.log\n";
+    std::cout << "Trace saved!\n";
   }
 
   return 0;

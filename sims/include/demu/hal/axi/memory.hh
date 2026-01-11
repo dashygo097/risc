@@ -135,17 +135,29 @@ public:
 
   bool load_binary(const std::string &filename, addr_t offset = 0) {
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
-    if (!file.is_open())
+    if (!file.is_open()) {
+      std::cerr << "Failed to open binary file: " << filename << std::endl;
       return false;
+    }
 
-    std::streamsize file_size = file.tellg();
+    std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    if (offset + file_size > _memory.size())
+    if (offset + size > _memory.size()) {
+      std::cerr << "Binary file too large for memory" << std::endl;
       return false;
+    }
 
-    file.read(reinterpret_cast<char *>(_memory.data() + offset), file_size);
-    return file.good();
+    std::vector<char> buffer(size);
+
+    if (file.read(buffer.data(), size)) {
+      for (size_t i = 0; i < buffer.size(); i++) {
+        _memory[offset + i] = static_cast<byte_t>(buffer[i]);
+      }
+      return true;
+    }
+
+    return false;
   }
 
   byte_t *get_ptr(addr_t offset = 0) {

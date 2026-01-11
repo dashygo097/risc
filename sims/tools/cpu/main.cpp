@@ -85,6 +85,9 @@ int main(int argc, char **argv) {
   sim.verbose(verbose);
   sim.show_pipeline(show_pipeline);
 
+  std::cout << "Resetting CPU..." << std::endl;
+  sim.reset();
+
   std::cout << "Loading program: " << program_file << std::endl;
 
   bool loaded = false;
@@ -101,9 +104,6 @@ int main(int argc, char **argv) {
     std::cerr << "Error: Failed to load program\n";
     return 1;
   }
-
-  std::cout << "Resetting CPU..." << std::endl;
-  sim.reset();
 
   std::cout << "Running simulation";
   if (max_cycles > 0) {
