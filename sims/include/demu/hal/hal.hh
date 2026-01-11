@@ -8,4 +8,5 @@
 // AXI
 #include "./axi/manager.hh"
 #include "./axi/memory.hh"
+#include "./axi/signals.hh"
 #include "./axi/slave.hh"

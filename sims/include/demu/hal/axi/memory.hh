@@ -1,5 +1,6 @@
 #pragma once
 
+#include "./signals.hh"
 #include "./slave.hh"
 #include <fstream>
 

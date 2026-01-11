@@ -96,48 +96,49 @@ private:
     slave->r_ready(*rready);
   }
 
-  struct AXISignals {
-    uint32_t *awaddr;
-    uint8_t *awvalid;
-    uint8_t *awready;
-    uint32_t *wdata;
-    uint8_t *wstrb;
-    uint8_t *wvalid;
-    uint8_t *wready;
-    uint8_t *bresp;
-    uint8_t *bvalid;
-    uint8_t *bready;
-    uint32_t *araddr;
-    uint8_t *arvalid;
-    uint8_t *arready;
-    uint32_t *rdata;
-    uint8_t *rresp;
-    uint8_t *rvalid;
-    uint8_t *rready;
-  };
+  hal::AXISignals get_axi_signals(uint8_t port) {
+    hal::AXISignals signals;
 
-  AXISignals get_axi_signals(uint8_t port) {
     if (port == 0) {
-      return {&_dut->M_AXI_0_AWADDR,  &_dut->M_AXI_0_AWVALID,
-              &_dut->M_AXI_0_AWREADY, &_dut->M_AXI_0_WDATA,
-              &_dut->M_AXI_0_WSTRB,   &_dut->M_AXI_0_WVALID,
-              &_dut->M_AXI_0_WREADY,  &_dut->M_AXI_0_BRESP,
-              &_dut->M_AXI_0_BVALID,  &_dut->M_AXI_0_BREADY,
-              &_dut->M_AXI_0_ARADDR,  &_dut->M_AXI_0_ARVALID,
-              &_dut->M_AXI_0_ARREADY, &_dut->M_AXI_0_RDATA,
-              &_dut->M_AXI_0_RRESP,   &_dut->M_AXI_0_RVALID,
-              &_dut->M_AXI_0_RREADY};
-    } else { // port == 1
-      return {&_dut->M_AXI_1_AWADDR,  &_dut->M_AXI_1_AWVALID,
-              &_dut->M_AXI_1_AWREADY, &_dut->M_AXI_1_WDATA,
-              &_dut->M_AXI_1_WSTRB,   &_dut->M_AXI_1_WVALID,
-              &_dut->M_AXI_1_WREADY,  &_dut->M_AXI_1_BRESP,
-              &_dut->M_AXI_1_BVALID,  &_dut->M_AXI_1_BREADY,
-              &_dut->M_AXI_1_ARADDR,  &_dut->M_AXI_1_ARVALID,
-              &_dut->M_AXI_1_ARREADY, &_dut->M_AXI_1_RDATA,
-              &_dut->M_AXI_1_RRESP,   &_dut->M_AXI_1_RVALID,
-              &_dut->M_AXI_1_RREADY};
+      signals.awaddr = &_dut->M_AXI_0_AWADDR;
+      signals.awvalid = &_dut->M_AXI_0_AWVALID;
+      signals.awready = &_dut->M_AXI_0_AWREADY;
+      signals.wdata = &_dut->M_AXI_0_WDATA;
+      signals.wstrb = &_dut->M_AXI_0_WSTRB;
+      signals.wvalid = &_dut->M_AXI_0_WVALID;
+      signals.wready = &_dut->M_AXI_0_WREADY;
+      signals.bresp = &_dut->M_AXI_0_BRESP;
+      signals.bvalid = &_dut->M_AXI_0_BVALID;
+      signals.bready = &_dut->M_AXI_0_BREADY;
+      signals.araddr = &_dut->M_AXI_0_ARADDR;
+      signals.arvalid = &_dut->M_AXI_0_ARVALID;
+      signals.arready = &_dut->M_AXI_0_ARREADY;
+      signals.rdata = &_dut->M_AXI_0_RDATA;
+      signals.rresp = &_dut->M_AXI_0_RRESP;
+      signals.rvalid = &_dut->M_AXI_0_RVALID;
+      signals.rready = &_dut->M_AXI_0_RREADY;
+
+    } else if (port == 1) {
+      signals.awaddr = &_dut->M_AXI_1_AWADDR;
+      signals.awvalid = &_dut->M_AXI_1_AWVALID;
+      signals.awready = &_dut->M_AXI_1_AWREADY;
+      signals.wdata = &_dut->M_AXI_1_WDATA;
+      signals.wstrb = &_dut->M_AXI_1_WSTRB;
+      signals.wvalid = &_dut->M_AXI_1_WVALID;
+      signals.wready = &_dut->M_AXI_1_WREADY;
+      signals.bresp = &_dut->M_AXI_1_BRESP;
+      signals.bvalid = &_dut->M_AXI_1_BVALID;
+      signals.bready = &_dut->M_AXI_1_BREADY;
+      signals.araddr = &_dut->M_AXI_1_ARADDR;
+      signals.arvalid = &_dut->M_AXI_1_ARVALID;
+      signals.arready = &_dut->M_AXI_1_ARREADY;
+      signals.rdata = &_dut->M_AXI_1_RDATA;
+      signals.rresp = &_dut->M_AXI_1_RRESP;
+      signals.rvalid = &_dut->M_AXI_1_RVALID;
+      signals.rready = &_dut->M_AXI_1_RREADY;
     }
+
+    return signals;
   }
 };
 } // namespace demu

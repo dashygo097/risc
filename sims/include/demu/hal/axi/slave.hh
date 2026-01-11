@@ -7,22 +7,6 @@
 namespace demu::hal {
 using namespace isa;
 
-struct AXIReadTransaction {
-  addr_t addr;
-  bool active;
-  word_t data;
-  bool valid;
-};
-
-struct AXIWriteTransaction {
-  addr_t addr;
-  word_t data;
-  byte_t strb;
-  bool addr_valid;
-  bool data_valid;
-  bool resp_ready;
-};
-
 class AXISlave {
 public:
   virtual ~AXISlave() = default;

@@ -13,9 +13,7 @@ void print_usage(const char *prog) {
   std::cout << "  -t, --trace          Enable VCD trace\n";
   std::cout << "  -c, --cycles <n>     Run for n cycles (0=unlimited)\n";
   std::cout << "  -b, --base <addr>    Binary load base address (hex)\n";
-  std::cout << "  -d, --dump-regs      Dump registers after execution\n";
   std::cout << "  -m, --dump-mem <addr> <size>  Dump memory region\n";
-  std::cout << "  -p, --show-pipeline   Show pipeline state each cycle\n";
   std::cout << "\nSupported file formats:\n";
   std::cout << "  .bin                 Raw binary\n";
   std::cout << "  .elf                 ELF executable\n";
@@ -31,8 +29,6 @@ int main(int argc, char **argv) {
   std::string program_file;
   bool verbose = false;
   bool enable_trace = false;
-  bool dump_regs = false;
-  bool show_pipeline = false;
   uint64_t max_cycles = 0;
   uint32_t base_addr = 0;
   uint32_t dump_mem_addr = 0;
@@ -49,8 +45,6 @@ int main(int argc, char **argv) {
       verbose = true;
     } else if (arg == "-t" || arg == "--trace") {
       enable_trace = true;
-    } else if (arg == "-d" || arg == "--dump-regs") {
-      dump_regs = true;
     } else if (arg == "-c" || arg == "--cycles") {
       if (i + 1 < argc) {
         max_cycles = std::stoull(argv[++i]);
@@ -65,8 +59,6 @@ int main(int argc, char **argv) {
         dump_mem_size = std::stoul(argv[++i], nullptr, 16);
         dump_mem = true;
       }
-    } else if (arg == "-p" || arg == "--show-pipeline") {
-      show_pipeline = true;
     } else if (arg[0] != '-') {
       program_file = arg;
     } else {
@@ -83,7 +75,6 @@ int main(int argc, char **argv) {
 
   demu::SystemSimulator sim(enable_trace);
   sim.verbose(verbose);
-  sim.show_pipeline(show_pipeline);
 
   std::cout << "Loading program: " << program_file << std::endl;
 
@@ -102,7 +93,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  std::cout << "Resetting CPU..." << std::endl;
+  std::cout << "Resetting System..." << std::endl;
   sim.reset();
 
   std::cout << "Running simulation";
@@ -122,16 +113,8 @@ int main(int argc, char **argv) {
   std::cout << "\n========================================\n";
   std::cout << "Simulation Statistics\n";
   std::cout << "========================================\n";
-  std::cout << "Cycles:       " << std::dec << sim.cycle_count() << "\n";
-  std::cout << "Instructions: " << std::dec << sim.instr_count() << "\n";
-  std::cout << "IPC:          " << std::fixed << std::setprecision(3)
-            << sim.ipc() << "\n";
   std::cout << "Runtime:      " << duration << " ms\n";
   std::cout << "========================================\n\n";
-
-  if (dump_regs) {
-    sim.dump_registers();
-  }
 
   if (dump_mem) {
     sim.dump_memory(dump_mem_addr, dump_mem_size);
