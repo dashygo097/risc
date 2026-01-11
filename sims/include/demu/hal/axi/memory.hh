@@ -3,13 +3,16 @@
 #include "./signals.hh"
 #include "./slave.hh"
 #include <fstream>
+#include <queue>
 
 namespace demu::hal {
 
 class AXIMemory : public AXISlave {
 public:
-  AXIMemory(size_t size, addr_t base_addr = 0x0)
-      : _memory(size, 0), _base_addr(base_addr), _addr_range(size) {
+  AXIMemory(size_t size, addr_t base_addr = 0x0, size_t read_delay = 0,
+            size_t write_delay = 0)
+      : _memory(size, 0), _base_addr(base_addr), _addr_range(size),
+        _read_delay_cycles(read_delay), _write_delay_cycles(write_delay) {
     reset();
   }
 
@@ -18,100 +21,132 @@ public:
   addr_t base_address() const noexcept override { return _base_addr; }
   size_t address_range() const noexcept override { return _addr_range; }
 
+  void set_read_delay(size_t cycles) { _read_delay_cycles = cycles; }
+  void set_write_delay(size_t cycles) { _write_delay_cycles = cycles; }
+
   void reset() override {
     std::fill(_memory.begin(), _memory.end(), 0);
-    _write_trans = {};
-    _read_trans = {};
-    _aw_ready = true;
-    _w_ready = false;
-    _b_valid = false;
-    _ar_ready = true;
-    _r_valid = false;
+    while (!_write_addr_queue.empty())
+      _write_addr_queue.pop();
+    while (!_write_data_queue.empty())
+      _write_data_queue.pop();
+    while (!_write_resp_queue.empty())
+      _write_resp_queue.pop();
+    while (!_read_queue.empty())
+      _read_queue.pop();
   }
 
   void clock_tick() override {
-    if (_write_trans.addr_valid && _write_trans.data_valid && !_b_valid) {
-      addr_t offset = _write_trans.addr - _base_addr;
+    // Process write transactions when both address and data are available
+    if (!_write_addr_queue.empty() && !_write_data_queue.empty()) {
+      addr_t addr = _write_addr_queue.front();
+      word_t data = _write_data_queue.front().data;
+      byte_t strb = _write_data_queue.front().strb;
+
+      _write_addr_queue.pop();
+      _write_data_queue.pop();
+
+      // Perform write
+      addr_t offset = addr - _base_addr;
       if (offset < _memory.size() && offset + 3 < _memory.size()) {
         for (int i = 0; i < 4; i++) {
-          if (_write_trans.strb & (1 << i)) {
-            _memory[offset + i] = (_write_trans.data >> (i * 8)) & 0xFF;
+          if (strb & (1 << i)) {
+            _memory[offset + i] = (data >> (i * 8)) & 0xFF;
           }
         }
       }
-      _b_valid = true;
-      _write_trans.addr_valid = false;
-      _write_trans.data_valid = false;
-      _aw_ready = true;
-      _w_ready = false;
+
+      // Queue write response with delay
+      _write_resp_queue.push({0, _write_delay_cycles}); // OKAY response
     }
 
-    if (_b_valid && _write_trans.resp_ready) {
-      _b_valid = false;
-      _aw_ready = true;
+    // Decrement write response delay counters
+    if (!_write_resp_queue.empty() && _write_resp_queue.front().delay > 0) {
+      _write_resp_queue.front().delay--;
     }
 
-    if (_read_trans.active && !_r_valid) {
-      addr_t offset = _read_trans.addr - _base_addr;
-      word_t data = 0;
-      if (offset < _memory.size() && offset + 3 < _memory.size()) {
-        data = static_cast<word_t>(_memory[offset]) |
-               (static_cast<word_t>(_memory[offset + 1]) << 8) |
-               (static_cast<word_t>(_memory[offset + 2]) << 16) |
-               (static_cast<word_t>(_memory[offset + 3]) << 24);
+    // Process read transactions
+    if (!_read_queue.empty() && !_read_queue.front().processed) {
+      auto &read_trans = _read_queue.front();
+
+      if (read_trans.delay > 0) {
+        read_trans.delay--;
+      } else {
+        addr_t offset = read_trans.addr - _base_addr;
+        word_t data = 0;
+
+        if (offset < _memory.size() && offset + 3 < _memory.size()) {
+          data = static_cast<word_t>(_memory[offset]) |
+                 (static_cast<word_t>(_memory[offset + 1]) << 8) |
+                 (static_cast<word_t>(_memory[offset + 2]) << 16) |
+                 (static_cast<word_t>(_memory[offset + 3]) << 24);
+        }
+
+        read_trans.data = data;
+        read_trans.processed = true;
       }
-      _read_trans.data = data;
-      _r_valid = true;
-      _read_trans.active = false;
-      _ar_ready = true;
-    }
-
-    if (_r_valid && _read_trans.valid) {
-      _r_valid = false;
-      _ar_ready = true;
     }
   }
 
-  void aw_valid(addr_t addr) override {
-    if (_aw_ready) {
-      _write_trans.addr = addr;
-      _write_trans.addr_valid = true;
-      _aw_ready = false;
-      _w_ready = true;
-    }
+  // Write Address Channel - always ready
+  void aw_valid(addr_t addr) override { _write_addr_queue.push(addr); }
+
+  bool aw_ready() const noexcept override {
+    return true; // Always ready
   }
 
-  bool aw_ready() const noexcept override { return _aw_ready; }
-
+  // Write Data Channel - always ready
   void w_valid(word_t data, byte_t strb) override {
-    if (_w_ready) {
-      _write_trans.data = data;
-      _write_trans.strb = strb;
-      _write_trans.data_valid = true;
-      _w_ready = false;
+    _write_data_queue.push({data, strb});
+  }
+
+  bool w_ready() const noexcept override {
+    return true; // Always ready
+  }
+
+  // Write Response Channel
+  bool b_valid() const noexcept override {
+    return !_write_resp_queue.empty() && _write_resp_queue.front().delay == 0;
+  }
+
+  void b_ready(bool ready) override {
+    if (ready && !_write_resp_queue.empty() &&
+        _write_resp_queue.front().delay == 0) {
+      _write_resp_queue.pop();
     }
   }
 
-  bool w_ready() const noexcept override { return _w_ready; }
+  uint8_t b_resp() const noexcept override {
+    return _write_resp_queue.empty() ? 0 : _write_resp_queue.front().resp;
+  }
 
-  bool b_valid() const noexcept override { return _b_valid; }
-  void b_ready(bool ready) override { _write_trans.resp_ready = ready; }
-  uint8_t b_resp() const noexcept override { return 0; } // OKAY
-
+  // Read Address Channel - always ready
   void ar_valid(addr_t addr) override {
-    if (_ar_ready) {
-      _read_trans.addr = addr;
-      _read_trans.active = true;
-      _ar_ready = false;
+    _read_queue.push({addr, 0, false, _read_delay_cycles});
+  }
+
+  bool ar_ready() const noexcept override {
+    return true; // Always ready
+  }
+
+  // Read Data Channel
+  bool r_valid() const noexcept override {
+    return !_read_queue.empty() && _read_queue.front().processed;
+  }
+
+  void r_ready(bool ready) override {
+    if (ready && !_read_queue.empty() && _read_queue.front().processed) {
+      _read_queue.pop();
     }
   }
 
-  bool ar_ready() const noexcept override { return _ar_ready; }
+  word_t r_data() const noexcept override {
+    return _read_queue.empty() ? 0 : _read_queue.front().data;
+  }
 
-  bool r_valid() const noexcept override { return _r_valid; }
-  void r_ready(bool ready) override { _read_trans.valid = ready; }
-  word_t r_data() const noexcept override { return _read_trans.data; }
-  uint8_t r_resp() const noexcept override { return 0; } // OKAY
+  uint8_t r_resp() const noexcept override {
+    return 0; // OKAY
+  }
 
   word_t read_word(addr_t addr) const noexcept {
     addr_t offset = addr - _base_addr;
@@ -176,16 +211,31 @@ private:
   std::vector<byte_t> _memory;
   addr_t _base_addr;
   size_t _addr_range;
+  size_t _read_delay_cycles;
+  size_t _write_delay_cycles;
 
-  // AXI Protocol State
-  AXIWriteTransaction _write_trans;
-  AXIReadTransaction _read_trans;
+  struct WriteData {
+    word_t data;
+    byte_t strb;
+  };
 
-  bool _aw_ready;
-  bool _w_ready;
-  bool _b_valid;
-  bool _ar_ready;
-  bool _r_valid;
+  struct WriteResponse {
+    uint8_t resp;
+    size_t delay;
+  };
+
+  struct ReadTransaction {
+    addr_t addr;
+    word_t data;
+    bool processed;
+    size_t delay;
+  };
+
+  // Queues for pipelined transactions
+  std::queue<addr_t> _write_addr_queue;
+  std::queue<WriteData> _write_data_queue;
+  std::queue<WriteResponse> _write_resp_queue;
+  std::queue<ReadTransaction> _read_queue;
 };
 
 } // namespace demu::hal
