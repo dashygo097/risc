@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../isa/isa.hh"
+#include "../isa/isa.hh"
 #include <cstdint>
 #include <string>
 #include <vector>

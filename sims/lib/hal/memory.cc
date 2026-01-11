@@ -1,4 +1,4 @@
-#include "demu/hal/hardware/memory.hh"
+#include "demu/hal/memory.hh"
 #include <cstring>
 #include <fstream>
 #include <iomanip>
