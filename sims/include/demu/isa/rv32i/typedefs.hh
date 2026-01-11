@@ -7,7 +7,7 @@
 #include "Vrv32i_system.h"
 #endif
 
-#define ISA_NAME (char *)"rv32i"
+#define ISA_NAME "rv32i"
 #define NUM_GPRS 32
 
 namespace demu::isa {

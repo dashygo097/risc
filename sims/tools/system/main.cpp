@@ -4,6 +4,34 @@
 #include <iostream>
 #include <string>
 
+class SystemSimulatorTop : public demu::SystemSimulator {
+public:
+  SystemSimulatorTop(bool enabled_trace = false)
+      : SystemSimulator(enabled_trace) {}
+
+private:
+  void register_devices() override {};
+  void check_termination() override {};
+  void on_clock_tick() override {};
+  void on_exit() override {};
+  void on_reset() override {};
+
+  demu::hal::AXISignals from_port(uint8_t port) override {
+    demu::hal::AXISignals signals;
+
+    switch (port) {
+    case 0:
+      MAP_AXI_SIGNALS(signals, 0) break;
+    case 1:
+      MAP_AXI_SIGNALS(signals, 1) break;
+    default:
+      break;
+    }
+
+    return signals;
+  }
+};
+
 void print_usage(const char *prog) {
   std::cout << "Usage: " << prog << " [options] <program_file>\n\n";
   std::cout << "Options:\n";
@@ -72,7 +100,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  demu::SystemSimulator sim(enable_trace);
+  SystemSimulatorTop sim(enable_trace);
   sim.verbose(verbose);
 
   std::cout << "Resetting System..." << std::endl;

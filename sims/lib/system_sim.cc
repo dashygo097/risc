@@ -15,6 +15,8 @@ SystemSimulator::SystemSimulator(bool enabled_trace)
   _dmem =
       _axi_bus->register_slave<hal::AXIMemory>(1, "dmem", 4 * 1024, 0x80000000);
 
+  register_devices();
+
   printf("Device Map:\n");
   _axi_bus->dump_device_map();
 
@@ -23,7 +25,7 @@ SystemSimulator::SystemSimulator(bool enabled_trace)
     Verilated::traceEverOn(true);
     _vcd = std::make_unique<VerilatedVcdC>();
     _dut->trace(_vcd.get(), 99);
-    _vcd->open(strcpy(ISA_NAME, "_system.vcd"));
+    _vcd->open((std::string(ISA_NAME) + "_system.vcd").c_str());
   }
 #endif
 
@@ -57,6 +59,8 @@ void SystemSimulator::reset() {
 
   _time_counter = 0;
   _terminate = false;
+
+  on_reset();
 }
 
 void SystemSimulator::step(uint64_t cycles) {
@@ -79,7 +83,10 @@ void SystemSimulator::run(uint64_t max_cycles) {
       printf("Simulation timeout at cycle %llu\n", _time_counter);
       break;
     }
+
+    check_termination();
   }
+  on_exit();
 }
 
 void SystemSimulator::dump_memory(addr_t start, size_t size) const {
@@ -119,8 +126,8 @@ void SystemSimulator::clock_tick() {
   _dut->clock = 0;
   _dut->eval();
 
-  handle_axi_port(0);
-  handle_axi_port(1);
+  handle_port(0);
+  handle_port(1);
 
   _dut->clock = 1;
   _dut->eval();
@@ -134,6 +141,8 @@ void SystemSimulator::clock_tick() {
 #endif
 
   _time_counter++;
+
+  on_clock_tick();
 }
 
 } // namespace demu

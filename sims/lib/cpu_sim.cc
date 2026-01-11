@@ -17,7 +17,7 @@ CPUSimulator::CPUSimulator(bool enable_trace)
     Verilated::traceEverOn(true);
     _vcd = std::make_unique<VerilatedVcdC>();
     _dut->trace(_vcd.get(), 99);
-    _vcd->open(strcpy(ISA_NAME, "_cpu.vcd"));
+    _vcd->open((std::string(ISA_NAME) + "_cpu.vcd").c_str());
   }
 #endif
 }

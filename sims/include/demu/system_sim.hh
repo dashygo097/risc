@@ -36,7 +36,13 @@ public:
   // Debug output
   void dump_memory(addr_t start, size_t size) const;
 
-private:
+  // Exported Ports
+  [[nodiscard]] system_t &dut() noexcept { return *_dut; }
+  [[nodiscard]] hal::AXIBusManager &axiBus() noexcept { return *_axi_bus; }
+  [[nodiscard]] hal::AXIMemory &dmem() noexcept { return *_dmem; }
+  [[nodiscard]] hal::AXIMemory &imem() noexcept { return *_imem; }
+
+protected:
   // DUT
   std::unique_ptr<system_t> _dut;
 
@@ -58,14 +64,22 @@ private:
 
   // Internal simulation methods
   void clock_tick();
-  void handle_axi_port(uint8_t port) {
+
+  // Overridable hooks
+  virtual void register_devices() {};
+  virtual void check_termination() {};
+  virtual void on_clock_tick() {};
+  virtual void on_exit() {};
+  virtual void on_reset() {};
+
+  void handle_port(uint8_t port) {
     auto *slave = _axi_bus->get_slave(port);
     if (!slave)
       return;
 
     auto [awaddr, awvalid, awready, wdata, wstrb, wvalid, wready, bresp, bvalid,
           bready, araddr, arvalid, arready, rdata, rresp, rvalid, rready] =
-        get_axi_signals(port);
+        from_port(port);
 
     if (*awvalid && slave->aw_ready()) {
       slave->aw_valid(*awaddr);
@@ -92,7 +106,7 @@ private:
     slave->r_ready(*rready);
   }
 
-  hal::AXISignals get_axi_signals(uint8_t port) {
+  virtual hal::AXISignals from_port(uint8_t port) {
     hal::AXISignals signals;
 
     if (port == 0) {
