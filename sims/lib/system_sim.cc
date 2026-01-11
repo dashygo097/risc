@@ -124,10 +124,15 @@ void SystemSimulator::dump_memory(addr_t start, size_t size) const {
 
 void SystemSimulator::clock_tick() {
   _dut->clock = 0;
-  _dut->eval();
-
   handle_port(0);
   handle_port(1);
+  _dut->eval();
+
+#ifdef ENABLE_TRACE
+  if (_vcd) {
+    _vcd->dump(_time_counter++);
+  }
+#endif
 
   _dut->clock = 1;
   _dut->eval();
@@ -136,11 +141,9 @@ void SystemSimulator::clock_tick() {
 
 #ifdef ENABLE_TRACE
   if (_vcd) {
-    _vcd->dump(_time_counter * 2);
+    _vcd->dump(_time_counter++);
   }
 #endif
-
-  _time_counter++;
 
   on_clock_tick();
 }
