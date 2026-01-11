@@ -14,6 +14,8 @@ class RiscSystem(implicit p: Parameters) extends Module {
 
   val devices = IO(Vec(p(BusAddressMap).length, crossbar_utils.slaveType)).suggestName(s"M_${p(BusType)}".toUpperCase)
 
+  dontTouch(devices)
+
   // Modules
   val cpu      = Module(new RiscCore)
   val bridge   = Module(new BusBridge)

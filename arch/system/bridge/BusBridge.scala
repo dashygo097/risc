@@ -16,6 +16,11 @@ class BusBridge(implicit p: Parameters) extends Module {
   val ibus = IO(utils.busType)
   val dbus = IO(utils.busType)
 
+  dontTouch(imem)
+  dontTouch(dmem)
+  dontTouch(ibus)
+  dontTouch(dbus)
+
   ibus <> utils.createBridge(imem)
   dbus <> utils.createBridge(dmem)
 }
