@@ -14,9 +14,18 @@ public:
   T *register_slave(uint8_t port, const std::string &name, Args &&...args) {
     if (port >= _slaves.size()) {
       _slaves.resize(port + 1);
+      _slave_names.resize(port + 1);
     }
 
-    auto slave = std::make_unique<T>(std::forward<Args>(args)...);
+    std::unique_ptr<T> slave;
+    try {
+      slave = std::make_unique<T>(std::forward<Args>(args)...);
+    } catch (const std::exception &e) {
+      std::cerr << "Failed to create slave '" << name << "': " << e.what()
+                << std::endl;
+      return nullptr;
+    }
+
     T *ptr = slave.get();
     _slaves[port] = std::move(slave);
     _slave_names[port] = name;
@@ -37,6 +46,15 @@ public:
 
   AXISlave *find_slave_for_address(addr_t addr) {
     for (auto &slave : _slaves) {
+      if (slave && slave->owns_address(addr)) {
+        return slave.get();
+      }
+    }
+    return nullptr;
+  }
+
+  const AXISlave *find_slave_for_address(addr_t addr) const {
+    for (const auto &slave : _slaves) {
       if (slave && slave->owns_address(addr)) {
         return slave.get();
       }

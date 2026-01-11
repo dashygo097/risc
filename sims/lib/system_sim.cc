@@ -17,7 +17,7 @@ SystemSimulator::SystemSimulator(bool enabled_trace)
       _axi_bus->register_slave<hal::AXIMemory>(0, "dmem", 4 * 1024, 0x80000000);
 
   _imem =
-      _axi_bus->register_slave<hal::AXIMemory>(1, "imem", 4 * 1024, 0x10000000);
+      _axi_bus->register_slave<hal::AXIMemory>(1, "imem", 4 * 1024, 0x00000000);
 
   printf("AXI Device Map:\n");
   _axi_bus->dump_device_map();

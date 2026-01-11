@@ -32,7 +32,7 @@ public:
   void clock_tick() override {
     if (_write_trans.addr_valid && _write_trans.data_valid && !_b_valid) {
       addr_t offset = _write_trans.addr - _base_addr;
-      if (offset + 3 < _memory.size()) {
+      if (offset < _memory.size() && offset + 3 < _memory.size()) {
         for (int i = 0; i < 4; i++) {
           if (_write_trans.strb & (1 << i)) {
             _memory[offset + i] = (_write_trans.data >> (i * 8)) & 0xFF;
@@ -54,7 +54,7 @@ public:
     if (_read_trans.active && !_r_valid) {
       addr_t offset = _read_trans.addr - _base_addr;
       word_t data = 0;
-      if (offset + 3 < _memory.size()) {
+      if (offset < _memory.size() && offset + 3 < _memory.size()) {
         data = static_cast<word_t>(_memory[offset]) |
                (static_cast<word_t>(_memory[offset + 1]) << 8) |
                (static_cast<word_t>(_memory[offset + 2]) << 16) |
@@ -115,7 +115,7 @@ public:
 
   word_t read_word(addr_t addr) const noexcept {
     addr_t offset = addr - _base_addr;
-    if (offset + 3 >= _memory.size())
+    if (offset >= _memory.size() || offset + 3 >= _memory.size())
       return 0;
     return static_cast<word_t>(_memory[offset]) |
            (static_cast<word_t>(_memory[offset + 1]) << 8) |
@@ -125,7 +125,7 @@ public:
 
   void write_word(addr_t addr, word_t data) {
     addr_t offset = addr - _base_addr;
-    if (offset + 3 >= _memory.size())
+    if (offset >= _memory.size() || offset + 3 >= _memory.size())
       return;
     _memory[offset] = data & 0xFF;
     _memory[offset + 1] = (data >> 8) & 0xFF;
@@ -149,6 +149,12 @@ public:
   }
 
   byte_t *get_ptr(addr_t offset = 0) {
+    if (offset >= _memory.size())
+      return nullptr;
+    return _memory.data() + offset;
+  }
+
+  const byte_t *get_ptr(addr_t offset = 0) const {
     if (offset >= _memory.size())
       return nullptr;
     return _memory.data() + offset;
