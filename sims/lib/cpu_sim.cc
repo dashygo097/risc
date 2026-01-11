@@ -280,9 +280,7 @@ void CPUSimulator::write_mem(addr_t addr, word_t data) {
 }
 
 void CPUSimulator::dump_registers() const {
-  std::cout << "\n========================================\n";
-  std::cout << "Register Dump\n";
-  std::cout << "========================================\n";
+  std::cout << "Register Dump:\n";
   std::cout << "x00 = 0x" << std::hex << std::setw(8) << std::setfill('0')
             << reg(0) << "  ";
   for (int i = 1; i < NUM_GPRS; i++) {
