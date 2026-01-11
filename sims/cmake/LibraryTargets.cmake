@@ -3,7 +3,7 @@ add_library(demu ${DEMU_SOURCES} ${DEMU_HEADERS})
 
 verilate(demu
   SOURCES ${CPU_RTL_SOURCE}
-  VERILATOR_ARGS 
+  VERILATOR_ARGS
     -Wall
     -Wno-WIDTH
     -Wno-UNUSED
@@ -23,7 +23,8 @@ if(ENABLE_SYSTEM)
       -Wno-UNUSED
       -Wno-UNOPTFLAT
       -Wno-DECLFILENAME
-    --top-module ${ISA}_system
+      -Wno-PINCONNECTEMPTY
+      --top-module ${ISA}_system
     PREFIX V${ISA}_system
     TRACE_THREADS 2
   )

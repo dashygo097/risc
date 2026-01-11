@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./hardware/memory.hh"
+#include "./hal/hal.hh"
 #include "./trace.hh"
 #include "Vrv32i_cpu.h"
 #include "verilated.h"
@@ -62,8 +62,8 @@ public:
 private:
   // DUT and memory
   std::unique_ptr<cpu_t> _dut;
-  std::unique_ptr<hardware::Memory> _imem;
-  std::unique_ptr<hardware::Memory> _dmem;
+  std::unique_ptr<hal::Memory> _imem;
+  std::unique_ptr<hal::Memory> _dmem;
   std::unique_ptr<ExecutionTrace> _trace;
 
 #ifdef ENABLE_TRACE

@@ -7,8 +7,8 @@ namespace demu {
 using namespace isa;
 
 CPUSimulator::CPUSimulator(bool enable_trace)
-    : _dut(new cpu_t), _imem(new hardware::Memory(256 * 1024, 0x00000000)),
-      _dmem(new hardware::Memory(256 * 1024, 0x80000000)),
+    : _dut(new cpu_t), _imem(new hal::Memory(4 * 1024, 0x00000000)),
+      _dmem(new hal::Memory(4 * 1024, 0x80000000)),
       _trace(new ExecutionTrace()), _time_counter(0), _cycle_count(0),
       _instr_count(0), _timeout(1000000), _terminate(false), _verbose(false),
       _show_pipeline(false), _trace_enabled(enable_trace) {
@@ -17,7 +17,7 @@ CPUSimulator::CPUSimulator(bool enable_trace)
     Verilated::traceEverOn(true);
     _vcd = std::make_unique<VerilatedVcdC>();
     _dut->trace(_vcd.get(), 99);
-    _vcd->open("rv32i_cpu.vcd");
+    _vcd->open(strcpy(ISA_NAME, "_cpu.vcd"));
   }
 #endif
 }

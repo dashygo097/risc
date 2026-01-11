@@ -16,7 +16,7 @@ object AXI4BridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
     override def createBridge(memory: UnifiedMemoryIO): Bundle = {
       val axi4 = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
 
-      axi4.aw.valid     := memory.req.valid
+      axi4.aw.valid     := memory.req.valid && (memory.req.bits.op === MemoryOp.WRITE)
       axi4.aw.bits.addr := memory.req.bits.addr
       axi4.aw.bits.prot := 0.U
 
