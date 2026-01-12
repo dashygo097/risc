@@ -11,8 +11,8 @@ public:
 
 protected:
   void on_init() override {
-    _imem_delay = 2;
-    _dmem_delay = 3;
+    _imem_delay = 1;
+    _dmem_delay = 1;
   };
   void on_clock_tick() override {};
   void on_exit() override {};

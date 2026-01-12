@@ -49,7 +49,9 @@ public:
   void read_delay(size_t cycles) { _read_delay = cycles; };
   void write_delay(size_t cycles) { _write_delay = cycles; };
 
-  [[nodiscard]] const char *name() const noexcept override { return "AXI RAM"; }
+  [[nodiscard]] const char *name() const noexcept override {
+    return "AXI Memory";
+  }
   [[nodiscard]] addr_t base_address() const noexcept override {
     return _memory->base_address();
   }

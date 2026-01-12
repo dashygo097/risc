@@ -100,7 +100,7 @@ void SystemSimulator::dump_memory(addr_t start, size_t size) const {
   if (mem) {
     printf("Memory dump [0x%08x - 0x%08zx]:\n", start, start + size);
     addr_t offset = start - mem->base_address();
-    byte_t *ptr = mem->get_ptr(offset);
+    byte_t *ptr = mem->get_ptr(start + offset);
 
     if (ptr) {
       for (size_t i = 0; i < size && (offset + i) < mem->size(); i += 16) {

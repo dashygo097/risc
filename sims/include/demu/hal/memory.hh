@@ -33,6 +33,8 @@ public:
   [[nodiscard]] addr_t base_address() const noexcept { return _base_addr; }
   [[nodiscard]] byte_t *get_ptr(addr_t addr) {
     if (!is_valid_addr(addr)) {
+      std::cout << "Invalid memory access at address 0x" << std::hex << addr
+                << std::dec << std::endl;
       return nullptr;
     }
     return &_memory[to_offset(addr)];
