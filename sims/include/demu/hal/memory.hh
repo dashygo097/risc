@@ -23,18 +23,20 @@ public:
 
   // Helpers
   [[nodiscard]] bool is_valid_addr(addr_t addr) const noexcept;
-  [[nodiscard]] addr_t translate_addr(addr_t addr) const noexcept;
+  [[nodiscard]] addr_t get_offset(addr_t addr) const noexcept;
   bool load_binary(const std::string &filename, addr_t offset = 0);
   void dump(addr_t start, addr_t length) const;
   void clear();
 
+  // Direct access
+  [[nodiscard]] byte_t *data() noexcept { return _memory.data(); }
   [[nodiscard]] size_t size() const noexcept { return _memory.size(); }
-  [[nodiscard]] addr_t base_addr() const noexcept { return _base_addr; }
+  [[nodiscard]] addr_t base_address() const noexcept { return _base_addr; }
   [[nodiscard]] byte_t *get_ptr(addr_t addr) {
     if (!is_valid_addr(addr)) {
       return nullptr;
     }
-    return &_memory[translate_addr(addr)];
+    return &_memory[get_offset(addr)];
   }
 
 private:

@@ -265,14 +265,14 @@ void CPUSimulator::run_until(addr_t pc) {
 }
 
 word_t CPUSimulator::read_mem(addr_t addr) const {
-  if (addr >= _dmem->base_addr()) {
+  if (addr >= _dmem->base_address()) {
     return _dmem->read_word(addr);
   }
   return _imem->read_word(addr);
 }
 
 void CPUSimulator::write_mem(addr_t addr, word_t data) {
-  if (addr >= _dmem->base_addr()) {
+  if (addr >= _dmem->base_address()) {
     _dmem->write_word(addr, data);
   } else {
     _imem->write_word(addr, data);
