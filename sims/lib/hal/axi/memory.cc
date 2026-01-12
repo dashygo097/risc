@@ -7,13 +7,13 @@ namespace demu::hal {
 
 AXIMemory::AXIMemory(size_t size, addr_t base_addr, size_t read_delay,
                      size_t write_delay)
-    : memory_(size, 0), base_addr_(base_addr), addr_range_(size),
+    : _memory(std::make_unique<Memory>(size, base_addr)),
       read_delay_cycles_(read_delay), write_delay_cycles_(write_delay) {
   reset();
 }
 
 void AXIMemory::reset() {
-  std::fill(memory_.begin(), memory_.end(), 0);
+  _memory->clear();
 
   // Clear all queues
   write_addr_queue_ = {};
@@ -36,17 +36,21 @@ void AXIMemory::process_writes() {
     write_addr_queue_.pop();
     write_data_queue_.pop();
 
-    const addr_t offset = addr - base_addr_;
-    if (offset < memory_.size() && offset + 3 < memory_.size()) {
+    const bool addr_valid =
+        _memory->is_valid_addr(addr) && _memory->is_valid_addr(addr + 3);
+
+    if (addr_valid) {
       for (int i = 0; i < 4; ++i) {
         if (wdata.strb & (1 << i)) {
-          memory_[offset + i] =
+          const byte_t byte_val =
               static_cast<byte_t>((wdata.data >> (i * 8)) & 0xFF);
+          _memory->write_byte(addr + i, byte_val);
         }
       }
     }
 
-    write_resp_queue_.push({0, write_delay_cycles_}); // OKAY response
+    uint8_t resp = addr_valid ? 0u : 2u; // OKAY or SLVERR
+    write_resp_queue_.push({resp, write_delay_cycles_});
   }
 }
 
@@ -57,17 +61,10 @@ void AXIMemory::process_reads() {
     if (read_trans.delay > 0) {
       read_trans.delay--;
     } else {
-      const addr_t offset = read_trans.addr - base_addr_;
-      word_t data = 0;
+      const bool addr_valid = _memory->is_valid_addr(read_trans.addr) &&
+                              _memory->is_valid_addr(read_trans.addr + 3);
 
-      if (offset < memory_.size() && offset + 3 < memory_.size()) {
-        data = static_cast<word_t>(memory_[offset]) |
-               (static_cast<word_t>(memory_[offset + 1]) << 8) |
-               (static_cast<word_t>(memory_[offset + 2]) << 16) |
-               (static_cast<word_t>(memory_[offset + 3]) << 24);
-      }
-
-      read_trans.data = data;
+      read_trans.data = addr_valid ? _memory->read_word(read_trans.addr) : 0;
       read_trans.processed = true;
     }
   }
@@ -131,33 +128,6 @@ word_t AXIMemory::r_data() const noexcept {
 
 uint8_t AXIMemory::r_resp() const noexcept {
   return 0; // OKAY
-}
-
-bool AXIMemory::load_binary(const std::string &filename, addr_t offset) {
-  std::ifstream file(filename, std::ios::binary | std::ios::ate);
-  if (!file.is_open()) {
-    std::cerr << "Failed to open binary file: " << filename << '\n';
-    return false;
-  }
-
-  const std::streamsize size = file.tellg();
-  file.seekg(0, std::ios::beg);
-
-  if (offset + size > memory_.size()) {
-    std::cerr << "Binary file too large for memory\n";
-    return false;
-  }
-
-  std::vector<char> buffer(static_cast<size_t>(size));
-  if (!file.read(buffer.data(), size)) {
-    return false;
-  }
-
-  for (size_t i = 0; i < buffer.size(); ++i) {
-    memory_[offset + i] = static_cast<byte_t>(buffer[i]);
-  }
-
-  return true;
 }
 
 } // namespace demu::hal
