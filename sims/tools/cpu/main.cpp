@@ -5,6 +5,16 @@
 #include <iostream>
 #include <string>
 
+class CPUSimulatorTop final : public demu::CPUSimulator {
+public:
+  CPUSimulatorTop(bool enabled_trace = false) : CPUSimulator(enabled_trace) {}
+
+private:
+  void on_clock_tick() override {};
+  void on_exit() override {};
+  void on_reset() override {};
+};
+
 void print_usage(const char *prog) {
   std::cout << "Usage: " << prog << " [options] <program_file>\n\n";
   std::cout << "Options:\n";
@@ -81,7 +91,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  demu::CPUSimulator sim(enable_trace);
+  CPUSimulatorTop sim(enable_trace);
   sim.verbose(verbose);
   sim.show_pipeline(show_pipeline);
 

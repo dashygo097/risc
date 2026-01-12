@@ -59,7 +59,7 @@ public:
   void dump_memory(addr_t start, size_t size) const;
   void save_trace(const std::string &filename);
 
-private:
+protected:
   // DUT and memory
   std::unique_ptr<cpu_t> _dut;
   std::unique_ptr<hal::Memory> _imem;
@@ -98,6 +98,10 @@ private:
   void handle_imem_interface();
   void handle_dmem_interface();
   void check_termination();
+
+  virtual void on_clock_tick() {};
+  virtual void on_exit() {};
+  virtual void on_reset() {};
 
   static const int IMEM_LATENCY = 2;
   static const int DMEM_LATENCY = 3;

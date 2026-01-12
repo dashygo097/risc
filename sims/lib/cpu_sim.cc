@@ -69,6 +69,8 @@ void CPUSimulator::reset() {
 
   _imem_pending = 0;
   _dmem_pending = 0;
+
+  on_reset();
 }
 
 void CPUSimulator::handle_imem_interface() {
@@ -236,6 +238,8 @@ void CPUSimulator::clock_tick() {
                 << std::dec << std::endl;
     }
   }
+
+  on_clock_tick();
 }
 
 void CPUSimulator::step(uint64_t cycles) {
@@ -254,6 +258,8 @@ void CPUSimulator::run(uint64_t max_cycles) {
   if (_verbose) {
     std::cout << "\nSimulation completed after " << _cycle_count << " cycles\n";
   }
+
+  on_exit();
 }
 
 void CPUSimulator::run_until(addr_t pc) {
@@ -262,6 +268,8 @@ void CPUSimulator::run_until(addr_t pc) {
     clock_tick();
     check_termination();
   }
+
+  on_exit();
 }
 
 word_t CPUSimulator::read_mem(addr_t addr) const {
