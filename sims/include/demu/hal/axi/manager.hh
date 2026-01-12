@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-namespace demu::hal {
+namespace demu::hal::axi {
 
 class AXIBusManager final {
 public:
@@ -82,4 +82,4 @@ const T *AXIBusManager::get_slave(uint8_t port) const noexcept {
   return dynamic_cast<const T *>(get_slave(port));
 }
 
-} // namespace demu::hal
+} // namespace demu::hal::axi

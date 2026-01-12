@@ -22,7 +22,7 @@
   name.rvalid = &_dut->M_AXI_##port_id##_RVALID;                               \
   name.rready = &_dut->M_AXI_##port_id##_RREADY;
 
-namespace demu::hal {
+namespace demu::hal::axi {
 using namespace isa;
 
 struct AXIReadTransaction {
@@ -61,4 +61,4 @@ struct AXISignals {
   uint8_t *rready;
 };
 
-} // namespace demu::hal
+} // namespace demu::hal::axi
