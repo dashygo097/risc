@@ -9,6 +9,7 @@ namespace demu::hal {
 class AXIBusManager {
 public:
   AXIBusManager() = default;
+  ~AXIBusManager() = default;
 
   template <typename T, typename... Args>
   T *register_slave(uint8_t port, const std::string &name, Args &&...args) {
