@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../isa/isa.hh"
-#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -23,7 +22,7 @@ public:
 
   // Helpers
   [[nodiscard]] bool is_valid_addr(addr_t addr) const noexcept;
-  [[nodiscard]] addr_t get_offset(addr_t addr) const noexcept;
+  [[nodiscard]] addr_t to_offset(addr_t addr) const noexcept;
   bool load_binary(const std::string &filename, addr_t offset = 0);
   void dump(addr_t start, addr_t length) const;
   void clear();
@@ -36,7 +35,7 @@ public:
     if (!is_valid_addr(addr)) {
       return nullptr;
     }
-    return &_memory[get_offset(addr)];
+    return &_memory[to_offset(addr)];
   }
 
 private:

@@ -12,11 +12,11 @@ public:
   virtual ~AXISlave() = default;
 
   virtual addr_t base_address() const noexcept = 0;
-  virtual size_t address_range() const noexcept = 0;
+  virtual size_t size() const noexcept = 0;
 
   [[nodiscard]] bool owns_address(addr_t addr) const noexcept {
     addr_t base = base_address();
-    return addr >= base && addr < (base + address_range());
+    return addr >= base && addr < (base + size());
   }
 
   virtual void clock_tick() = 0;

@@ -102,8 +102,7 @@ void SystemSimulator::dump_memory(addr_t start, size_t size) const {
     byte_t *ptr = mem->get_ptr(offset);
 
     if (ptr) {
-      for (size_t i = 0; i < size && (offset + i) < mem->address_range();
-           i += 16) {
+      for (size_t i = 0; i < size && (offset + i) < mem->size(); i += 16) {
         printf("%08zx: ", start + i);
 
         for (size_t j = 0; j < 16 && (i + j) < size; j++) {

@@ -44,18 +44,13 @@ public:
   [[nodiscard]] uint8_t r_resp() const noexcept override;
 
   // Bypass Methods
-  [[nodiscard]] word_t read_word(addr_t addr) const noexcept;
-  void write_word(addr_t addr, word_t data);
-
   bool load_binary(const std::string &filename, addr_t offset = 0);
 
   [[nodiscard]] const char *name() const noexcept override { return "AXI RAM"; }
   [[nodiscard]] addr_t base_address() const noexcept override {
     return base_addr_;
   }
-  [[nodiscard]] size_t address_range() const noexcept override {
-    return addr_range_;
-  }
+  [[nodiscard]] size_t size() const noexcept override { return addr_range_; }
   void read_delay(size_t cycles) { read_delay_cycles_ = cycles; };
 
   void write_delay(size_t cycles) { write_delay_cycles_ = cycles; };

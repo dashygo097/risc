@@ -133,30 +133,6 @@ uint8_t AXIMemory::r_resp() const noexcept {
   return 0; // OKAY
 }
 
-word_t AXIMemory::read_word(addr_t addr) const noexcept {
-  const addr_t offset = addr - base_addr_;
-  if (offset >= memory_.size() || offset + 3 >= memory_.size()) {
-    return 0;
-  }
-
-  return static_cast<word_t>(memory_[offset]) |
-         (static_cast<word_t>(memory_[offset + 1]) << 8) |
-         (static_cast<word_t>(memory_[offset + 2]) << 16) |
-         (static_cast<word_t>(memory_[offset + 3]) << 24);
-}
-
-void AXIMemory::write_word(addr_t addr, word_t data) {
-  const addr_t offset = addr - base_addr_;
-  if (offset >= memory_.size() || offset + 3 >= memory_.size()) {
-    return;
-  }
-
-  memory_[offset] = static_cast<byte_t>(data & 0xFF);
-  memory_[offset + 1] = static_cast<byte_t>((data >> 8) & 0xFF);
-  memory_[offset + 2] = static_cast<byte_t>((data >> 16) & 0xFF);
-  memory_[offset + 3] = static_cast<byte_t>((data >> 24) & 0xFF);
-}
-
 bool AXIMemory::load_binary(const std::string &filename, addr_t offset) {
   std::ifstream file(filename, std::ios::binary | std::ios::ate);
   if (!file.is_open()) {

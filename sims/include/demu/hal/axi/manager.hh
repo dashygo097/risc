@@ -84,7 +84,7 @@ public:
       if (_slaves[i]) {
         printf("M_AXI_%zu: %s [0x%08x - 0x%08zx]\n", i, _slave_names[i].c_str(),
                _slaves[i]->base_address(),
-               _slaves[i]->base_address() + _slaves[i]->address_range() - 1);
+               _slaves[i]->base_address() + _slaves[i]->size() - 1);
       }
     }
   }
