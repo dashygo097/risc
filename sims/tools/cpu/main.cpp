@@ -9,7 +9,11 @@ class CPUSimulatorTop final : public demu::CPUSimulator {
 public:
   CPUSimulatorTop(bool enabled_trace = false) : CPUSimulator(enabled_trace) {}
 
-private:
+protected:
+  void on_init() override {
+    _imem_delay = 2;
+    _dmem_delay = 3;
+  };
   void on_clock_tick() override {};
   void on_exit() override {};
   void on_reset() override {};

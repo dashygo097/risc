@@ -20,6 +20,7 @@ CPUSimulator::CPUSimulator(bool enable_trace)
     _vcd->open((std::string(ISA_NAME) + "_cpu.vcd").c_str());
   }
 #endif
+  on_init();
 }
 
 CPUSimulator::~CPUSimulator() {
@@ -80,7 +81,7 @@ void CPUSimulator::handle_imem_interface() {
 
     if (_dut->imem_req_valid && _dut->imem_req_ready) {
       _imem_pending_addr = static_cast<addr_t>(_dut->imem_req_bits_addr);
-      _imem_pending_latency = IMEM_LATENCY;
+      _imem_pending_latency = _imem_delay;
       _imem_pending = true;
     }
   } else {
@@ -110,7 +111,7 @@ void CPUSimulator::handle_dmem_interface() {
       _dmem_pending_addr = static_cast<addr_t>(_dut->dmem_req_bits_addr);
       _dmem_pending_op = _dut->dmem_req_bits_op;
       _dmem_pending_data = static_cast<word_t>(_dut->dmem_req_bits_data);
-      _dmem_pending_latency = DMEM_LATENCY;
+      _dmem_pending_latency = _dmem_delay;
       _dmem_pending = true;
 
       if (_verbose) {
@@ -249,6 +250,7 @@ void CPUSimulator::step(uint64_t cycles) {
 }
 
 void CPUSimulator::run(uint64_t max_cycles) {
+  on_init();
   uint64_t target = max_cycles > 0 ? max_cycles : _timeout;
   while (_cycle_count < target && !_terminate) {
     clock_tick();
@@ -263,6 +265,7 @@ void CPUSimulator::run(uint64_t max_cycles) {
 }
 
 void CPUSimulator::run_until(addr_t pc) {
+  on_init();
   while (static_cast<addr_t>(_dut->debug_pc) != pc && _cycle_count < _timeout &&
          !_terminate) {
     clock_tick();

@@ -67,6 +67,12 @@ protected:
 
   // Overridable hooks
   virtual void register_devices() {};
+  virtual void set_mem_delay() {
+    _imem->read_delay(1);
+    _imem->write_delay(1);
+    _dmem->read_delay(1);
+    _dmem->write_delay(1);
+  };
   virtual void check_termination() {};
   virtual void on_clock_tick() {};
   virtual void on_exit() {};
