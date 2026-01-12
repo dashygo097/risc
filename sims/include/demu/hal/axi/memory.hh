@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <queue>
 #include <string>
-#include <vector>
 
 namespace demu::hal {
 
@@ -47,8 +46,8 @@ public:
   bool load_binary(const std::string &filename, addr_t offset = 0) {
     return _memory->load_binary(filename, offset);
   };
-  void read_delay(size_t cycles) { read_delay_cycles_ = cycles; };
-  void write_delay(size_t cycles) { write_delay_cycles_ = cycles; };
+  void read_delay(size_t cycles) { _read_delay = cycles; };
+  void write_delay(size_t cycles) { _write_delay = cycles; };
 
   [[nodiscard]] const char *name() const noexcept override { return "AXI RAM"; }
   [[nodiscard]] addr_t base_address() const noexcept override {
@@ -89,14 +88,14 @@ private:
 
   // Components
   std::unique_ptr<Memory> _memory;
-  size_t read_delay_cycles_;
-  size_t write_delay_cycles_;
+  size_t _read_delay;
+  size_t _write_delay;
 
   // Transaction queues for pipelined operation
-  std::queue<addr_t> write_addr_queue_;
-  std::queue<WriteData> write_data_queue_;
-  std::queue<WriteResponse> write_resp_queue_;
-  std::queue<ReadTransaction> read_queue_;
+  std::queue<addr_t> _write_addr_queue;
+  std::queue<WriteData> _write_data_queue;
+  std::queue<WriteResponse> _write_resp_queue;
+  std::queue<ReadTransaction> _read_queue;
 };
 
 } // namespace demu::hal
