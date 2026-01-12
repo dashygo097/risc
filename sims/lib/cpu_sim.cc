@@ -7,8 +7,8 @@ namespace demu {
 using namespace isa;
 
 CPUSimulator::CPUSimulator(bool enable_trace)
-    : _dut(new cpu_t), _imem(new hardware::Memory(256 * 1024, 0x00000000)),
-      _dmem(new hardware::Memory(256 * 1024, 0x80000000)),
+    : _dut(new cpu_t), _imem(new hal::Memory(4 * 1024, 0x00000000)),
+      _dmem(new hal::Memory(4 * 1024, 0x80000000)),
       _trace(new ExecutionTrace()), _time_counter(0), _cycle_count(0),
       _instr_count(0), _timeout(1000000), _terminate(false), _verbose(false),
       _show_pipeline(false), _trace_enabled(enable_trace) {
@@ -17,9 +17,10 @@ CPUSimulator::CPUSimulator(bool enable_trace)
     Verilated::traceEverOn(true);
     _vcd = std::make_unique<VerilatedVcdC>();
     _dut->trace(_vcd.get(), 99);
-    _vcd->open("rv32i_cpu.vcd");
+    _vcd->open((std::string(ISA_NAME) + "_cpu.vcd").c_str());
   }
 #endif
+  on_init();
 }
 
 CPUSimulator::~CPUSimulator() {
@@ -69,6 +70,8 @@ void CPUSimulator::reset() {
 
   _imem_pending = 0;
   _dmem_pending = 0;
+
+  on_reset();
 }
 
 void CPUSimulator::handle_imem_interface() {
@@ -78,7 +81,7 @@ void CPUSimulator::handle_imem_interface() {
 
     if (_dut->imem_req_valid && _dut->imem_req_ready) {
       _imem_pending_addr = static_cast<addr_t>(_dut->imem_req_bits_addr);
-      _imem_pending_latency = IMEM_LATENCY;
+      _imem_pending_latency = _imem_delay;
       _imem_pending = true;
     }
   } else {
@@ -108,7 +111,7 @@ void CPUSimulator::handle_dmem_interface() {
       _dmem_pending_addr = static_cast<addr_t>(_dut->dmem_req_bits_addr);
       _dmem_pending_op = _dut->dmem_req_bits_op;
       _dmem_pending_data = static_cast<word_t>(_dut->dmem_req_bits_data);
-      _dmem_pending_latency = DMEM_LATENCY;
+      _dmem_pending_latency = _dmem_delay;
       _dmem_pending = true;
 
       if (_verbose) {
@@ -236,6 +239,8 @@ void CPUSimulator::clock_tick() {
                 << std::dec << std::endl;
     }
   }
+
+  on_clock_tick();
 }
 
 void CPUSimulator::step(uint64_t cycles) {
@@ -245,6 +250,7 @@ void CPUSimulator::step(uint64_t cycles) {
 }
 
 void CPUSimulator::run(uint64_t max_cycles) {
+  on_init();
   uint64_t target = max_cycles > 0 ? max_cycles : _timeout;
   while (_cycle_count < target && !_terminate) {
     clock_tick();
@@ -254,25 +260,30 @@ void CPUSimulator::run(uint64_t max_cycles) {
   if (_verbose) {
     std::cout << "\nSimulation completed after " << _cycle_count << " cycles\n";
   }
+
+  on_exit();
 }
 
 void CPUSimulator::run_until(addr_t pc) {
+  on_init();
   while (static_cast<addr_t>(_dut->debug_pc) != pc && _cycle_count < _timeout &&
          !_terminate) {
     clock_tick();
     check_termination();
   }
+
+  on_exit();
 }
 
 word_t CPUSimulator::read_mem(addr_t addr) const {
-  if (addr >= _dmem->base_addr()) {
+  if (addr >= _dmem->base_address()) {
     return _dmem->read_word(addr);
   }
   return _imem->read_word(addr);
 }
 
 void CPUSimulator::write_mem(addr_t addr, word_t data) {
-  if (addr >= _dmem->base_addr()) {
+  if (addr >= _dmem->base_address()) {
     _dmem->write_word(addr, data);
   } else {
     _imem->write_word(addr, data);
@@ -280,9 +291,7 @@ void CPUSimulator::write_mem(addr_t addr, word_t data) {
 }
 
 void CPUSimulator::dump_registers() const {
-  std::cout << "\n========================================\n";
-  std::cout << "Register Dump\n";
-  std::cout << "========================================\n";
+  std::cout << "Register Dump:\n";
   std::cout << "x00 = 0x" << std::hex << std::setw(8) << std::setfill('0')
             << reg(0) << "  ";
   for (int i = 1; i < NUM_GPRS; i++) {
@@ -297,10 +306,7 @@ void CPUSimulator::dump_registers() const {
 }
 
 void CPUSimulator::dump_memory(addr_t start, size_t size) const {
-  std::cout << "\n========================================\n";
-  std::cout << "Memory Dump: 0x" << std::hex << start << " - 0x"
-            << (start + size) << "\n";
-  std::cout << "========================================\n";
+  printf("Memory dump [0x%08x - 0x%08zx]:\n", start, start + size);
   for (addr_t addr = start; addr < start + size; addr += 16) {
     std::cout << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";
     for (size_t i = 0; i < 16 && (addr + i) < (start + size); i += 4) {

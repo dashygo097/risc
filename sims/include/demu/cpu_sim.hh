@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./hardware/memory.hh"
+#include "./hal/hal.hh"
 #include "./trace.hh"
 #include "Vrv32i_cpu.h"
 #include "verilated.h"
@@ -59,11 +59,11 @@ public:
   void dump_memory(addr_t start, size_t size) const;
   void save_trace(const std::string &filename);
 
-private:
+protected:
   // DUT and memory
   std::unique_ptr<cpu_t> _dut;
-  std::unique_ptr<hardware::Memory> _imem;
-  std::unique_ptr<hardware::Memory> _dmem;
+  std::unique_ptr<hal::Memory> _imem;
+  std::unique_ptr<hal::Memory> _dmem;
   std::unique_ptr<ExecutionTrace> _trace;
 
 #ifdef ENABLE_TRACE
@@ -71,6 +71,8 @@ private:
 #endif
 
   // Simulator state
+  uint8_t _imem_delay{1};
+  uint8_t _dmem_delay{1};
   uint64_t _time_counter;
   uint64_t _cycle_count;
   uint64_t _instr_count;
@@ -99,8 +101,13 @@ private:
   void handle_dmem_interface();
   void check_termination();
 
-  static const int IMEM_LATENCY = 2;
-  static const int DMEM_LATENCY = 3;
+  virtual void on_init() {
+    _imem_delay = 1;
+    _dmem_delay = 1;
+  }
+  virtual void on_clock_tick() {};
+  virtual void on_exit() {};
+  virtual void on_reset() {};
 };
 
 } // namespace demu

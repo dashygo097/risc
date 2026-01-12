@@ -81,14 +81,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_pending := false.B
   }
 
-  reset_ibuffer := false.B
   when(reset_ibuffer) {
     imem_valid := false.B
   }
   when(bru.taken) {
     reset_ibuffer := true.B
   }
-  when(ibuffer_empty) {
+  when(ibuffer_empty && !imem_pending) {
     reset_ibuffer := false.B
   }
 

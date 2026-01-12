@@ -1,10 +1,10 @@
-#include "demu/hardware/memory.hh"
+#include "demu/hal/memory.hh"
 #include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 
-namespace demu::hardware {
+namespace demu::hal {
 Memory::Memory(size_t size, addr_t base_addr)
     : _memory(size, 0), _base_addr(base_addr) {}
 
@@ -13,7 +13,7 @@ word_t Memory::read_word(addr_t addr) const noexcept {
     return 0x0;
 
   word_t read_data = 0;
-  addr_t offset = translate_addr(addr);
+  addr_t offset = to_offset(addr);
 
   for (size_t i = 0; i < sizeof(word_t) / sizeof(byte_t); i++) {
     read_data |= static_cast<word_t>(_memory[offset + i]) << (i * 8);
@@ -26,7 +26,7 @@ half_t Memory::read_half(addr_t addr) const noexcept {
     return 0x0;
 
   half_t read_data = 0;
-  addr_t offset = translate_addr(addr);
+  addr_t offset = to_offset(addr);
 
   for (size_t i = 0; i < sizeof(half_t) / sizeof(byte_t); i++) {
     read_data |= static_cast<word_t>(_memory[offset + i]) << (i * 8);
@@ -38,7 +38,7 @@ byte_t Memory::read_byte(addr_t addr) const noexcept {
   if (!is_valid_addr(addr))
     return 0x0;
 
-  addr_t offset = translate_addr(addr);
+  addr_t offset = to_offset(addr);
 
   return _memory[offset];
 }
@@ -47,7 +47,7 @@ void Memory::write_word(addr_t addr, word_t data) {
   if (!is_valid_addr(addr))
     return;
 
-  addr_t offset = translate_addr(addr);
+  addr_t offset = to_offset(addr);
   for (size_t i = 0; i < sizeof(word_t) / sizeof(byte_t); i++) {
     _memory[offset + i] = (data >> (i * 8)) & 0xFF;
   }
@@ -57,7 +57,7 @@ void Memory::write_half(addr_t addr, half_t data) {
   if (!is_valid_addr(addr))
     return;
 
-  addr_t offset = translate_addr(addr);
+  addr_t offset = to_offset(addr);
   for (size_t i = 0; i < sizeof(half_t) / sizeof(byte_t); i++) {
     _memory[offset + i] = (data >> (i * 8)) & 0xFF;
   }
@@ -67,7 +67,7 @@ void Memory::write_byte(addr_t addr, byte_t data) {
   if (!is_valid_addr(addr))
     return;
 
-  addr_t offset = translate_addr(addr);
+  addr_t offset = to_offset(addr);
   _memory[offset] = data;
 }
 
@@ -126,8 +126,8 @@ bool Memory::is_valid_addr(addr_t addr) const noexcept {
   return offset < _memory.size();
 }
 
-addr_t Memory::translate_addr(addr_t addr) const noexcept {
+addr_t Memory::to_offset(addr_t addr) const noexcept {
   return addr - _base_addr;
 }
 
-} // namespace demu::hardware
+} // namespace demu::hal

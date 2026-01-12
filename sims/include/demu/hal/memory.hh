@@ -1,14 +1,13 @@
 #pragma once
 
 #include "../isa/isa.hh"
-#include <cstdint>
 #include <string>
 #include <vector>
 
-namespace demu::hardware {
+namespace demu::hal {
 using namespace isa;
 
-class Memory {
+class Memory final {
 public:
   Memory(size_t size, addr_t base_addr = 0x0);
   ~Memory() = default;
@@ -21,19 +20,29 @@ public:
   void write_half(addr_t addr, half_t data);
   void write_byte(addr_t addr, byte_t data);
 
+  // Helpers
+  [[nodiscard]] bool is_valid_addr(addr_t addr) const noexcept;
+  [[nodiscard]] addr_t to_offset(addr_t addr) const noexcept;
   bool load_binary(const std::string &filename, addr_t offset = 0);
   void dump(addr_t start, addr_t length) const;
   void clear();
 
+  // Direct access
+  [[nodiscard]] byte_t *data() noexcept { return _memory.data(); }
   [[nodiscard]] size_t size() const noexcept { return _memory.size(); }
-  [[nodiscard]] addr_t base_addr() const noexcept { return _base_addr; }
+  [[nodiscard]] addr_t base_address() const noexcept { return _base_addr; }
+  [[nodiscard]] byte_t *get_ptr(addr_t addr) {
+    if (!is_valid_addr(addr)) {
+      std::cout << "Invalid memory access at address 0x" << std::hex << addr
+                << std::dec << std::endl;
+      return nullptr;
+    }
+    return &_memory[to_offset(addr)];
+  }
 
 private:
   std::vector<byte_t> _memory;
   addr_t _base_addr;
-
-  [[nodiscard]] bool is_valid_addr(addr_t addr) const noexcept;
-  [[nodiscard]] addr_t translate_addr(addr_t addr) const noexcept;
 };
 
-} // namespace demu::hardware
+} // namespace demu::hal

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./hardware/memory.hh"
+#include "./hal/hal.hh"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -41,9 +41,9 @@ struct ELFSection {
   std::vector<uint8_t> data;
 };
 
-class ELFLoader {
+class ELFLoader final {
 public:
-  static bool load(hardware::Memory &mem, const std::string &filename);
+  static bool load(hal::Memory &mem, const std::string &filename);
   static bool load(std::vector<ELFSection> &sections, uint32_t &entry_point,
                    const std::string &filename);
 

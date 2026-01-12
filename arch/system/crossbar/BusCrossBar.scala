@@ -12,6 +12,10 @@ class BusCrossbar(implicit p: Parameters) extends Module {
   val dbus    = IO(utils.masterType).suggestName("DBUS")
   val devices = IO(Vec(p(BusAddressMap).length, utils.slaveType)).suggestName(s"M_${p(BusType)}".toUpperCase)
 
+  dontTouch(ibus)
+  dontTouch(dbus)
+  dontTouch(devices)
+
   val interface = utils.createInterface(ibus, dbus)
 
   for (i <- devices.indices)

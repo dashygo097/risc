@@ -6,7 +6,7 @@ import vopts.mem.cache._
 import chisel3._
 import chisel3.util._
 
-object AXI4BridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
+object AXIBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
   override def utils: BusBridgeUtilities = new BusBridgeUtilities {
     override def name: String = "axi"
 
@@ -14,42 +14,41 @@ object AXI4BridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen))
 
     override def createBridge(memory: UnifiedMemoryIO): Bundle = {
-      val axi4 = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
+      val axi = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
 
-      axi4.aw.valid     := memory.req.valid
-      axi4.aw.bits.addr := memory.req.bits.addr
-      axi4.aw.bits.prot := 0.U
+      val isWrite = memory.req.bits.op === MemoryOp.WRITE
+      val isRead  = memory.req.bits.op === MemoryOp.READ
 
-      axi4.w.valid     := memory.req.valid && (memory.req.bits.op === MemoryOp.WRITE)
-      axi4.w.bits.data := memory.req.bits.data
-      axi4.w.bits.strb := Fill(p(XLen) / 8, 1.U) // TODO: flatten strb for axi4 bus
+      // AW
+      axi.aw.valid     := memory.req.valid && isWrite
+      axi.aw.bits.addr := memory.req.bits.addr
+      axi.aw.bits.prot := 0.U
 
-      axi4.b.ready := true.B
+      // W
+      axi.w.valid     := memory.req.valid && isWrite
+      axi.w.bits.data := memory.req.bits.data
+      axi.w.bits.strb := Fill(p(XLen) / 8, 1.U)
 
-      axi4.ar.valid     := memory.req.valid && (memory.req.bits.op === MemoryOp.READ)
-      axi4.ar.bits.addr := memory.req.bits.addr
-      axi4.ar.bits.prot := 0.U
+      // B
+      axi.b.ready := memory.resp.ready
 
-      axi4.r.ready := memory.resp.ready
+      // AR
+      axi.ar.valid     := memory.req.valid && isRead
+      axi.ar.bits.addr := memory.req.bits.addr
+      axi.ar.bits.prot := 0.U
 
-      memory.req.ready := MuxCase(
-        false.B,
-        Seq(
-          (memory.req.bits.op === MemoryOp.WRITE) -> (axi4.aw.ready && axi4.w.ready),
-          (memory.req.bits.op === MemoryOp.READ)  -> axi4.ar.ready
-        )
-      )
+      // R
+      axi.r.ready := memory.resp.ready
 
-      memory.resp.valid     := MuxCase(
-        false.B,
-        Seq(
-          (memory.req.bits.op === MemoryOp.WRITE) -> axi4.b.valid,
-          (memory.req.bits.op === MemoryOp.READ)  -> axi4.r.valid
-        )
-      )
-      memory.resp.bits.data := axi4.r.bits.data
+      val writeAccepted = memory.req.valid && isWrite && axi.aw.ready && axi.w.ready
+      val readAccepted  = memory.req.valid && isRead && axi.ar.ready
 
-      axi4
+      memory.req.ready := writeAccepted || readAccepted
+
+      memory.resp.valid     := Mux(isWrite, axi.b.valid, axi.r.valid)
+      memory.resp.bits.data := axi.r.bits.data
+
+      axi
     }
   }
 

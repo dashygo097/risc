@@ -16,7 +16,7 @@ bool ELFLoader::is_elf(const std::string &filename) {
           magic[3] == 'F');
 }
 
-bool ELFLoader::load(hardware::Memory &mem, const std::string &filename) {
+bool ELFLoader::load(hal::Memory &mem, const std::string &filename) {
   if (!is_elf(filename)) {
     std::cerr << "Not a valid ELF file" << std::endl;
     return false;
