@@ -19,7 +19,7 @@ struct TraceEntry {
   bool regwrite;
 };
 
-class ExecutionTrace {
+class ExecutionTrace final {
 public:
   ExecutionTrace() = default;
   ~ExecutionTrace() = default;

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 
-class SystemSimulatorTop : public demu::SystemSimulator {
+class SystemSimulatorTop final : public demu::SystemSimulator {
 public:
   SystemSimulatorTop(bool enabled_trace = false)
       : SystemSimulator(enabled_trace) {}

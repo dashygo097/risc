@@ -7,7 +7,7 @@
 namespace demu::hal {
 using namespace isa;
 
-class Memory {
+class Memory final {
 public:
   Memory(size_t size, addr_t base_addr = 0x0);
   ~Memory() = default;

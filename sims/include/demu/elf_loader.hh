@@ -41,7 +41,7 @@ struct ELFSection {
   std::vector<uint8_t> data;
 };
 
-class ELFLoader {
+class ELFLoader final {
 public:
   static bool load(hal::Memory &mem, const std::string &filename);
   static bool load(std::vector<ELFSection> &sections, uint32_t &entry_point,
