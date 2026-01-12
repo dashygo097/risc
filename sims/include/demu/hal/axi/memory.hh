@@ -44,28 +44,24 @@ public:
   [[nodiscard]] uint8_t r_resp() const noexcept override;
 
   // Bypass Methods
-  bool load_binary(const std::string &filename, addr_t offset = 0);
+  bool load_binary(const std::string &filename, addr_t offset = 0) {
+    return _memory->load_binary(filename, offset);
+  };
+  void read_delay(size_t cycles) { read_delay_cycles_ = cycles; };
+  void write_delay(size_t cycles) { write_delay_cycles_ = cycles; };
 
   [[nodiscard]] const char *name() const noexcept override { return "AXI RAM"; }
   [[nodiscard]] addr_t base_address() const noexcept override {
-    return base_addr_;
+    return _memory->base_address();
   }
-  [[nodiscard]] size_t size() const noexcept override { return addr_range_; }
-  void read_delay(size_t cycles) { read_delay_cycles_ = cycles; };
-
-  void write_delay(size_t cycles) { write_delay_cycles_ = cycles; };
-
+  [[nodiscard]] size_t size() const noexcept override {
+    return _memory->size();
+  }
   [[nodiscard]] byte_t *get_ptr(addr_t offset = 0) {
-    if (offset >= memory_.size()) {
-      return nullptr;
-    }
-    return memory_.data() + offset;
+    return _memory->get_ptr(offset);
   }
   [[nodiscard]] const byte_t *get_ptr(addr_t offset = 0) const {
-    if (offset >= memory_.size()) {
-      return nullptr;
-    }
-    return memory_.data() + offset;
+    return _memory->get_ptr(offset);
   };
 
 private:
@@ -92,9 +88,7 @@ private:
   void update_delays();
 
   // Components
-  std::vector<byte_t> memory_;
-  addr_t base_addr_;
-  size_t addr_range_;
+  std::unique_ptr<Memory> _memory;
   size_t read_delay_cycles_;
   size_t write_delay_cycles_;
 
