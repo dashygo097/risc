@@ -13,6 +13,7 @@ SystemSimulator::SystemSimulator(bool enabled_trace)
       _axi_bus->register_slave<hal::AXIMemory>(0, "imem", 4 * 1024, 0x00000000);
   _dmem =
       _axi_bus->register_slave<hal::AXIMemory>(1, "dmem", 4 * 1024, 0x80000000);
+  set_mem_delay();
 
   register_devices();
 

@@ -9,8 +9,14 @@ public:
   SystemSimulatorTop(bool enabled_trace = false)
       : SystemSimulator(enabled_trace) {}
 
-private:
+protected:
   void register_devices() override {};
+  void set_mem_delay() override {
+    _imem->read_delay(1);
+    _imem->write_delay(1);
+    _dmem->read_delay(1);
+    _dmem->write_delay(1);
+  };
   void check_termination() override {};
   void on_clock_tick() override {};
   void on_exit() override {};
