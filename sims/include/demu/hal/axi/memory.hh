@@ -9,12 +9,13 @@ namespace demu::hal {
 
 class AXIMemory : public AXISlave {
 public:
-  AXIMemory(size_t size, addr_t base_addr = 0x0, size_t read_delay = 0,
-            size_t write_delay = 0)
+  AXIMemory(size_t size, addr_t base_addr = 0x0, size_t read_delay = 1,
+            size_t write_delay = 1)
       : _memory(size, 0), _base_addr(base_addr), _addr_range(size),
         _read_delay_cycles(read_delay), _write_delay_cycles(write_delay) {
     reset();
   }
+  ~AXIMemory() override = default;
 
   const char *name() const noexcept override { return "AXI RAM"; }
 
