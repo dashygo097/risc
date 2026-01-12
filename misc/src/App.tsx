@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Layout } from "./layout";
 import "@styles/global.css";
 
-import HomePage from "@assets/home.mdx";
+import RootPage from "@assets/root.mdx";
 import UserGuidePage from "@assets/user-guide/root.mdx";
 import QuickStartPage from "@assets/user-guide/getting-started.mdx";
 import DevGuidePage from "@assets/dev-guide/root.mdx";
@@ -22,7 +22,7 @@ const App: React.FC = () => {
       <div className={theme === "dark" ? "app-theme-dark" : ""}>
         <Layout theme={theme} onThemeToggle={toggleTheme}>
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/" element={<RootPage />} />
             <Route path="/user-guide/root" element={<UserGuidePage />} />
             <Route
               path="/user-guide/getting-started"

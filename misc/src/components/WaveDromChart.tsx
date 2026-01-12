@@ -66,10 +66,12 @@ const WaveDromChart: React.FC<WavedromProps> = ({ children, className }) => {
       ref={containerRef}
       className={className}
       style={{
-        margin: "1rem 0",
+        margin: "var(--space-lg) 0",
         minHeight: "50px",
         display: "flex",
         justifyContent: "center",
+        borderRadius: "var(--radius-md)",
+        overflow: "hidden",
       }}
     />
   );

@@ -16,7 +16,8 @@ package object configs {
   object BusAddressMap
       extends Field[Seq[(Long, Long)]](
         Seq(
-          (0x00000000L, 0xffffffffL), // Memory
+          (0x00000000L, 0x00001000L), // DRAM(IMEM)
+          (0x80000000L, 0x80001000L), // DRAM(DMEM)
         )
       )
 
