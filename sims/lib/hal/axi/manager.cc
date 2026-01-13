@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace demu::hal {
+namespace demu::hal::axi {
 
 AXISlave *AXIBusManager::get_slave(uint8_t port) noexcept {
   if (port >= slaves_.size()) {
@@ -92,4 +92,4 @@ void AXIBusManager::ensure_capacity(uint8_t port) {
   }
 }
 
-} // namespace demu::hal
+} // namespace demu::hal::axi
