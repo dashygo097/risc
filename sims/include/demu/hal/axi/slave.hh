@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <queue>
 
-namespace demu::hal {
+namespace demu::hal::axi {
 using namespace isa;
 
 class AXISlave {
@@ -54,4 +54,4 @@ protected:
   }
 };
 
-} // namespace demu::hal
+} // namespace demu::hal::axi

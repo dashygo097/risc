@@ -38,9 +38,9 @@ public:
 
   // Exported Ports
   [[nodiscard]] system_t &dut() noexcept { return *_dut; }
-  [[nodiscard]] hal::AXIBusManager &axiBus() noexcept { return *_axi_bus; }
-  [[nodiscard]] hal::AXIMemory &dmem() noexcept { return *_dmem; }
-  [[nodiscard]] hal::AXIMemory &imem() noexcept { return *_imem; }
+  [[nodiscard]] hal::axi::AXIBusManager &axiBus() noexcept { return *_axi_bus; }
+  [[nodiscard]] hal::axi::AXIMemory &dmem() noexcept { return *_dmem; }
+  [[nodiscard]] hal::axi::AXIMemory &imem() noexcept { return *_imem; }
 
 protected:
   // DUT
@@ -51,9 +51,9 @@ protected:
 #endif
 
   // Devices
-  std::unique_ptr<hal::AXIBusManager> _axi_bus;
-  hal::AXIMemory *_dmem;
-  hal::AXIMemory *_imem;
+  std::unique_ptr<hal::axi::AXIBusManager> _axi_bus;
+  hal::axi::AXIMemory *_dmem;
+  hal::axi::AXIMemory *_imem;
 
   // Simulator state
   uint64_t _time_counter;
@@ -112,8 +112,8 @@ protected:
     slave->r_ready(*rready);
   }
 
-  virtual hal::AXISignals from_port(uint8_t port) {
-    hal::AXISignals signals;
+  virtual hal::axi::AXISignals from_port(uint8_t port) {
+    hal::axi::AXISignals signals;
 
     if (port == 0) {
       signals.awaddr = &_dut->M_AXI_0_AWADDR;

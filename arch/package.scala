@@ -12,7 +12,8 @@ package object configs {
   object IsRegfileUseBypass extends Field[Boolean](true)
 
   // System Parameters
-  object BusType extends Field[String]("axi")
+  object BusType            extends Field[String]("axi")
+  object FifoDepthPerClient extends Field[Int](4)
   object BusAddressMap
       extends Field[Seq[(Long, Long)]](
         Seq(

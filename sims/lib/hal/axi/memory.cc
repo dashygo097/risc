@@ -1,6 +1,6 @@
 #include "demu/hal/axi/memory.hh"
 
-namespace demu::hal {
+namespace demu::hal::axi {
 
 AXIMemory::AXIMemory(size_t size, addr_t base_addr, size_t read_delay,
                      size_t write_delay)
@@ -127,4 +127,4 @@ uint8_t AXIMemory::r_resp() const noexcept {
   return 0; // OKAY
 }
 
-} // namespace demu::hal
+} // namespace demu::hal::axi

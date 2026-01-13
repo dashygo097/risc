@@ -7,7 +7,7 @@
 #include <queue>
 #include <string>
 
-namespace demu::hal {
+namespace demu::hal::axi {
 
 class AXIMemory final : public AXISlave {
 public:
@@ -100,4 +100,4 @@ private:
   std::queue<ReadTransaction> _read_queue;
 };
 
-} // namespace demu::hal
+} // namespace demu::hal::axi
