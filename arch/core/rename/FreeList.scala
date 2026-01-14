@@ -5,38 +5,36 @@ import chisel3._
 import chisel3.util._
 
 class FreeList(implicit p: Parameters) extends Module {
-  val io = IO(new Bundle {
-    // Allocate physical register
-    val alloc_req   = Input(Bool())
-    val alloc_preg  = Output(UInt(log2Ceil(p(NumPhyRegs)).W))
-    val alloc_valid = Output(Bool())
+  // Allocate physical register
+  val alloc_en    = IO(Input(Bool()))
+  val alloc_addr  = IO(Output(UInt(log2Ceil(p(NumPhyRegs)).W)))
+  val alloc_valid = IO(Output(Bool()))
 
-    // Free physical register
-    val free_en   = Input(Bool())
-    val free_preg = Input(UInt(log2Ceil(p(NumPhyRegs)).W))
+  // Free physical register
+  val free_en   = IO(Input(Bool()))
+  val free_preg = IO(Input(UInt(log2Ceil(p(NumPhyRegs)).W)))
 
-    val empty = Output(Bool())
-  })
+  val empty = IO(Output(Bool()))
 
   val free_vec = RegInit(VecInit(Seq.tabulate(p(NumPhyRegs)) { i =>
     (i >= p(NumArchRegs)).B
   }))
 
   // Find first free physical register
-  val free_preg = PriorityEncoder(free_vec)
+  val free_addr = PriorityEncoder(free_vec)
   val has_free  = free_vec.asUInt.orR
 
-  io.alloc_preg  := free_preg
-  io.alloc_valid := has_free
-  io.empty       := !has_free
+  alloc_addr  := free_addr
+  alloc_valid := has_free
+  empty       := !has_free
 
   // Allocate
-  when(io.alloc_req && has_free) {
-    free_vec(free_preg) := false.B
+  when(alloc_en && has_free) {
+    free_vec(free_addr) := false.B
   }
 
   // Free
-  when(io.free_en) {
-    free_vec(io.free_preg) := true.B
+  when(free_en) {
+    free_vec(free_preg) := true.B
   }
 }

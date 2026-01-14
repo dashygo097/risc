@@ -10,9 +10,9 @@ class Regfile(implicit p: Parameters) extends Module {
 
   val utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
 
-  val rs1_addr   = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
-  val rs2_addr   = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
-  val write_addr = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
+  val rs1_addr   = IO(Input(UInt(log2Ceil(p(NumPhyRegs)).W)))
+  val rs2_addr   = IO(Input(UInt(log2Ceil(p(NumPhyRegs)).W)))
+  val write_addr = IO(Input(UInt(log2Ceil(p(NumPhyRegs)).W)))
   val write_data = IO(Input(UInt(p(XLen).W)))
   val write_en   = IO(Input(Bool()))
 
@@ -21,7 +21,7 @@ class Regfile(implicit p: Parameters) extends Module {
 
   val dual_port_regfile = Module(
     new DualPortRegFile(
-      p(NumArchRegs),
+      p(NumPhyRegs),
       p(XLen),
       utils.extraInfo,
       isBypass = p(IsRegfileUseBypass)
