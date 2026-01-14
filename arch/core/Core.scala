@@ -11,11 +11,6 @@ import vopts.mem.cache._
 import chisel3._
 import chisel3.util._
 
-class IBufferEntry(implicit p: Parameters) extends Bundle {
-  val pc    = UInt(p(XLen).W)
-  val instr = UInt(p(ILen).W)
-}
-
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
@@ -27,6 +22,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   val imem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
   val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
+
+  class IBufferEntry(implicit p: Parameters) extends Bundle {
+    val pc    = UInt(p(XLen).W)
+    val instr = UInt(p(ILen).W)
+  }
 
   // Modules
   val decoder = Module(new Decoder)

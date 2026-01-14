@@ -17,3 +17,5 @@ package object imm {}
 package object regfile {}
 
 package object csr {}
+
+package object rename {}
