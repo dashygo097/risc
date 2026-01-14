@@ -2,34 +2,31 @@ package arch.core
 
 import common._
 import decoder._
-import regfile._
 import lsu._
 import arch.configs._
 import chisel3._
+import chisel3.util._
 
 class InstructionFetchBundle(implicit p: Parameters) extends Bundle {
   val pc = UInt(p(XLen).W)
 }
 
 class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
-
   val pc             = UInt(p(XLen).W)
-  val rd             = UInt(regfile_utils.width.W)
+  val rd             = UInt(log2Ceil(p(NumArchRegs)).W)
   val decoded_output = new DecodedOutput
-  val rs1            = UInt(regfile_utils.width.W)
+  val rs1            = UInt(log2Ceil(p(NumArchRegs)).W)
   val rs1_data       = UInt(p(XLen).W)
-  val rs2            = UInt(regfile_utils.width.W)
+  val rs2            = UInt(log2Ceil(p(NumArchRegs)).W)
   val rs2_data       = UInt(p(XLen).W)
   val imm            = UInt(p(XLen).W)
 }
 
 class ExcutionBundle(implicit p: Parameters) extends Bundle {
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
-  val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
+  val lsu_utils = LsuUtilitiesFactory.getOrThrow(p(ISA))
 
   val pc         = UInt(p(XLen).W)
-  val rd         = UInt(regfile_utils.width.W)
+  val rd         = UInt(log2Ceil(p(NumArchRegs)).W)
   val alu_result = UInt(p(XLen).W)
   val rs2_data   = UInt(p(XLen).W)
   val regwrite   = Bool()
@@ -38,10 +35,8 @@ class ExcutionBundle(implicit p: Parameters) extends Bundle {
 }
 
 class MemoryBundle(implicit p: Parameters) extends Bundle {
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
-
   val pc       = UInt(p(XLen).W)
-  val rd       = UInt(regfile_utils.width.W)
+  val rd       = UInt(log2Ceil(p(NumArchRegs)).W)
   val regwrite = Bool()
   val wb_data  = UInt(p(XLen).W)
 }

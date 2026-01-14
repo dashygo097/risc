@@ -1,14 +1,12 @@
 package arch.core
 
-package object pipeline {}
-
 package object common {}
-
-package object biu {}
 
 package object decoder {}
 
 package object bru {}
+
+package object bpu {}
 
 package object alu {}
 

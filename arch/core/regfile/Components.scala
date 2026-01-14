@@ -5,7 +5,6 @@ import vopts.utils.Register
 import chisel3._
 
 trait RegfileUtilities extends Utilities {
-  def width: Int
   def getRs1(instr: UInt): UInt
   def getRs2(instr: UInt): UInt
   def getRd(instr: UInt): UInt

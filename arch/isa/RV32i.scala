@@ -2,7 +2,7 @@ package arch.isa
 
 import chisel3.util._
 
-object RV32I {
+object RV32IInstructionSet extends InstructionSet {
   def NOP  = BitPat("b0000000_00000_00000_000_00000_0010011") // ADDI x0, x0, 0
   // R-type Instructions
   // Arithmetic

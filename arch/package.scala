@@ -1,6 +1,8 @@
 package arch
 
 package object configs {
+  import isa._
+
   // User Options
   // You should only modify these parameters
   // Architecture Parameters
@@ -23,26 +25,15 @@ package object configs {
       )
 
   // Derived Parameters
-  object XLen
-      extends Field[Int](
-        ISA() match {
-          case "rv32i" => 32
-          case other   => throw new Exception(s"Unsupported ISA: $other")
-        }
-      )
-
-  object ILen
-      extends Field[Int](
-        ISA() match {
-          case "rv32i" => 32
-          case other   => throw new Exception(s"Unsupported ISA: $other")
-        }
-      )
+  object XLen        extends Field[Int](ISADefinition.xlen(ISA()))
+  object ILen        extends Field[Int](ISADefinition.ilen(ISA()))
+  object NumArchRegs extends Field[Int](ISADefinition.numArchRegs(ISA()))
 
   implicit val p: Parameters = Parameters.empty ++ Map(
-    ISA  -> ISA.apply(),
-    XLen -> XLen.apply(),
-    ILen -> ILen.apply(),
+    ISA         -> ISA.apply(),
+    XLen        -> XLen.apply(),
+    ILen        -> ILen.apply(),
+    NumArchRegs -> NumArchRegs.apply()
   )
 }
 

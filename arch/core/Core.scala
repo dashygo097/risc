@@ -270,7 +270,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val debug_pc       = IO(Output(UInt(p(XLen).W)))
     val debug_instr    = IO(Output(UInt(p(ILen).W)))
     val debug_reg_we   = IO(Output(Bool()))
-    val debug_reg_addr = IO(Output(UInt(regfile_utils.width.W)))
+    val debug_reg_addr = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
     val debug_reg_data = IO(Output(UInt(p(XLen).W)))
 
     val debug_branch_taken  = IO(Output(Bool()))
