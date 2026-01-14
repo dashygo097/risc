@@ -1,7 +1,6 @@
 package arch.core.rename
 
 import arch.configs._
-import chisel3._
 
 trait RenameUtilities extends Utilities {}
 
