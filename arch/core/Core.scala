@@ -113,8 +113,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val rs2 = regfile_utils.getRs2(if_id.ID_INSTR)
   val rd  = regfile_utils.getRd(if_id.ID_INSTR)
 
-  regfile.rs1_addr := rs1
-  regfile.rs2_addr := rs2
+  regfile.rs1_preg := rs1
+  regfile.rs2_preg := rs2
 
   // ID Forwarding
   id_fwd.id_rs1       := rs1
@@ -254,7 +254,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   mem_wb.MEM.wb_data  := mem_wb_data
 
   // WB Stage
-  regfile.write_addr := mem_wb.WB.rd
+  regfile.write_preg := mem_wb.WB.rd
   regfile.write_data := mem_wb.WB.wb_data
   regfile.write_en   := mem_wb.WB.regwrite
 
@@ -285,7 +285,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
     debug_pc       := mem_wb.WB.pc
     debug_instr    := mem_wb.WB_INSTR
-    debug_reg_addr := regfile.write_addr
+    debug_reg_addr := regfile.write_preg
     debug_reg_we   := regfile.write_en
     debug_reg_data := regfile.write_data
 

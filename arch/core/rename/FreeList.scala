@@ -7,7 +7,7 @@ import chisel3.util._
 class FreeList(implicit p: Parameters) extends Module {
   // Allocate physical register
   val alloc_en    = IO(Input(Bool()))
-  val alloc_addr  = IO(Output(UInt(log2Ceil(p(NumPhyRegs)).W)))
+  val alloc_preg  = IO(Output(UInt(log2Ceil(p(NumPhyRegs)).W)))
   val alloc_valid = IO(Output(Bool()))
 
   // Free physical register
@@ -21,16 +21,16 @@ class FreeList(implicit p: Parameters) extends Module {
   }))
 
   // Find first free physical register
-  val free_addr = PriorityEncoder(free_vec)
-  val has_free  = free_vec.asUInt.orR
+  val first_free_preg = PriorityEncoder(free_vec)
+  val has_free        = free_vec.asUInt.orR
 
-  alloc_addr  := free_addr
+  alloc_preg  := first_free_preg
   alloc_valid := has_free
   empty       := !has_free
 
   // Allocate
   when(alloc_en && has_free) {
-    free_vec(free_addr) := false.B
+    free_vec(first_free_preg) := false.B
   }
 
   // Free

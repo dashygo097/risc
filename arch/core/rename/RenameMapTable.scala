@@ -8,8 +8,8 @@ class RenameMapTable(implicit p: Parameters) extends Module {
   // RS1, RS2
   val read_rs1 = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
   val read_rs2 = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
-  val rs1_addr = IO(Output(UInt(log2Ceil(p(NumPhyRegs)).W)))
-  val rs2_addr = IO(Output(UInt(log2Ceil(p(NumPhyRegs)).W)))
+  val rs1_preg = IO(Output(UInt(log2Ceil(p(NumPhyRegs)).W)))
+  val rs2_preg = IO(Output(UInt(log2Ceil(p(NumPhyRegs)).W)))
 
   // RD allocation
   val alloc_en     = IO(Input(Bool()))
@@ -19,8 +19,8 @@ class RenameMapTable(implicit p: Parameters) extends Module {
 
   val map_table = RegInit(VecInit(Seq.fill(p(NumArchRegs))(0.U(log2Ceil(p(NumPhyRegs)).W))))
 
-  rs1_addr := map_table(read_rs1)
-  rs2_addr := map_table(read_rs2)
+  rs1_preg := map_table(read_rs1)
+  rs2_preg := map_table(read_rs2)
 
   old_phys_reg := map_table(arch_reg)
 
