@@ -6,6 +6,7 @@ import bru._
 import alu._
 import regfile._
 import lsu._
+import csr._
 import arch.configs._
 import vopts.mem.cache._
 import chisel3._
@@ -19,6 +20,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val bru_utils     = BruUtilitiesFactory.getOrThrow(p(ISA))
   val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA))
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
+  val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
   val imem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
   val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
@@ -38,6 +40,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imm_gen = Module(new ImmGen)
   val alu     = Module(new Alu)
   val lsu     = Module(new Lsu)
+  val csrfile = Module(new CsrFile)
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -109,9 +112,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   imm_gen.instr   := if_id.ID_INSTR
   imm_gen.immType := decoder.decoded.imm_type
 
-  val rs1 = regfile_utils.getRs1(if_id.ID_INSTR)
-  val rs2 = regfile_utils.getRs2(if_id.ID_INSTR)
-  val rd  = regfile_utils.getRd(if_id.ID_INSTR)
+  val rs1      = regfile_utils.getRs1(if_id.ID_INSTR)
+  val rs2      = regfile_utils.getRs2(if_id.ID_INSTR)
+  val rd       = regfile_utils.getRd(if_id.ID_INSTR)
+  val csr_addr = csr_utils.getAddr(if_id.ID_INSTR)
 
   regfile.rs1_preg := rs1
   regfile.rs2_preg := rs2
@@ -160,8 +164,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // ID/EX Pipeline
   id_ex.STALL             := ex_mem.STALL
   id_ex.FLUSH             := (load_use_hazard || (bru.taken && !bru.jump)) && !lsu.busy
-  id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID_INSTR          := if_id.ID_INSTR
+  id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.pc             := if_id.ID.pc
   id_ex.ID.rd             := rd
   id_ex.ID.rs1            := rs1
@@ -169,6 +173,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   id_ex.ID.rs2            := rs2
   id_ex.ID.rs2_data       := id_rs2_data
   id_ex.ID.imm            := imm_gen.imm
+  id_ex.ID.csr_addr       := csr_addr
+  id_ex.ID.csr_imm        := imm_gen.csr_imm
 
   // EX Stage
   ex_fwd.ex_rs1       := id_ex.EX.rs1
@@ -218,17 +224,25 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   alu.fnType := id_ex.EX.decoded_output.alu_fn
   alu.mode   := id_ex.EX.decoded_output.alu_mode
 
+  csrfile.en   := id_ex.EX.decoded_output.csr
+  csrfile.cmd  := id_ex.EX.decoded_output.csr_cmd
+  csrfile.addr := id_ex.EX.csr_addr
+  csrfile.src  := ex_rs1_data
+  csrfile.imm  := id_ex.EX.csr_imm
+
   // EX/MEM Pipeline
   ex_mem.STALL         := mem_wb.STALL || lsu.busy
   ex_mem.FLUSH         := false.B
-  ex_mem.EX.alu_result := alu.result
   ex_mem.EX_INSTR      := id_ex.EX_INSTR
   ex_mem.EX.pc         := id_ex.EX.pc
   ex_mem.EX.rd         := id_ex.EX.rd
+  ex_mem.EX.alu_result := alu.result
   ex_mem.EX.rs2_data   := ex_rs2_data
   ex_mem.EX.regwrite   := id_ex.EX.decoded_output.regwrite
   ex_mem.EX.lsu        := id_ex.EX.decoded_output.lsu
   ex_mem.EX.lsu_cmd    := id_ex.EX.decoded_output.lsu_cmd
+  ex_mem.EX.csr        := id_ex.EX.decoded_output.csr
+  ex_mem.EX.csr_rdata  := csrfile.rd
 
   // MEM Stage
   lsu.en    := ex_mem.MEM.lsu
@@ -238,10 +252,12 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   dmem <> lsu.mem
 
-  val mem_wb_data = Mux(
-    lsu.mem_read,
-    lsu.rdata,
-    ex_mem.MEM.alu_result
+  val mem_wb_data = MuxCase(
+    ex_mem.MEM.alu_result,
+    Seq(
+      lsu.mem_read   -> lsu.rdata,
+      ex_mem.MEM.csr -> ex_mem.MEM.csr_rdata
+    )
   )
 
   // MEM/WB Pipeline

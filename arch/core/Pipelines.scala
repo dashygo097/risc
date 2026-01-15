@@ -3,6 +3,7 @@ package arch.core
 import common._
 import decoder._
 import lsu._
+import csr._
 import arch.configs._
 import chisel3._
 import chisel3.util._
@@ -12,6 +13,8 @@ class InstructionFetchBundle(implicit p: Parameters) extends Bundle {
 }
 
 class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
+  val csr_utils = CsrUtilitiesFactory.getOrThrow(p(ISA))
+
   val pc             = UInt(p(XLen).W)
   val rd             = UInt(log2Ceil(p(NumArchRegs)).W)
   val decoded_output = new DecodedOutput
@@ -20,6 +23,8 @@ class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {
   val rs2            = UInt(log2Ceil(p(NumArchRegs)).W)
   val rs2_data       = UInt(p(XLen).W)
   val imm            = UInt(p(XLen).W)
+  val csr_addr       = UInt(csr_utils.addrWidth.W)
+  val csr_imm        = UInt(p(XLen).W)
 }
 
 class ExcutionBundle(implicit p: Parameters) extends Bundle {
@@ -32,6 +37,8 @@ class ExcutionBundle(implicit p: Parameters) extends Bundle {
   val regwrite   = Bool()
   val lsu        = Bool()
   val lsu_cmd    = UInt(lsu_utils.cmdWidth.W)
+  val csr        = Bool()
+  val csr_rdata  = UInt(p(XLen).W)
 }
 
 class MemoryBundle(implicit p: Parameters) extends Bundle {

@@ -96,12 +96,12 @@ object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with 
         RV32IInstructionSet.JALR -> List(Y, Y, IMM_I, Y, BR_JALR, Y, A1_PC, A2_FOUR, N, AFN_ADD, N, M_X, N, C_X),
 
         // CSR
-        RV32IInstructionSet.CSRRW  -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RW),
-        RV32IInstructionSet.CSRRS  -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RS),
-        RV32IInstructionSet.CSRRC  -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RC),
-        RV32IInstructionSet.CSRRWI -> List(Y, Y, IMM_I, N, BR_X, Y, A1_ZERO, A2_IMM, N, AFN_X, N, M_X, Y, C_RW),
-        RV32IInstructionSet.CSRRSI -> List(Y, Y, IMM_I, N, BR_X, Y, A1_ZERO, A2_IMM, N, AFN_X, N, M_X, Y, C_RS),
-        RV32IInstructionSet.CSRRCI -> List(Y, Y, IMM_I, N, BR_X, Y, A1_ZERO, A2_IMM, N, AFN_X, N, M_X, Y, C_RC),
+        RV32IInstructionSet.CSRRW  -> List(Y, Y, IMM_I, N, BR_X, N, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RW),
+        RV32IInstructionSet.CSRRS  -> List(Y, Y, IMM_I, N, BR_X, N, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RS),
+        RV32IInstructionSet.CSRRC  -> List(Y, Y, IMM_I, N, BR_X, N, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RC),
+        RV32IInstructionSet.CSRRWI -> List(Y, Y, IMM_I, N, BR_X, N, A1_ZERO, A2_IMM, N, AFN_X, N, M_X, Y, C_RWI),
+        RV32IInstructionSet.CSRRSI -> List(Y, Y, IMM_I, N, BR_X, N, A1_ZERO, A2_IMM, N, AFN_X, N, M_X, Y, C_RSI),
+        RV32IInstructionSet.CSRRCI -> List(Y, Y, IMM_I, N, BR_X, N, A1_ZERO, A2_IMM, N, AFN_X, N, M_X, Y, C_RCI),
 
         // S-Type
         // Store
