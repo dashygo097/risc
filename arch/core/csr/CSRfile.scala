@@ -20,11 +20,11 @@ class CsrFile(implicit p: Parameters) extends Module {
   val addr_map     = csrTable.map(_.addr.U)
   val writable_vec = VecInit(csrTable.map(_.writable.B))
 
-  val csrRegs = RegInit(VecInit(csrTable.map { reg =>
-    val regInst = RegInit(reg.initValue.U)
-    regInst.suggestName(s"${reg.name}")
+  val csrRegs = csrTable.zipWithIndex.map { case (reg, i) =>
+    val regInst = RegInit(reg.initValue.U(p(XLen).W))
+    regInst.suggestName(reg.name)
     regInst
-  }))
+  }
 
   val addr_match           = Wire(Bool())
   val write_access_allowed = Wire(Bool())
@@ -39,12 +39,12 @@ class CsrFile(implicit p: Parameters) extends Module {
       }
     )
 
+  val src_data = Mux(utils.isImm(cmd), utils.genImm(imm), src)
   when(en && write_access_allowed) {
     for (i <- 0 until csrTable.length)
       when(addr === addr_map(i)) {
         when(writable_vec(i)) {
           val csr_rdata = csrRegs(i)
-          val src_data  = Mux(utils.isImm(cmd), utils.genImm(imm), src)
           val csr_wdata = utils.fn(cmd, csr_rdata, src_data)
           csrRegs(i) := csr_wdata
         }
