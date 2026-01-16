@@ -22,7 +22,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
   val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
-  val imem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
+  val imem = IO(new UnifiedMemoryReadOnlyIO(p(XLen), p(XLen), 1))
   val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
 
   class IBufferEntry(implicit p: Parameters) extends Bundle {
@@ -64,9 +64,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // IF Stage
   imem.req.valid     := !imem_pending && !ibuffer_full
-  imem.req.bits.op   := MemoryOp.READ
   imem.req.bits.addr := pc
-  imem.req.bits.data := 0.U(p(XLen).W)
   imem.resp.ready    := true.B
 
   when(imem.req.fire) {

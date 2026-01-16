@@ -27,7 +27,7 @@ object AXIBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       // W
       axi.w.valid     := memory.req.valid && isWrite
       axi.w.bits.data := memory.req.bits.data
-      axi.w.bits.strb := Fill(p(XLen) / 8, 1.U)
+      axi.w.bits.strb := Fill(p(XLen) / 8, 1.U) // TODO:
 
       // B
       axi.b.ready := memory.resp.ready
@@ -46,6 +46,40 @@ object AXIBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       memory.req.ready := writeAccepted || readAccepted
 
       memory.resp.valid     := Mux(isWrite, axi.b.valid, axi.r.valid)
+      memory.resp.bits.data := axi.r.bits.data
+
+      axi
+    }
+
+    override def createBridgeReadOnly(memory: UnifiedMemoryReadOnlyIO): Bundle = {
+      val axi = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
+
+      // AW
+      axi.aw.valid     := false.B
+      axi.aw.bits.addr := 0.U(p(XLen).W)
+      axi.aw.bits.prot := 0.U(3.W)
+
+      // W
+      axi.w.valid     := false.B
+      axi.w.bits.data := 0.U(p(XLen).W)
+      axi.w.bits.strb := 0.U((p(XLen) / 8).W)
+
+      // B
+      axi.b.ready := false.B
+
+      // AR
+      axi.ar.valid     := memory.req.valid
+      axi.ar.bits.addr := memory.req.bits.addr
+      axi.ar.bits.prot := 0.U(3.W)
+
+      // R
+      axi.r.ready := memory.resp.ready
+
+      val readAccepted = memory.req.valid && axi.ar.ready
+
+      memory.req.ready := readAccepted
+
+      memory.resp.valid     := axi.r.valid
       memory.resp.bits.data := axi.r.bits.data
 
       axi
