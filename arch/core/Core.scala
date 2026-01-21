@@ -23,11 +23,16 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
   val imem = IO(new UnifiedMemoryReadOnlyIO(p(XLen), p(ILen), 1))
-  val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
+  val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheLineSize) / (p(XLen) / 8)))
 
   class IBufferEntry extends Bundle {
     val pc    = UInt(p(XLen).W)
     val instr = UInt(p(ILen).W)
+  }
+
+  class DBufferReadEntry extends Bundle {
+    val addr = UInt(p(XLen).W)
+    val size = UInt((p(L1DCacheLineSize) / (p(XLen) / 8)).W)
   }
 
   // Modules
@@ -42,7 +47,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu     = Module(new Lsu)
   val csrfile = Module(new CsrFile)
 
-  // val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
+  val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -250,7 +255,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   lsu.addr  := ex_mem.MEM.alu_result
   lsu.wdata := ex_mem.MEM.rs2_data
 
-  dmem <> lsu.mem
+  l1_dcache.upper <> lsu.mem
+  dmem <> l1_dcache.lower
 
   val mem_wb_data = MuxCase(
     ex_mem.MEM.alu_result,
@@ -299,6 +305,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val debug_mem_instr = IO(Output(UInt(p(ILen).W)))
     val debug_wb_instr  = IO(Output(UInt(p(ILen).W)))
 
+    val debug_l1_dcache_miss = IO(Output(Bool()))
+
     debug_pc       := mem_wb.WB.pc
     debug_instr    := mem_wb.WB_INSTR
     debug_reg_addr := regfile.write_preg
@@ -317,5 +325,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_mem_instr := ex_mem.MEM_INSTR
     debug_wb_instr  := mem_wb.WB_INSTR
 
+    // Cache Debugging
+    debug_l1_dcache_miss := l1_dcache.miss
   }
 }
