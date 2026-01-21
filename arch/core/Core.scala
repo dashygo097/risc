@@ -22,10 +22,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
   val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
-  val imem = IO(new UnifiedMemoryReadOnlyIO(p(XLen), p(XLen), 1))
+  val imem = IO(new UnifiedMemoryReadOnlyIO(p(XLen), p(ILen), 1))
   val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
 
-  class IBufferEntry(implicit p: Parameters) extends Bundle {
+  class IBufferEntry extends Bundle {
     val pc    = UInt(p(XLen).W)
     val instr = UInt(p(ILen).W)
   }
@@ -41,6 +41,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val alu     = Module(new Alu)
   val lsu     = Module(new Lsu)
   val csrfile = Module(new CsrFile)
+
+  // val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -314,5 +316,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_ex_instr  := id_ex.EX_INSTR
     debug_mem_instr := ex_mem.MEM_INSTR
     debug_wb_instr  := mem_wb.WB_INSTR
+
   }
 }

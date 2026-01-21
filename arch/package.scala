@@ -12,6 +12,7 @@ package object configs {
 
   // Core Parameters
   object IBufferSize        extends Field[Int](4)
+  object DBufferSize        extends Field[Int](16)
   object IsRegfileUseBypass extends Field[Boolean](true)
   object NumPhyRegs         extends Field[Int](64)
   object ROBSize            extends Field[Int](16)
