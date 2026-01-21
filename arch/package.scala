@@ -16,6 +16,13 @@ package object configs {
   object IsRegfileUseBypass extends Field[Boolean](true)
   object NumPhyRegs         extends Field[Int](64)
   object ROBSize            extends Field[Int](16)
+
+  // Cache
+  object L1ICacheWays       extends Field[Int](2)
+  object L1ICacheSets       extends Field[Int](16)
+  object L1ICacheLineSize   extends Field[Int](16) // in bytes
+  object L1ICacheReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
+
   object L1DCacheWays       extends Field[Int](2)
   object L1DCacheSets       extends Field[Int](16)
   object L1DCacheLineSize   extends Field[Int](16) // in bytes
