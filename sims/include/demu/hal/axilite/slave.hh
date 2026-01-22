@@ -7,9 +7,9 @@
 namespace demu::hal::axi {
 using namespace isa;
 
-class AXISlave {
+class AXILiteSlave {
 public:
-  virtual ~AXISlave() = default;
+  virtual ~AXILiteSlave() = default;
 
   virtual addr_t base_address() const noexcept = 0;
   virtual size_t size() const noexcept = 0;
@@ -46,7 +46,7 @@ public:
   virtual word_t r_data() const noexcept = 0;
   virtual uint8_t r_resp() const noexcept = 0;
 
-  virtual const char *name() const noexcept { return "AXI Slave"; }
+  virtual const char *name() const noexcept { return "AXILite Slave"; }
 
 protected:
   [[nodiscard]] addr_t to_offset(addr_t addr) const noexcept {

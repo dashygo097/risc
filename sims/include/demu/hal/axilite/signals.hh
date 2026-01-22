@@ -25,14 +25,14 @@
 namespace demu::hal::axi {
 using namespace isa;
 
-struct AXIReadTransaction {
+struct AXILiteReadTransaction {
   addr_t addr;
   bool active;
   word_t data;
   bool valid;
 };
 
-struct AXIWriteTransaction {
+struct AXILiteWriteTransaction {
   addr_t addr;
   word_t data;
   byte_t strb;
@@ -41,7 +41,7 @@ struct AXIWriteTransaction {
   bool resp_ready;
 };
 
-struct AXISignals {
+struct AXILiteSignals {
   uint32_t *awaddr;
   uint8_t *awvalid;
   uint8_t *awready;

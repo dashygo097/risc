@@ -5,14 +5,14 @@
 namespace demu {
 SystemSimulator::SystemSimulator(bool enabled_trace)
     : _dut(std::make_unique<Vrv32i_system>()),
-      _axi_bus(std::make_unique<hal::axi::AXIBusManager>()), _time_counter(0),
-      _timeout(0), _trace_enabled(enabled_trace), _terminate(false),
-      _verbose(false) {
+      _axi_bus(std::make_unique<hal::axi::AXILiteBusManager>()),
+      _time_counter(0), _timeout(0), _trace_enabled(enabled_trace),
+      _terminate(false), _verbose(false) {
 
-  _imem = _axi_bus->register_slave<hal::axi::AXIMemory>(0, "imem", 4 * 1024,
-                                                        0x00000000);
-  _dmem = _axi_bus->register_slave<hal::axi::AXIMemory>(1, "dmem", 4 * 1024,
-                                                        0x80000000);
+  _imem = _axi_bus->register_slave<hal::axi::AXILiteMemory>(0, "imem", 4 * 1024,
+                                                            0x00000000);
+  _dmem = _axi_bus->register_slave<hal::axi::AXILiteMemory>(1, "dmem", 4 * 1024,
+                                                            0x80000000);
   set_mem_delay();
 
   register_devices();
@@ -96,7 +96,7 @@ void SystemSimulator::dump_memory(addr_t start, size_t size) const {
     return;
   }
 
-  auto *mem = dynamic_cast<hal::axi::AXIMemory *>(slave);
+  auto *mem = dynamic_cast<hal::axi::AXILiteMemory *>(slave);
   if (mem) {
     printf("Memory dump [0x%08x - 0x%08zx]:\n", start, start + size);
     addr_t offset = start - mem->base_address();
