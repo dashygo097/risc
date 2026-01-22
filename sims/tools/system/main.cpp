@@ -27,9 +27,9 @@ protected:
 
     switch (port) {
     case 0:
-      MAP_AXI_SIGNALS(signals, 0) break;
+      MAP_AXIL_SIGNALS(signals, 0) break;
     case 1:
-      MAP_AXI_SIGNALS(signals, 1) break;
+      MAP_AXIL_SIGNALS(signals, 1) break;
     default:
       break;
     }

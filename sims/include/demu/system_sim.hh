@@ -116,42 +116,42 @@ protected:
     hal::axi::AXISignals signals;
 
     if (port == 0) {
-      signals.awaddr = &_dut->M_AXI_0_AWADDR;
-      signals.awvalid = &_dut->M_AXI_0_AWVALID;
-      signals.awready = &_dut->M_AXI_0_AWREADY;
-      signals.wdata = &_dut->M_AXI_0_WDATA;
-      signals.wstrb = &_dut->M_AXI_0_WSTRB;
-      signals.wvalid = &_dut->M_AXI_0_WVALID;
-      signals.wready = &_dut->M_AXI_0_WREADY;
-      signals.bresp = &_dut->M_AXI_0_BRESP;
-      signals.bvalid = &_dut->M_AXI_0_BVALID;
-      signals.bready = &_dut->M_AXI_0_BREADY;
-      signals.araddr = &_dut->M_AXI_0_ARADDR;
-      signals.arvalid = &_dut->M_AXI_0_ARVALID;
-      signals.arready = &_dut->M_AXI_0_ARREADY;
-      signals.rdata = &_dut->M_AXI_0_RDATA;
-      signals.rresp = &_dut->M_AXI_0_RRESP;
-      signals.rvalid = &_dut->M_AXI_0_RVALID;
-      signals.rready = &_dut->M_AXI_0_RREADY;
+      signals.awaddr = &_dut->M_AXIL_0_AWADDR;
+      signals.awvalid = &_dut->M_AXIL_0_AWVALID;
+      signals.awready = &_dut->M_AXIL_0_AWREADY;
+      signals.wdata = &_dut->M_AXIL_0_WDATA;
+      signals.wstrb = &_dut->M_AXIL_0_WSTRB;
+      signals.wvalid = &_dut->M_AXIL_0_WVALID;
+      signals.wready = &_dut->M_AXIL_0_WREADY;
+      signals.bresp = &_dut->M_AXIL_0_BRESP;
+      signals.bvalid = &_dut->M_AXIL_0_BVALID;
+      signals.bready = &_dut->M_AXIL_0_BREADY;
+      signals.araddr = &_dut->M_AXIL_0_ARADDR;
+      signals.arvalid = &_dut->M_AXIL_0_ARVALID;
+      signals.arready = &_dut->M_AXIL_0_ARREADY;
+      signals.rdata = &_dut->M_AXIL_0_RDATA;
+      signals.rresp = &_dut->M_AXIL_0_RRESP;
+      signals.rvalid = &_dut->M_AXIL_0_RVALID;
+      signals.rready = &_dut->M_AXIL_0_RREADY;
 
     } else if (port == 1) {
-      signals.awaddr = &_dut->M_AXI_1_AWADDR;
-      signals.awvalid = &_dut->M_AXI_1_AWVALID;
-      signals.awready = &_dut->M_AXI_1_AWREADY;
-      signals.wdata = &_dut->M_AXI_1_WDATA;
-      signals.wstrb = &_dut->M_AXI_1_WSTRB;
-      signals.wvalid = &_dut->M_AXI_1_WVALID;
-      signals.wready = &_dut->M_AXI_1_WREADY;
-      signals.bresp = &_dut->M_AXI_1_BRESP;
-      signals.bvalid = &_dut->M_AXI_1_BVALID;
-      signals.bready = &_dut->M_AXI_1_BREADY;
-      signals.araddr = &_dut->M_AXI_1_ARADDR;
-      signals.arvalid = &_dut->M_AXI_1_ARVALID;
-      signals.arready = &_dut->M_AXI_1_ARREADY;
-      signals.rdata = &_dut->M_AXI_1_RDATA;
-      signals.rresp = &_dut->M_AXI_1_RRESP;
-      signals.rvalid = &_dut->M_AXI_1_RVALID;
-      signals.rready = &_dut->M_AXI_1_RREADY;
+      signals.awaddr = &_dut->M_AXIL_1_AWADDR;
+      signals.awvalid = &_dut->M_AXIL_1_AWVALID;
+      signals.awready = &_dut->M_AXIL_1_AWREADY;
+      signals.wdata = &_dut->M_AXIL_1_WDATA;
+      signals.wstrb = &_dut->M_AXIL_1_WSTRB;
+      signals.wvalid = &_dut->M_AXIL_1_WVALID;
+      signals.wready = &_dut->M_AXIL_1_WREADY;
+      signals.bresp = &_dut->M_AXIL_1_BRESP;
+      signals.bvalid = &_dut->M_AXIL_1_BVALID;
+      signals.bready = &_dut->M_AXIL_1_BREADY;
+      signals.araddr = &_dut->M_AXIL_1_ARADDR;
+      signals.arvalid = &_dut->M_AXIL_1_ARVALID;
+      signals.arready = &_dut->M_AXIL_1_ARREADY;
+      signals.rdata = &_dut->M_AXIL_1_RDATA;
+      signals.rresp = &_dut->M_AXIL_1_RRESP;
+      signals.rvalid = &_dut->M_AXIL_1_RVALID;
+      signals.rready = &_dut->M_AXIL_1_RREADY;
     }
 
     return signals;

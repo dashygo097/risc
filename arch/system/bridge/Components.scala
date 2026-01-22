@@ -14,4 +14,5 @@ object BusBridgeUtilitiesFactory extends UtilitiesFactory[BusBridgeUtilities]("B
 
 object BusBridgeInit {
   val axilite = AXILiteBridgeUtilities
+  val axifull = AXIFullBridgeUtilities
 }
