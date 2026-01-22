@@ -11,23 +11,23 @@
 
 namespace demu::hal::axi {
 
-class AXIBusManager final {
+class AXILiteBusManager final {
 public:
-  AXIBusManager() = default;
-  ~AXIBusManager() = default;
+  AXILiteBusManager() = default;
+  ~AXILiteBusManager() = default;
 
   // Slave Registration
   template <typename T, typename... Args>
   T *register_slave(uint8_t port, std::string_view name, Args &&...args);
 
   // Slave Retrieval
-  [[nodiscard]] AXISlave *get_slave(uint8_t port) noexcept;
-  [[nodiscard]] const AXISlave *get_slave(uint8_t port) const noexcept;
+  [[nodiscard]] AXILiteSlave *get_slave(uint8_t port) noexcept;
+  [[nodiscard]] const AXILiteSlave *get_slave(uint8_t port) const noexcept;
   template <typename T> [[nodiscard]] T *get_slave(uint8_t port) noexcept;
   template <typename T>
   [[nodiscard]] const T *get_slave(uint8_t port) const noexcept;
-  [[nodiscard]] AXISlave *find_slave_for_address(addr_t addr) noexcept;
-  [[nodiscard]] const AXISlave *
+  [[nodiscard]] AXILiteSlave *find_slave_for_address(addr_t addr) noexcept;
+  [[nodiscard]] const AXILiteSlave *
   find_slave_for_address(addr_t addr) const noexcept;
 
   // Operations
@@ -45,14 +45,15 @@ public:
 private:
   void ensure_capacity(uint8_t port);
 
-  std::vector<std::unique_ptr<AXISlave>> slaves_;
+  std::vector<std::unique_ptr<AXILiteSlave>> slaves_;
   std::vector<std::string> slave_names_;
 };
 
 template <typename T, typename... Args>
-T *AXIBusManager::register_slave(uint8_t port, std::string_view name,
-                                 Args &&...args) {
-  static_assert(std::is_base_of_v<AXISlave, T>, "T must derive from AXISlave");
+T *AXILiteBusManager::register_slave(uint8_t port, std::string_view name,
+                                     Args &&...args) {
+  static_assert(std::is_base_of_v<AXILiteSlave, T>,
+                "T must derive from AXISlave");
 
   ensure_capacity(port);
 
@@ -71,14 +72,16 @@ T *AXIBusManager::register_slave(uint8_t port, std::string_view name,
   }
 }
 
-template <typename T> T *AXIBusManager::get_slave(uint8_t port) noexcept {
-  static_assert(std::is_base_of_v<AXISlave, T>, "T must derive from AXISlave");
+template <typename T> T *AXILiteBusManager::get_slave(uint8_t port) noexcept {
+  static_assert(std::is_base_of_v<AXILiteSlave, T>,
+                "T must derive from AXISlave");
   return dynamic_cast<T *>(get_slave(port));
 }
 
 template <typename T>
-const T *AXIBusManager::get_slave(uint8_t port) const noexcept {
-  static_assert(std::is_base_of_v<AXISlave, T>, "T must derive from AXISlave");
+const T *AXILiteBusManager::get_slave(uint8_t port) const noexcept {
+  static_assert(std::is_base_of_v<AXILiteSlave, T>,
+                "T must derive from AXISlave");
   return dynamic_cast<const T *>(get_slave(port));
 }
 

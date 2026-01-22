@@ -9,12 +9,12 @@
 
 namespace demu::hal::axi {
 
-class AXIMemory final : public AXISlave {
+class AXILiteMemory final : public AXILiteSlave {
 public:
-  explicit AXIMemory(size_t size, addr_t base_addr = 0x0, size_t read_delay = 1,
-                     size_t write_delay = 1);
+  explicit AXILiteMemory(size_t size, addr_t base_addr = 0x0,
+                         size_t read_delay = 1, size_t write_delay = 1);
 
-  ~AXIMemory() override = default;
+  ~AXILiteMemory() override = default;
 
   void reset() override;
   void clock_tick() override;
@@ -50,7 +50,7 @@ public:
   void write_delay(size_t cycles) { _write_delay = cycles; };
 
   [[nodiscard]] const char *name() const noexcept override {
-    return "AXI Memory";
+    return "AXILite Memory";
   }
   [[nodiscard]] addr_t base_address() const noexcept override {
     return _memory->base_address();

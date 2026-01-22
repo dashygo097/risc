@@ -22,8 +22,8 @@ protected:
   void on_exit() override {};
   void on_reset() override {};
 
-  demu::hal::axi::AXISignals from_port(uint8_t port) override {
-    demu::hal::axi::AXISignals signals;
+  demu::hal::axi::AXILiteSignals from_port(uint8_t port) override {
+    demu::hal::axi::AXILiteSignals signals;
 
     switch (port) {
     case 0:
