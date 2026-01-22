@@ -1,4 +1,4 @@
-#include "demu/hal/axi/memory.hh"
+#include "demu/hal/axilite/memory.hh"
 
 namespace demu::hal::axi {
 

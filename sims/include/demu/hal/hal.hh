@@ -5,8 +5,8 @@
 #include "./memory.hh"
 #include "./rtl.hh"
 
-// AXI
-#include "./axi/manager.hh"
-#include "./axi/memory.hh"
-#include "./axi/signals.hh"
-#include "./axi/slave.hh"
+// AXI4-Lite
+#include "./axilite/manager.hh"
+#include "./axilite/memory.hh"
+#include "./axilite/signals.hh"
+#include "./axilite/slave.hh"
