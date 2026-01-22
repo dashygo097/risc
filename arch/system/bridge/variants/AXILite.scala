@@ -6,9 +6,9 @@ import vopts.mem.cache._
 import chisel3._
 import chisel3.util._
 
-object AXIBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
+object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
   override def utils: BusBridgeUtilities = new BusBridgeUtilities {
-    override def name: String = "axi"
+    override def name: String = "axilite"
 
     override def busType: Bundle =
       new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen))

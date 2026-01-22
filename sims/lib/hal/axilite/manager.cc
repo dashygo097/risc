@@ -1,4 +1,4 @@
-#include "demu/hal/axi/manager.hh"
+#include "demu/hal/axilite/manager.hh"
 #include <algorithm>
 #include <iostream>
 
