@@ -4,9 +4,9 @@ import arch.configs._
 import vopts.com.amba._
 import chisel3._
 
-object AXI4CrossbarUtilities extends RegisteredUtilities[BusCrossbarUtilities] {
+object AXILiteCrossbarUtilities extends RegisteredUtilities[BusCrossbarUtilities] {
   override def utils: BusCrossbarUtilities = new BusCrossbarUtilities {
-    override def name: String = "axi"
+    override def name: String = "axil"
 
     override def masterType: Bundle            =
       Flipped(new AXILiteMasterExtIO(addrWidth = p(XLen), dataWidth = p(XLen)))

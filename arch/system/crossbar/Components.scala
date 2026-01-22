@@ -15,5 +15,6 @@ trait BusCrossbarUtilities extends Utilities {
 object BusCrossbarUtilitiesFactory extends UtilitiesFactory[BusCrossbarUtilities]("BusCrossbar")
 
 object BusCrossbarInit {
-  val rv32iUtils = AXI4CrossbarUtilities
+  val axilite = AXILiteCrossbarUtilities
+  val axifull = AXIFullCrossbarUtilities
 }
