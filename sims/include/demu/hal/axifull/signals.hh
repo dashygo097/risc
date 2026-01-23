@@ -6,7 +6,7 @@
 #define MAP_AXIF_SIGNALS(name, port_id)                                        \
   name.awaddr = &_dut->M_AXIF_##port_id##_AWADDR;                              \
   name.awprot = &_dut->M_AXIF_##port_id##_AWPROT;                              \
-  name.awid = &_dut->M_AXIF_##port_id##_AWID;                                  \
+  name.awid = (uint16_t *)&_dut->M_AXIF_##port_id##_AWID;                      \
   name.awlen = &_dut->M_AXIF_##port_id##_AWLEN;                                \
   name.awsize = &_dut->M_AXIF_##port_id##_AWSIZE;                              \
   name.awburst = &_dut->M_AXIF_##port_id##_AWBURST;                            \
@@ -16,21 +16,19 @@
   name.awready = &_dut->M_AXIF_##port_id##_AWREADY;                            \
   name.awqos = &_dut->M_AXIF_##port_id##_AWQOS;                                \
   name.awregion = &_dut->M_AXIF_##port_id##_AWREGION;                          \
-  name.awuser = &_dut->M_AXIF_##port_id##_AWUSER;                              \
   name.wdata = &_dut->M_AXIF_##port_id##_WDATA;                                \
   name.wstrb = &_dut->M_AXIF_##port_id##_WSTRB;                                \
   name.wlast = &_dut->M_AXIF_##port_id##_WLAST;                                \
   name.wvalid = &_dut->M_AXIF_##port_id##_WVALID;                              \
   name.wready = &_dut->M_AXIF_##port_id##_WREADY;                              \
-  name.wid = &_dut->M_AXIF_##port_id##_WID;                                    \
-  name.wuser = &_dut->M_AXIF_##port_id##_WUSER;                                \
-  name.bid = &_dut->M_AXIF_##port_id##_BID;                                    \
+  name.wid = (uint16_t *)&_dut->M_AXIF_##port_id##_WID;                        \
+  name.bid = (uint16_t *)&_dut->M_AXIF_##port_id##_BID;                        \
   name.bresp = &_dut->M_AXIF_##port_id##_BRESP;                                \
   name.bvalid = &_dut->M_AXIF_##port_id##_BVALID;                              \
   name.bready = &_dut->M_AXIF_##port_id##_BREADY;                              \
   name.araddr = &_dut->M_AXIF_##port_id##_ARADDR;                              \
   name.arprot = &_dut->M_AXIF_##port_id##_ARPROT;                              \
-  name.arid = &_dut->M_AXIF_##port_id##_ARID;                                  \
+  name.arid = (uint16_t *)&_dut->M_AXIF_##port_id##_ARID;                      \
   name.arlen = &_dut->M_AXIF_##port_id##_ARLEN;                                \
   name.arsize = &_dut->M_AXIF_##port_id##_ARSIZE;                              \
   name.arburst = &_dut->M_AXIF_##port_id##_ARBURST;                            \
@@ -40,14 +38,12 @@
   name.arready = &_dut->M_AXIF_##port_id##_ARREADY;                            \
   name.arqos = &_dut->M_AXIF_##port_id##_ARQOS;                                \
   name.arregion = &_dut->M_AXIF_##port_id##_ARREGION;                          \
-  name.aruser = &_dut->M_AXIF_##port_id##_ARUSER;                              \
-  name.rid = &_dut->M_AXIF_##port_id##_RID;                                    \
+  name.rid = (uint16_t *)&_dut->M_AXIF_##port_id##_RID;                        \
   name.rdata = &_dut->M_AXIF_##port_id##_RDATA;                                \
   name.rresp = &_dut->M_AXIF_##port_id##_RRESP;                                \
   name.rlast = &_dut->M_AXIF_##port_id##_RLAST;                                \
   name.rvalid = &_dut->M_AXIF_##port_id##_RVALID;                              \
-  name.rready = &_dut->M_AXIF_##port_id##_RREADY;                              \
-  name.ruser = &_dut->M_AXIF_##port_id##_RUSER;
+  name.rready = &_dut->M_AXIF_##port_id##_RREADY;
 
 namespace demu::hal::axi {
 using namespace isa;
@@ -65,14 +61,12 @@ struct AXIFullSignals {
   uint8_t *awready;
   uint8_t *awqos;
   uint8_t *awregion;
-  uint32_t *awuser;
   uint32_t *wdata;
   uint8_t *wstrb;
   uint8_t *wlast;
   uint8_t *wvalid;
   uint8_t *wready;
   uint16_t *wid;
-  uint32_t *wuser;
   uint16_t *bid;
   uint8_t *bresp;
   uint8_t *bvalid;
@@ -89,14 +83,12 @@ struct AXIFullSignals {
   uint8_t *arready;
   uint8_t *arqos;
   uint8_t *arregion;
-  uint32_t *aruser;
   uint16_t *rid;
   uint32_t *rdata;
   uint8_t *rresp;
   uint8_t *rlast;
   uint8_t *rvalid;
   uint8_t *rready;
-  uint32_t *ruser;
 };
 
 struct AXIFullReadTransaction {
