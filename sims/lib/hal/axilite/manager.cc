@@ -1,6 +1,5 @@
 #include "demu/hal/axilite/manager.hh"
 #include <algorithm>
-#include <iostream>
 
 namespace demu::hal::axi {
 
