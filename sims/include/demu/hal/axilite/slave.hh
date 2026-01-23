@@ -2,7 +2,6 @@
 
 #include "../../isa/isa.hh"
 #include <cstdint>
-#include <queue>
 
 namespace demu::hal::axi {
 using namespace isa;

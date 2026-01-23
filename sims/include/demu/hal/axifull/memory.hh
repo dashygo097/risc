@@ -6,7 +6,7 @@
 
 namespace demu::hal::axi {
 
-class AXIFullMemory : public AXIFullSlave {
+class AXIFullMemory final : public AXIFullSlave {
 public:
   AXIFullMemory(size_t size, addr_t base_addr = 0x80000000,
                 size_t read_delay = 1, size_t write_delay = 1);
@@ -15,11 +15,6 @@ public:
 
   void clock_tick() override;
   void reset() override;
-
-  addr_t base_address() const noexcept override {
-    return _memory->base_address();
-  }
-  size_t size() const noexcept override { return _memory->size(); }
 
   // AW channel
   void aw_valid(addr_t addr, uint16_t id, uint8_t len, uint8_t size,
@@ -51,7 +46,28 @@ public:
   bool r_last() const noexcept override;
   uint16_t r_id() const noexcept override;
 
-  const char *name() const noexcept override { return "AXIFull Memory"; }
+  // Bypass Methods
+  bool load_binary(const std::string &filename, addr_t offset = 0) {
+    return _memory->load_binary(filename, offset);
+  };
+  void read_delay(size_t cycles) { _read_delay = cycles; };
+  void write_delay(size_t cycles) { _write_delay = cycles; };
+
+  [[nodiscard]] const char *name() const noexcept override {
+    return "AXILite Memory";
+  }
+  [[nodiscard]] addr_t base_address() const noexcept override {
+    return _memory->base_address();
+  }
+  [[nodiscard]] size_t size() const noexcept override {
+    return _memory->size();
+  }
+  [[nodiscard]] byte_t *get_ptr(addr_t offset = 0) {
+    return _memory->get_ptr(offset);
+  }
+  [[nodiscard]] const byte_t *get_ptr(addr_t offset = 0) const {
+    return _memory->get_ptr(offset);
+  };
 
 private:
   struct WriteAddrTransaction {
