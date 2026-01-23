@@ -29,7 +29,7 @@ package object configs {
   object L1DCacheReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
 
   // System Parameters
-  object BusType            extends Field[String]("axil")
+  object BusType            extends Field[String]("axif")
   object FifoDepthPerClient extends Field[Int](4)
   object BusAddressMap
       extends Field[Seq[(Long, Long)]](
