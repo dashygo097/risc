@@ -11,23 +11,29 @@ public:
 
 protected:
   void register_devices() override {};
+  void set_mem_delay() override {
+    _imem->read_delay(1);
+    _imem->write_delay(1);
+    _dmem->read_delay(10);
+    _dmem->write_delay(10);
+  };
   void check_termination() override {};
   void on_clock_tick() override {};
   void on_exit() override {};
   void on_reset() override {};
 
-  demu::hal::axi::AXIFullSignals from_port(uint8_t port) override {
-    demu::hal::axi::AXIFullSignals signals;
-
+  demu::hal::axi::AXILiteSignals from_port(uint8_t port) override {
+    demu::hal::axi::AXILiteSignals signals;
     switch (port) {
     case 0:
-      MAP_AXIF_SIGNALS(signals, 0) break;
+      MAP_AXIL_SIGNALS(signals, 0)
+      break;
     case 1:
-      MAP_AXIF_SIGNALS(signals, 1) break;
+      MAP_AXIL_SIGNALS(signals, 1)
+      break;
     default:
       break;
     }
-
     return signals;
   }
 };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "demu/hal/axifull/signals.hh"
 #ifdef ENABLE_SYSTEM
 #include "./hal/hal.hh"
 #include "./trace.hh"
@@ -38,11 +39,11 @@ public:
 
   // Exported Ports
   [[nodiscard]] system_t &dut() noexcept { return *_dut; }
-  [[nodiscard]] hal::axi::AXIFullBusManager &axiBus() noexcept {
+  [[nodiscard]] hal::axi::AXILiteBusManager &axiBus() noexcept {
     return *_axi_bus;
   }
-  [[nodiscard]] hal::axi::AXIFullMemory &dmem() noexcept { return *_dmem; }
-  [[nodiscard]] hal::axi::AXIFullMemory &imem() noexcept { return *_imem; }
+  [[nodiscard]] hal::axi::AXILiteMemory &dmem() noexcept { return *_dmem; }
+  [[nodiscard]] hal::axi::AXILiteMemory &imem() noexcept { return *_imem; }
 
 protected:
   // DUT
@@ -53,9 +54,9 @@ protected:
 #endif
 
   // Devices
-  std::unique_ptr<hal::axi::AXIFullBusManager> _axi_bus;
-  hal::axi::AXIFullMemory *_dmem;
-  hal::axi::AXIFullMemory *_imem;
+  std::unique_ptr<hal::axi::AXILiteBusManager> _axi_bus;
+  hal::axi::AXILiteMemory *_dmem;
+  hal::axi::AXILiteMemory *_imem;
 
   // Simulator state
   uint64_t _time_counter;
@@ -69,30 +70,33 @@ protected:
 
   // Overridable hooks
   virtual void register_devices() {};
+  virtual void set_mem_delay() {
+    _imem->read_delay(1);
+    _imem->write_delay(1);
+    _dmem->read_delay(1);
+    _dmem->write_delay(1);
+  };
   virtual void check_termination() {};
   virtual void on_clock_tick() {};
   virtual void on_exit() {};
   virtual void on_reset() {};
 
-  void handle_port(uint8_t port) {
+  virtual void handle_port(uint8_t port) {
     auto *slave = _axi_bus->get_slave(port);
     if (!slave)
       return;
 
-    auto [awaddr, awprot, awid, awlen, awsize, awburst, awlock, awcache,
-          awvalid, awready, awqos, awregion, wdata, wstrb, wlast, wvalid,
-          wready, wid, bid, bresp, bvalid, bready, araddr, arprot, arid, arlen,
-          arsize, arburst, arlock, arcache, arvalid, arready, arqos, arregion,
-          rid, rdata, rresp, rlast, rvalid, rready] = from_port(port);
+    auto [awaddr, awprot, awvalid, awready, wdata, wstrb, wvalid, wready, bresp,
+          bvalid, bready, araddr, arprot, arvalid, arready, rdata, rresp,
+          rvalid, rready] = from_port(port);
 
     if (*awvalid && slave->aw_ready()) {
-      slave->aw_valid(*awaddr, *awid, *awlen, *awsize, *awburst, *awlock,
-                      *awcache, *awprot, *awqos, *awregion);
+      slave->aw_valid(*awaddr);
     }
     *awready = slave->aw_ready();
 
     if (*wvalid && slave->w_ready()) {
-      slave->w_valid(*wdata, *wstrb & 0xF, *wlast, *wid);
+      slave->w_valid(*wdata, *wstrb & 0xF);
     }
     *wready = slave->w_ready();
 
@@ -101,22 +105,18 @@ protected:
     slave->b_ready(*bready);
 
     if (*arvalid && slave->ar_ready()) {
-      slave->ar_valid(*araddr, *arid, *arlen, *arsize, *arburst, *arlock,
-                      *arcache, *arprot, *arqos, *arregion);
+      slave->ar_valid(*araddr);
     }
     *arready = slave->ar_ready();
 
-    *rid = slave->r_id();
+    *rvalid = slave->r_valid();
     *rdata = slave->r_data();
     *rresp = slave->r_resp();
-    *rlast = slave->r_last();
-    *rvalid = slave->r_valid();
     slave->r_ready(*rready);
   }
 
-  virtual hal::axi::AXIFullSignals from_port(uint8_t port) {
-    hal::axi::AXIFullSignals signals;
-
+  virtual hal::axi::AXILiteSignals from_port(uint8_t port) {
+    hal::axi::AXILiteSignals signals;
     return signals;
   }
 };

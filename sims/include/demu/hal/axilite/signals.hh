@@ -5,6 +5,7 @@
 
 #define MAP_AXIL_SIGNALS(name, port_id)                                        \
   name.awaddr = &_dut->M_AXIL_##port_id##_AWADDR;                              \
+  name.awprot = &_dut->M_AXIL_##port_id##_AWPROT;                              \
   name.awvalid = &_dut->M_AXIL_##port_id##_AWVALID;                            \
   name.awready = &_dut->M_AXIL_##port_id##_AWREADY;                            \
   name.wdata = &_dut->M_AXIL_##port_id##_WDATA;                                \
@@ -15,6 +16,7 @@
   name.bvalid = &_dut->M_AXIL_##port_id##_BVALID;                              \
   name.bready = &_dut->M_AXIL_##port_id##_BREADY;                              \
   name.araddr = &_dut->M_AXIL_##port_id##_ARADDR;                              \
+  name.arprot = &_dut->M_AXIL_##port_id##_ARPROT;                              \
   name.arvalid = &_dut->M_AXIL_##port_id##_ARVALID;                            \
   name.arready = &_dut->M_AXIL_##port_id##_ARREADY;                            \
   name.rdata = &_dut->M_AXIL_##port_id##_RDATA;                                \
@@ -27,6 +29,7 @@ using namespace isa;
 
 struct AXILiteSignals {
   uint32_t *awaddr;
+  uint8_t *awprot;
   uint8_t *awvalid;
   uint8_t *awready;
   uint32_t *wdata;
@@ -37,6 +40,7 @@ struct AXILiteSignals {
   uint8_t *bvalid;
   uint8_t *bready;
   uint32_t *araddr;
+  uint8_t *arprot;
   uint8_t *arvalid;
   uint8_t *arready;
   uint32_t *rdata;
