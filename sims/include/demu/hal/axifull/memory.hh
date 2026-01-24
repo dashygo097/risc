@@ -13,6 +13,13 @@ public:
 
   ~AXIFullMemory() override = default;
 
+  [[nodiscard]] addr_t base_address() const noexcept override {
+    return _memory->base_address();
+  }
+  [[nodiscard]] size_t address_range() const noexcept override {
+    return _memory->size();
+  }
+
   void clock_tick() override;
   void reset() override;
 
@@ -53,21 +60,16 @@ public:
   void read_delay(size_t cycles) { _read_delay = cycles; };
   void write_delay(size_t cycles) { _write_delay = cycles; };
 
-  [[nodiscard]] const char *name() const noexcept override {
-    return "AXILite Memory";
-  }
-  [[nodiscard]] addr_t base_address() const noexcept override {
-    return _memory->base_address();
-  }
-  [[nodiscard]] size_t size() const noexcept override {
-    return _memory->size();
-  }
   [[nodiscard]] byte_t *get_ptr(addr_t offset = 0) {
     return _memory->get_ptr(offset);
   }
   [[nodiscard]] const byte_t *get_ptr(addr_t offset = 0) const {
     return _memory->get_ptr(offset);
   };
+
+  [[nodiscard]] const char *name() const noexcept override {
+    return "AXIFull Memory";
+  }
 
 private:
   struct WriteAddrTransaction {

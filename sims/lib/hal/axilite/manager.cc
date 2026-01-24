@@ -76,11 +76,11 @@ void AXILiteBusManager::dump_device_map() const {
     }
 
     const addr_t base = slaves_[i]->base_address();
-    const addr_t end = base + slaves_[i]->size() - 1;
+    const addr_t end = base + slaves_[i]->address_range() - 1;
 
     std::printf("M_AXILite_%zu: %-20s [0x%08X - 0x%08X] (%zu bytes)\n", i,
                 slave_names_[i].c_str(), static_cast<unsigned>(base),
-                static_cast<unsigned>(end), slaves_[i]->size());
+                static_cast<unsigned>(end), slaves_[i]->address_range());
   }
 }
 

@@ -53,7 +53,7 @@ template <typename T, typename... Args>
 T *AXILiteBusManager::register_slave(uint8_t port, std::string_view name,
                                      Args &&...args) {
   static_assert(std::is_base_of_v<AXILiteSlave, T>,
-                "T must derive from AXISlave");
+                "T must derive from AXILiteSlave");
 
   ensure_capacity(port);
 
@@ -74,14 +74,14 @@ T *AXILiteBusManager::register_slave(uint8_t port, std::string_view name,
 
 template <typename T> T *AXILiteBusManager::get_slave(uint8_t port) noexcept {
   static_assert(std::is_base_of_v<AXILiteSlave, T>,
-                "T must derive from AXISlave");
+                "T must derive from AXILiteSlave");
   return dynamic_cast<T *>(get_slave(port));
 }
 
 template <typename T>
 const T *AXILiteBusManager::get_slave(uint8_t port) const noexcept {
   static_assert(std::is_base_of_v<AXILiteSlave, T>,
-                "T must derive from AXISlave");
+                "T must derive from AXILiteSlave");
   return dynamic_cast<const T *>(get_slave(port));
 }
 
