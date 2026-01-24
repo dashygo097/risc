@@ -49,20 +49,4 @@ struct AXILiteSignals {
   uint8_t *rready;
 };
 
-struct AXILiteReadTransaction {
-  addr_t addr;
-  bool active;
-  word_t data;
-  bool valid;
-};
-
-struct AXILiteWriteTransaction {
-  addr_t addr;
-  word_t data;
-  byte_t strb;
-  bool addr_valid;
-  bool data_valid;
-  bool resp_ready;
-};
-
 } // namespace demu::hal::axi

@@ -91,24 +91,4 @@ struct AXIFullSignals {
   uint8_t *rready;
 };
 
-struct AXIFullReadTransaction {
-  addr_t addr;
-  bool active;
-  word_t data;
-  bool last;
-  bool valid;
-  uint16_t id;
-};
-
-struct AXIFullWriteTransaction {
-  addr_t addr;
-  word_t data;
-  byte_t strb;
-  bool last;
-  bool addr_valid;
-  bool data_valid;
-  bool resp_ready;
-  uint16_t id;
-};
-
 } // namespace demu::hal::axi
