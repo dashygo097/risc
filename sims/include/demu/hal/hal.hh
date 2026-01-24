@@ -1,7 +1,7 @@
 #pragma once
 
+#include "./bus_manager.hh"
 #include "./emu.hh"
-#include "./ihardware.hh"
 #include "./memory.hh"
 #include "./rtl.hh"
 

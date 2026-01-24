@@ -13,13 +13,15 @@ public:
   virtual addr_t base_address() const noexcept = 0;
   virtual size_t size() const noexcept = 0;
 
+  [[nodiscard]] addr_t to_offset(addr_t addr) const noexcept {
+    return addr - base_address();
+  }
   [[nodiscard]] bool owns_address(addr_t addr) const noexcept {
     addr_t base = base_address();
     return addr >= base && addr < (base + size());
   }
 
   virtual void clock_tick() = 0;
-
   virtual void reset() = 0;
 
   // AW
@@ -46,11 +48,6 @@ public:
   virtual uint8_t r_resp() const noexcept = 0;
 
   virtual const char *name() const noexcept { return "AXILite Slave"; }
-
-protected:
-  [[nodiscard]] addr_t to_offset(addr_t addr) const noexcept {
-    return addr - base_address();
-  }
 };
 
 } // namespace demu::hal::axi
