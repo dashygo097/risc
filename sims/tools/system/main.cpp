@@ -12,8 +12,8 @@ public:
 protected:
   void register_devices() override {};
   void set_mem_delay() override {
-    _imem->read_delay(5);
-    _imem->write_delay(5);
+    _imem->read_delay(1);
+    _imem->write_delay(1);
     _dmem->read_delay(10);
     _dmem->write_delay(10);
   };
