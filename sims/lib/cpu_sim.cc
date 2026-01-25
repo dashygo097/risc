@@ -45,7 +45,9 @@ void CPUSimulator::reset() {
 
   _dut->imem_req_ready = 1;
   _dut->imem_resp_valid = 0;
-  _dut->imem_resp_bits_data = 0;
+  for (int i = 0; i < _dut->imem_resp_bits_data.size(); i++) {
+    _dut->imem_resp_bits_data[i] = 0;
+  }
   _dut->dmem_req_ready = 1;
   _dut->dmem_resp_valid = 0;
   for (int i = 0; i < _dut->dmem_resp_bits_data.size(); i++) {
@@ -81,7 +83,9 @@ void CPUSimulator::reset() {
 void CPUSimulator::handle_imem_interface() {
   if (!_imem_pending) {
     _dut->imem_resp_valid = 0;
-    _dut->imem_resp_bits_data = 0;
+    for (int i = 0; i < _dut->imem_resp_bits_data.size(); i++) {
+      _dut->imem_resp_bits_data[i] = 0;
+    }
 
     if (_dut->imem_req_valid && _dut->imem_req_ready) {
       _imem_pending_addr = static_cast<addr_t>(_dut->imem_req_bits_addr);
@@ -93,10 +97,21 @@ void CPUSimulator::handle_imem_interface() {
 
     if (_imem_pending_latency > 0) {
       _dut->imem_resp_valid = 0;
-      _dut->imem_resp_bits_data = 0;
+      for (int i = 0; i < _dut->imem_resp_bits_data.size(); i++) {
+        _dut->imem_resp_bits_data[i] = 0;
+      }
     } else {
-      word_t instr = _imem->read_word(_imem_pending_addr);
-      _dut->imem_resp_bits_data = instr;
+      for (int i = 0; i < _dut->imem_resp_bits_data.size(); i++) {
+        addr_t addr = _imem_pending_addr + (i * 4);
+        word_t data = _imem->read_word(addr);
+        _dut->imem_resp_bits_data[_dut->imem_resp_bits_data.size() - i - 1] =
+            data;
+        if (_verbose) {
+          std::cout << "  [IMEM READ] addr=0x" << std::hex << std::setw(8)
+                    << std::setfill('0') << addr << " data=0x" << std::setw(8)
+                    << data << std::dec << std::endl;
+        }
+      }
       _dut->imem_resp_valid = 1;
 
       if (_dut->imem_resp_ready) {

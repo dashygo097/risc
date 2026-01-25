@@ -22,7 +22,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
   val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
-  val imem = IO(new UnifiedMemoryReadOnlyIO(p(XLen), p(ILen), 1))
+  val imem = IO(new UnifiedMemoryReadOnlyIO(p(XLen), p(ILen), p(L1ICacheLineSize) / (p(XLen) / 8)))
   val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheLineSize) / (p(XLen) / 8)))
 
   class IBufferEntry extends Bundle {
@@ -47,6 +47,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu     = Module(new Lsu)
   val csrfile = Module(new CsrFile)
 
+  val l1_icache = Module(new SetAssociativeCacheReadOnly(p(XLen), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy)))
   val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
   // Pipelines
@@ -70,11 +71,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val load_use_hazard = Wire(Bool())
 
   // IF Stage
-  imem.req.valid     := !imem_pending && !ibuffer_full
-  imem.req.bits.addr := pc
-  imem.resp.ready    := true.B
+  imem <> l1_icache.lower
 
-  when(imem.req.fire) {
+  l1_icache.upper.req.valid     := !imem_pending && !ibuffer_full
+  l1_icache.upper.req.bits.addr := pc
+  l1_icache.upper.resp.ready    := true.B
+
+  when(l1_icache.upper.req.fire) {
     imem_pending := true.B
     imem_pc      := pc
     imem_valid   := true.B
@@ -84,8 +87,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_valid := false.B
   }
 
-  when(imem.resp.fire) {
-    imem_data    := imem.resp.bits.data
+  when(l1_icache.upper.resp.fire) {
+    imem_data    := l1_icache.upper.resp.bits.data
     imem_pending := false.B
   }
 
@@ -99,9 +102,9 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     reset_ibuffer := false.B
   }
 
-  ibuffer.io.enq.valid      := imem.resp.fire && imem_valid && !ibuffer_full
+  ibuffer.io.enq.valid      := l1_icache.upper.resp.fire && imem_valid && !ibuffer_full
   ibuffer.io.enq.bits.pc    := imem_pc
-  ibuffer.io.enq.bits.instr := imem.resp.bits.data
+  ibuffer.io.enq.bits.instr := l1_icache.upper.resp.bits.data
 
   ibuffer.io.deq.ready := (!ibuffer_empty && !if_id.STALL && !if_id.FLUSH) || reset_ibuffer
 
