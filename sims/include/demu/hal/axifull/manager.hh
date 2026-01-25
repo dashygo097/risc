@@ -35,7 +35,7 @@ public:
   void clock_tick() noexcept;
 
   // Information
-  [[nodiscard]] size_t port_count() const noexcept { return slaves_.size(); }
+  [[nodiscard]] size_t port_count() const noexcept { return _slaves.size(); }
   [[nodiscard]] size_t active_slave_count() const noexcept;
   [[nodiscard]] bool has_slave_at(uint8_t port) const noexcept;
   [[nodiscard]] std::optional<std::string_view>
@@ -45,8 +45,8 @@ public:
 private:
   void ensure_capacity(uint8_t port);
 
-  std::vector<std::unique_ptr<AXIFullSlave>> slaves_;
-  std::vector<std::string> slave_names_;
+  std::vector<std::unique_ptr<AXIFullSlave>> _slaves;
+  std::vector<std::string> _slave_names;
 };
 
 template <typename T, typename... Args>
@@ -61,8 +61,8 @@ T *AXIFullBusManager::register_slave(uint8_t port, std::string_view name,
     auto slave = std::make_unique<T>(std::forward<Args>(args)...);
     T *ptr = slave.get();
 
-    slaves_[port] = std::move(slave);
-    slave_names_[port] = std::string(name);
+    _slaves[port] = std::move(slave);
+    _slave_names[port] = std::string(name);
 
     return ptr;
   } catch (const std::exception &e) {
