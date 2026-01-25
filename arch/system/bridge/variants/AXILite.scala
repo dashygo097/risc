@@ -22,8 +22,6 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val wordsPerRequest = memory.req.bits.data.getWidth / p(XLen)
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
 
-      val bytesPerWord = p(XLen) / 8
-
       // Write path
       val w_word_count = RegInit(0.U(log2Ceil(wordsPerRequest).W))
       val w_active     = RegInit(false.B)
@@ -50,7 +48,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
 
       // AW
       axi.aw.valid     := w_active
-      axi.aw.bits.addr := w_addr_reg + (w_word_count * bytesPerWord.U)
+      axi.aw.bits.addr := w_addr_reg + Cat(w_word_count, 0.U(log2Ceil(p(XLen) / 8).W))
       axi.aw.bits.prot := 0.U
 
       // W
@@ -58,7 +56,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       axi.w.bits.data := w_data_vec(w_word_count)
       axi.w.bits.strb := Fill(p(XLen) / 8, 1.U)
 
-      // B - only last transfer sends response
+      // B
       val w_last_transfer = w_word_count === (wordsPerRequest - 1).U
       axi.b.ready := w_active && w_last_transfer
 
@@ -73,7 +71,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         r_active     := true.B
         r_word_count := 0.U
         r_addr_reg   := memory.req.bits.addr
-      }.elsewhen(r_active && axi.ar.fire && axi.r.fire) {
+      }.elsewhen(r_active && axi.r.fire) {
         r_data_buffer(r_word_count) := axi.r.bits.data
         when(r_word_count === (wordsPerRespond - 1).U) {
           r_active := false.B
@@ -84,7 +82,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
 
       // AR
       axi.ar.valid     := r_active
-      axi.ar.bits.addr := r_addr_reg + (r_word_count * bytesPerWord.U)
+      axi.ar.bits.addr := r_addr_reg + Cat(r_word_count, 0.U(log2Ceil(p(XLen) / 8).W))
       axi.ar.bits.prot := 0.U
 
       // R
@@ -106,29 +104,27 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val axi = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
 
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
-      val bytesPerWord    = p(XLen) / 8
 
       // Read path
+      val ar_word_count = RegInit(0.U(log2Ceil(wordsPerRespond).W))
+      val ar_active     = RegInit(false.B)
+      val ar_base_addr  = Reg(UInt(p(XLen).W))
       val r_word_count  = RegInit(0.U(log2Ceil(wordsPerRespond).W))
       val r_active      = RegInit(false.B)
+      val r_complete    = RegInit(false.B)
       val r_data_buffer = Reg(Vec(wordsPerRespond, UInt(p(XLen).W)))
-      val r_addr_reg    = Reg(UInt(p(XLen).W))
 
       // Start read transaction
       when(memory.req.fire) {
-        r_active     := true.B
-        r_word_count := 0.U
-        r_addr_reg   := memory.req.bits.addr
-      }.elsewhen(r_active && axi.ar.fire && axi.r.fire) {
-        r_data_buffer(r_word_count) := axi.r.bits.data
-        when(r_word_count === (wordsPerRespond - 1).U) {
-          r_active := false.B
-        }.otherwise {
-          r_word_count := r_word_count + 1.U
-        }
+        ar_word_count := 0.U
+        ar_active     := true.B
+        ar_base_addr  := memory.req.bits.addr
+        r_word_count  := 0.U
+        r_active      := true.B
+        r_complete    := false.B
       }
 
-      // AW  - unused
+      // AW
       axi.aw.valid     := false.B
       axi.aw.bits.addr := 0.U
       axi.aw.bits.prot := 0.U
@@ -138,21 +134,35 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       axi.w.bits.data := 0.U
       axi.w.bits.strb := 0.U
 
-      // B unused
+      // B
       axi.b.ready := false.B
 
       // AR
-      axi.ar.valid     := r_active
-      axi.ar.bits.addr := r_addr_reg + (r_word_count * bytesPerWord.U)
+      when(ar_active && axi.ar.fire) {
+        ar_word_count := ar_word_count + 1.U
+        when(ar_word_count === (wordsPerRespond - 1).U) {
+          ar_active := false.B
+        }
+      }
+      axi.ar.valid     := ar_active
+      axi.ar.bits.addr := ar_base_addr + Cat(ar_word_count, 0.U(log2Ceil(p(XLen) / 8).W))
       axi.ar.bits.prot := 0.U
 
       // R
+      when(r_active && axi.r.fire) {
+        r_data_buffer(r_word_count) := axi.r.bits.data
+        r_word_count                := r_word_count + 1.U
+        when(r_word_count === (wordsPerRespond - 1).U) {
+          r_complete := true.B
+          r_active   := false.B
+        }
+      }.elsewhen(r_complete) {
+        r_complete := false.B
+      }
       axi.r.ready := r_active
 
       // Memory interface
       memory.req.ready := !r_active
-
-      val r_complete = r_active && (r_word_count === (wordsPerRespond - 1).U) && axi.r.valid
 
       memory.resp.valid     := r_complete
       memory.resp.bits.data := Cat(r_data_buffer.reverse)

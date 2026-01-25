@@ -8,6 +8,7 @@ sealed trait ISADefinition {
   def XLen: Int
   def ILen: Int
   def NumArchRegs: Int
+  def isBigEndian: Boolean
 }
 
 case object RV32I extends ISADefinition {
@@ -16,6 +17,7 @@ case object RV32I extends ISADefinition {
   override def XLen           = 32
   override def ILen           = 32
   override def NumArchRegs    = 32
+  override def isBigEndian    = false
 }
 
 object ISADefinition {
@@ -41,5 +43,9 @@ object ISADefinition {
   def numArchRegs(isa: String): Int               = fromString(isa) match {
     case Some(isaDefinition) => isaDefinition.NumArchRegs
     case None                => throw new Exception(s"Cannot determine number of architectural registers for unsupported ISA: $isa")
+  }
+  def isBigEndian(isa: String): Boolean           = fromString(isa) match {
+    case Some(isaDefinition) => isaDefinition.isBigEndian
+    case None                => throw new Exception(s"Cannot determine endianness for unsupported ISA: $isa")
   }
 }

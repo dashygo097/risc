@@ -47,8 +47,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu     = Module(new Lsu)
   val csrfile = Module(new CsrFile)
 
-  val l1_icache = Module(new SetAssociativeCacheReadOnly(p(XLen), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy)))
-  val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
+  val l1_icache = Module(new SetAssociativeCacheReadOnly(p(XLen), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy), p(IsBigEndian)))
+  val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy), p(IsBigEndian)))
 
   // Pipelines
   val if_id  = Module(new IF_ID)

@@ -7,4 +7,4 @@ _start:
     lui sp, 0x80001
     mv fp, zero
     jal ra, main
-    ebreak
+    j .
