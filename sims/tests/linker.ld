@@ -5,7 +5,7 @@ MEMORY
 {
     IMEM (rx)  : ORIGIN = 0x00000000, LENGTH = 4K
     
-    DMEM (rw)  : ORIGIN = 0x80000000, LENGTH = 4K
+    DMEM (rw)  : ORIGIN = 0x80000000, LENGTH = 16K
 }
 
 SECTIONS

@@ -8,7 +8,7 @@ using namespace isa;
 
 CPUSimulator::CPUSimulator(bool enable_trace)
     : _dut(new cpu_t), _imem(new hal::Memory(4 * 1024, 0x00000000)),
-      _dmem(new hal::Memory(4 * 1024, 0x80000000)),
+      _dmem(new hal::Memory(16 * 1024, 0x80000000)),
       _trace(new ExecutionTrace()), _time_counter(0), _cycle_count(0),
       _instr_count(0), _timeout(1000000), _terminate(false), _verbose(false),
       _show_pipeline(false), _trace_enabled(enable_trace) {
