@@ -47,8 +47,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu     = Module(new Lsu)
   val csrfile = Module(new CsrFile)
 
-  val l1_icache = Module(new SetAssociativeCacheReadOnly(p(XLen), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy), p(IsBigEndian)))
-  val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy), p(IsBigEndian)))
+  val l1_icache = Module(new SetAssociativeCacheReadOnly(p(XLen), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy)))
+  val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -260,6 +260,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   l1_dcache.upper <> lsu.mem
   dmem <> l1_dcache.lower
+
+  val l1_dcache_pending = RegInit(false.B)
+  when(l1_dcache.miss) {
+    l1_dcache_pending := true.B
+  }
 
   val mem_wb_data = MuxCase(
     ex_mem.MEM.alu_result,
