@@ -1,27 +1,14 @@
 #pragma once
 
-#include "../../isa/isa.hh"
+#include "../emu.hh"
 #include <cstdint>
-#include <queue>
 
 namespace demu::hal::axi {
 using namespace isa;
 
-class AXISlave {
+class AXILiteSlave : public EmulatedHardware {
 public:
-  virtual ~AXISlave() = default;
-
-  virtual addr_t base_address() const noexcept = 0;
-  virtual size_t size() const noexcept = 0;
-
-  [[nodiscard]] bool owns_address(addr_t addr) const noexcept {
-    addr_t base = base_address();
-    return addr >= base && addr < (base + size());
-  }
-
-  virtual void clock_tick() = 0;
-
-  virtual void reset() = 0;
+  virtual ~AXILiteSlave() override = default;
 
   // AW
   virtual void aw_valid(addr_t addr) = 0;
@@ -45,13 +32,6 @@ public:
   virtual void r_ready(bool ready) = 0;
   virtual word_t r_data() const noexcept = 0;
   virtual uint8_t r_resp() const noexcept = 0;
-
-  virtual const char *name() const noexcept { return "AXI Slave"; }
-
-protected:
-  [[nodiscard]] addr_t to_offset(addr_t addr) const noexcept {
-    return addr - base_address();
-  }
 };
 
 } // namespace demu::hal::axi

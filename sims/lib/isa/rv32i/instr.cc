@@ -163,6 +163,21 @@ std::string Instruction::mnemonic() const noexcept {
       return "ecall";
     else if (_raw == EBREAK)
       return "ebreak";
+
+    switch (_funct3) {
+    case 0b001:
+      return "csrrw";
+    case 0b010:
+      return "csrrs";
+    case 0b011:
+      return "csrrc";
+    case 0b101:
+      return "csrrwi";
+    case 0b110:
+      return "csrrsi";
+    case 0b111:
+      return "csrrci";
+    }
     break;
   }
 
@@ -198,7 +213,8 @@ std::string Instruction::to_string() const {
     break;
 
   case U_TYPE:
-    oss << "x" << (int)_rd << ", 0x" << std::hex << (_imm >> 12);
+    oss << "x" << (int)_rd << ", 0x" << std::hex << std::setw(8)
+        << std::setfill('0') << (uint32_t)_imm;
     break;
 
   case J_TYPE:
@@ -206,7 +222,15 @@ std::string Instruction::to_string() const {
     break;
 
   case SYSTEM:
-    oss << "";
+    if (_raw == 0b00000000000000000000000001110011 || _raw == EBREAK) {
+      oss << "";
+    } else if (_funct3 <= 0b011) {
+      oss << "x" << (int)_rd << ", x" << (int)_rs1 << ", 0x" << std::hex
+          << std::setw(3) << std::setfill('0') << ((_raw >> 20) & 0xFFF);
+    } else {
+      oss << "x" << (int)_rd << ", 0x" << std::hex << std::setw(3)
+          << std::setfill('0') << ((_raw >> 20) & 0xFFF) << ", " << (int)_rs1;
+    }
     break;
 
   default:

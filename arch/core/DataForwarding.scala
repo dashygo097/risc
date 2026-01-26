@@ -1,7 +1,6 @@
 package arch.core
 
 import common.Consts
-import regfile.RegfileUtilitiesFactory
 import arch.configs._
 import chisel3._
 import chisel3.util._
@@ -18,15 +17,13 @@ trait ForwardingConsts extends Consts {
 class IDForwardingUnit(implicit p: Parameters) extends Module with ForwardingConsts {
   override def desiredName: String = s"${p(ISA)}_id_forwarding_unit"
 
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
-
-  val id_rs1       = IO(Input(UInt(regfile_utils.width.W)))
-  val id_rs2       = IO(Input(UInt(regfile_utils.width.W)))
-  val ex_rd        = IO(Input(UInt(regfile_utils.width.W)))
+  val id_rs1       = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
+  val id_rs2       = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
+  val ex_rd        = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
   val ex_regwrite  = IO(Input(Bool()))
-  val mem_rd       = IO(Input(UInt(regfile_utils.width.W)))
+  val mem_rd       = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
   val mem_regwrite = IO(Input(Bool()))
-  val wb_rd        = IO(Input(UInt(regfile_utils.width.W)))
+  val wb_rd        = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
   val wb_regwrite  = IO(Input(Bool()))
 
   val forward_rs1 = IO(Output(UInt(SZ_FWD.W)))
@@ -54,13 +51,11 @@ class IDForwardingUnit(implicit p: Parameters) extends Module with ForwardingCon
 class EXForwardingUnit(implicit p: Parameters) extends Module with ForwardingConsts {
   override def desiredName: String = s"${p(ISA)}_ex_forwarding_unit"
 
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
-
-  val ex_rs1       = IO(Input(UInt(regfile_utils.width.W)))
-  val ex_rs2       = IO(Input(UInt(regfile_utils.width.W)))
-  val mem_rd       = IO(Input(UInt(regfile_utils.width.W)))
+  val ex_rs1       = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
+  val ex_rs2       = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
+  val mem_rd       = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
   val mem_regwrite = IO(Input(Bool()))
-  val wb_rd        = IO(Input(UInt(regfile_utils.width.W)))
+  val wb_rd        = IO(Input(UInt(log2Ceil(p(NumArchRegs)).W)))
   val wb_regwrite  = IO(Input(Bool()))
 
   val forward_rs1 = IO(Output(UInt(SZ_FWD.W)))
