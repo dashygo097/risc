@@ -39,8 +39,8 @@ public:
 
   // Exported Ports
   [[nodiscard]] system_t &dut() noexcept { return *_dut; }
-  [[nodiscard]] hal::axi::AXILiteBusManager &axiBus() noexcept {
-    return *_axi_bus;
+  [[nodiscard]] hal::DeviceManager &deviceManager() noexcept {
+    return *_device_manager;
   }
   [[nodiscard]] hal::axi::AXILiteMemory &dmem() noexcept { return *_dmem; }
   [[nodiscard]] hal::axi::AXILiteMemory &imem() noexcept { return *_imem; }
@@ -54,7 +54,7 @@ protected:
 #endif
 
   // Devices
-  std::unique_ptr<hal::axi::AXILiteBusManager> _axi_bus;
+  std::unique_ptr<hal::DeviceManager> _device_manager;
   hal::axi::AXILiteMemory *_dmem;
   hal::axi::AXILiteMemory *_imem;
 
@@ -82,7 +82,7 @@ protected:
   virtual void on_reset() {};
 
   virtual void handle_port(uint8_t port) {
-    auto *slave = _axi_bus->get_slave(port);
+    auto *slave = _device_manager->get_slave<hal::axi::AXILiteSlave>(port);
     if (!slave)
       return;
 

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "./slave.hh"
-#include <cstddef>
+#include "./emu.hh"
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -9,25 +8,28 @@
 #include <string_view>
 #include <vector>
 
-namespace demu::hal::axi {
+namespace demu::hal {
 
-class AXILiteBusManager final {
+class DeviceManager final {
 public:
-  AXILiteBusManager() = default;
-  ~AXILiteBusManager() = default;
+  DeviceManager() = default;
+  ~DeviceManager() = default;
 
   // Slave Registration
   template <typename T, typename... Args>
   T *register_slave(uint8_t port, std::string_view name, Args &&...args);
 
   // Slave Retrieval
-  [[nodiscard]] AXILiteSlave *get_slave(uint8_t port) noexcept;
-  [[nodiscard]] const AXILiteSlave *get_slave(uint8_t port) const noexcept;
+  [[nodiscard]] EmulatedHardware *get_slave(uint8_t port) noexcept;
+  [[nodiscard]] const EmulatedHardware *get_slave(uint8_t port) const noexcept;
+
   template <typename T> [[nodiscard]] T *get_slave(uint8_t port) noexcept;
+
   template <typename T>
   [[nodiscard]] const T *get_slave(uint8_t port) const noexcept;
-  [[nodiscard]] AXILiteSlave *find_slave_for_address(addr_t addr) noexcept;
-  [[nodiscard]] const AXILiteSlave *
+
+  [[nodiscard]] EmulatedHardware *find_slave_for_address(addr_t addr) noexcept;
+  [[nodiscard]] const EmulatedHardware *
   find_slave_for_address(addr_t addr) const noexcept;
 
   // Operations
@@ -40,30 +42,30 @@ public:
   [[nodiscard]] bool has_slave_at(uint8_t port) const noexcept;
   [[nodiscard]] std::optional<std::string_view>
   get_slave_name(uint8_t port) const noexcept;
+
   void dump_device_map() const;
 
 private:
   void ensure_capacity(uint8_t port);
 
-  std::vector<std::unique_ptr<AXILiteSlave>> _slaves;
+  std::vector<std::unique_ptr<EmulatedHardware>> _slaves;
   std::vector<std::string> _slave_names;
 };
 
+// Template Implementation
 template <typename T, typename... Args>
-T *AXILiteBusManager::register_slave(uint8_t port, std::string_view name,
-                                     Args &&...args) {
-  static_assert(std::is_base_of_v<AXILiteSlave, T>,
-                "T must derive from AXILiteSlave");
+T *DeviceManager::register_slave(uint8_t port, std::string_view name,
+                                 Args &&...args) {
+  static_assert(std::is_base_of_v<EmulatedHardware, T>,
+                "T must derive from EmulatedHardware");
 
   ensure_capacity(port);
 
   try {
     auto slave = std::make_unique<T>(std::forward<Args>(args)...);
     T *ptr = slave.get();
-
     _slaves[port] = std::move(slave);
     _slave_names[port] = std::string(name);
-
     return ptr;
   } catch (const std::exception &e) {
     std::cerr << "Failed to create slave '" << name << "': " << e.what()
@@ -72,17 +74,17 @@ T *AXILiteBusManager::register_slave(uint8_t port, std::string_view name,
   }
 }
 
-template <typename T> T *AXILiteBusManager::get_slave(uint8_t port) noexcept {
-  static_assert(std::is_base_of_v<AXILiteSlave, T>,
-                "T must derive from AXILiteSlave");
+template <typename T> T *DeviceManager::get_slave(uint8_t port) noexcept {
+  static_assert(std::is_base_of_v<EmulatedHardware, T>,
+                "T must derive from EmulatedHardware");
   return dynamic_cast<T *>(get_slave(port));
 }
 
 template <typename T>
-const T *AXILiteBusManager::get_slave(uint8_t port) const noexcept {
-  static_assert(std::is_base_of_v<AXILiteSlave, T>,
-                "T must derive from AXILiteSlave");
+const T *DeviceManager::get_slave(uint8_t port) const noexcept {
+  static_assert(std::is_base_of_v<EmulatedHardware, T>,
+                "T must derive from EmulatedHardware");
   return dynamic_cast<const T *>(get_slave(port));
 }
 
-} // namespace demu::hal::axi
+} // namespace demu::hal

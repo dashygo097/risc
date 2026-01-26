@@ -5,19 +5,19 @@
 namespace demu {
 SystemSimulator::SystemSimulator(bool enabled_trace)
     : _dut(std::make_unique<Vrv32i_system>()),
-      _axi_bus(std::make_unique<hal::axi::AXILiteBusManager>()),
-      _time_counter(0), _timeout(0), _trace_enabled(enabled_trace),
-      _terminate(false), _verbose(false) {
+      _device_manager(std::make_unique<hal::DeviceManager>()), _time_counter(0),
+      _timeout(0), _trace_enabled(enabled_trace), _terminate(false),
+      _verbose(false) {
 
-  _imem = _axi_bus->register_slave<hal::axi::AXILiteMemory>(0, "imem", 4 * 1024,
-                                                            0x00000000);
-  _dmem = _axi_bus->register_slave<hal::axi::AXILiteMemory>(
+  _imem = _device_manager->register_slave<hal::axi::AXILiteMemory>(
+      0, "imem", 4 * 1024, 0x00000000);
+  _dmem = _device_manager->register_slave<hal::axi::AXILiteMemory>(
       1, "dmem", 16 * 1024, 0x80000000);
   set_mem_delay();
   register_devices();
 
   printf("Device Map:\n");
-  _axi_bus->dump_device_map();
+  _device_manager->dump_device_map();
 
 #ifdef ENABLE_TRACE
   if (_trace_enabled) {
@@ -54,7 +54,7 @@ void SystemSimulator::reset() {
   _dut->reset = 0;
   _dut->eval();
 
-  _axi_bus->reset();
+  _device_manager->reset();
 
   _time_counter = 0;
   _terminate = false;
@@ -89,7 +89,7 @@ void SystemSimulator::run(uint64_t max_cycles) {
 }
 
 void SystemSimulator::dump_memory(addr_t start, size_t size) const {
-  auto *slave = _axi_bus->find_slave_for_address(start);
+  auto *slave = _device_manager->find_slave_for_address(start);
   if (!slave) {
     printf("No device owns address 0x%08x\n", start);
     return;
@@ -136,7 +136,7 @@ void SystemSimulator::clock_tick() {
   _dut->clock = 1;
   _dut->eval();
 
-  _axi_bus->clock_tick();
+  _device_manager->clock_tick();
 
 #ifdef ENABLE_TRACE
   if (_vcd) {
