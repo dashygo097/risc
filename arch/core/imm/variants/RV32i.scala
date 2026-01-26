@@ -19,8 +19,7 @@ object RV32IImmUtilities extends RegisteredUtilities[ImmUtilities] with RV32IImm
   override def utils: ImmUtilities = new ImmUtilities {
     override def name: String = "rv32i"
 
-    override def immTypeWidth: Int  = SZ_IMM
-    override def createBundle: UInt = UInt(32.W)
+    override def immTypeWidth: Int = SZ_IMM
 
     override def genImm(instr: UInt, immType: UInt): UInt =
       MuxLookup(immType, 0.U(SZ_IMM.W))(
@@ -46,6 +45,7 @@ object RV32IImmUtilities extends RegisteredUtilities[ImmUtilities] with RV32IImm
           ),
         )
       )
+    override def genCsrImm(instr: UInt): UInt             = Cat(Fill(27, 0.U), instr(19, 15))
   }
 
   override def factory: UtilitiesFactory[ImmUtilities] = ImmUtilitiesFactory

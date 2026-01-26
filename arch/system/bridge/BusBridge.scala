@@ -9,9 +9,8 @@ class BusBridge(implicit p: Parameters) extends Module {
 
   val utils = BusBridgeUtilitiesFactory.getOrThrow(p(BusType))
 
-  // TODO: Intergrate cache for different memory io type
-  val imem = IO(Flipped(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1)))
-  val dmem = IO(Flipped(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1)))
+  val imem = IO(Flipped(new UnifiedMemoryReadOnlyIO(p(ILen), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8))))
+  val dmem = IO(Flipped(new UnifiedMemoryIO(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheLineSize) / (p(XLen) / 8))))
 
   val ibus = IO(utils.busType)
   val dbus = IO(utils.busType)
@@ -21,6 +20,6 @@ class BusBridge(implicit p: Parameters) extends Module {
   dontTouch(ibus)
   dontTouch(dbus)
 
-  ibus <> utils.createBridge(imem)
+  ibus <> utils.createBridgeReadOnly(imem)
   dbus <> utils.createBridge(dmem)
 }

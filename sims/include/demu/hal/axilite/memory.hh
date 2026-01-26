@@ -9,12 +9,19 @@
 
 namespace demu::hal::axi {
 
-class AXIMemory final : public AXISlave {
+class AXILiteMemory final : public AXILiteSlave {
 public:
-  explicit AXIMemory(size_t size, addr_t base_addr = 0x0, size_t read_delay = 1,
-                     size_t write_delay = 1);
+  explicit AXILiteMemory(size_t size, addr_t base_addr = 0x0,
+                         size_t read_delay = 1, size_t write_delay = 1);
 
-  ~AXIMemory() override = default;
+  ~AXILiteMemory() override = default;
+
+  [[nodiscard]] addr_t base_address() const noexcept override {
+    return _memory->base_address();
+  }
+  [[nodiscard]] size_t address_range() const noexcept override {
+    return _memory->size();
+  }
 
   void reset() override;
   void clock_tick() override;
@@ -49,21 +56,16 @@ public:
   void read_delay(size_t cycles) { _read_delay = cycles; };
   void write_delay(size_t cycles) { _write_delay = cycles; };
 
-  [[nodiscard]] const char *name() const noexcept override {
-    return "AXI Memory";
-  }
-  [[nodiscard]] addr_t base_address() const noexcept override {
-    return _memory->base_address();
-  }
-  [[nodiscard]] size_t size() const noexcept override {
-    return _memory->size();
-  }
   [[nodiscard]] byte_t *get_ptr(addr_t offset = 0) {
     return _memory->get_ptr(offset);
   }
   [[nodiscard]] const byte_t *get_ptr(addr_t offset = 0) const {
     return _memory->get_ptr(offset);
   };
+
+  [[nodiscard]] const char *name() const noexcept override {
+    return "AXILite Memory";
+  }
 
 private:
   struct WriteData {

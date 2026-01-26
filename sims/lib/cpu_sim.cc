@@ -8,7 +8,7 @@ using namespace isa;
 
 CPUSimulator::CPUSimulator(bool enable_trace)
     : _dut(new cpu_t), _imem(new hal::Memory(4 * 1024, 0x00000000)),
-      _dmem(new hal::Memory(4 * 1024, 0x80000000)),
+      _dmem(new hal::Memory(16 * 1024, 0x80000000)),
       _trace(new ExecutionTrace()), _time_counter(0), _cycle_count(0),
       _instr_count(0), _timeout(1000000), _terminate(false), _verbose(false),
       _show_pipeline(false), _trace_enabled(enable_trace) {
@@ -45,10 +45,14 @@ void CPUSimulator::reset() {
 
   _dut->imem_req_ready = 1;
   _dut->imem_resp_valid = 0;
-  _dut->imem_resp_bits_data = 0;
+  for (int i = 0; i < _dut->imem_resp_bits_data.size(); i++) {
+    _dut->imem_resp_bits_data[i] = 0;
+  }
   _dut->dmem_req_ready = 1;
   _dut->dmem_resp_valid = 0;
-  _dut->dmem_resp_bits_data = 0;
+  for (int i = 0; i < _dut->dmem_resp_bits_data.size(); i++) {
+    _dut->dmem_resp_bits_data[i] = 0;
+  }
 
   _dut->eval();
 
@@ -71,13 +75,17 @@ void CPUSimulator::reset() {
   _imem_pending = 0;
   _dmem_pending = 0;
 
+  _dmem_pending_data.resize(_dut->dmem_req_bits_data.size());
+
   on_reset();
 }
 
 void CPUSimulator::handle_imem_interface() {
   if (!_imem_pending) {
     _dut->imem_resp_valid = 0;
-    _dut->imem_resp_bits_data = 0;
+    for (int i = 0; i < _dut->imem_resp_bits_data.size(); i++) {
+      _dut->imem_resp_bits_data[i] = 0;
+    }
 
     if (_dut->imem_req_valid && _dut->imem_req_ready) {
       _imem_pending_addr = static_cast<addr_t>(_dut->imem_req_bits_addr);
@@ -89,10 +97,20 @@ void CPUSimulator::handle_imem_interface() {
 
     if (_imem_pending_latency > 0) {
       _dut->imem_resp_valid = 0;
-      _dut->imem_resp_bits_data = 0;
+      for (int i = 0; i < _dut->imem_resp_bits_data.size(); i++) {
+        _dut->imem_resp_bits_data[i] = 0;
+      }
     } else {
-      word_t instr = _imem->read_word(_imem_pending_addr);
-      _dut->imem_resp_bits_data = instr;
+      for (int i = 0; i < _dut->imem_resp_bits_data.size(); i++) {
+        addr_t addr = _imem_pending_addr + (i * 4);
+        word_t data = _imem->read_word(addr);
+        _dut->imem_resp_bits_data[i] = data;
+        if (_verbose) {
+          std::cout << "  [IMEM READ] addr=0x" << std::hex << std::setw(8)
+                    << std::setfill('0') << addr << " data=0x" << std::setw(8)
+                    << data << std::dec << std::endl;
+        }
+      }
       _dut->imem_resp_valid = 1;
 
       if (_dut->imem_resp_ready) {
@@ -105,20 +123,28 @@ void CPUSimulator::handle_imem_interface() {
 void CPUSimulator::handle_dmem_interface() {
   if (!_dmem_pending) {
     _dut->dmem_resp_valid = 0;
-    _dut->dmem_resp_bits_data = 0;
+    for (int i = 0; i < _dut->dmem_resp_bits_data.size(); i++) {
+      _dut->dmem_resp_bits_data[i] = 0;
+    }
 
     if (_dut->dmem_req_valid && _dut->dmem_req_ready) {
       _dmem_pending_addr = static_cast<addr_t>(_dut->dmem_req_bits_addr);
       _dmem_pending_op = _dut->dmem_req_bits_op;
-      _dmem_pending_data = static_cast<word_t>(_dut->dmem_req_bits_data);
+      for (int i = 0; i < _dut->dmem_req_bits_data.size(); i++) {
+        _dmem_pending_data[i] =
+            static_cast<word_t>(_dut->dmem_req_bits_data[i]);
+      }
       _dmem_pending_latency = _dmem_delay;
       _dmem_pending = true;
 
       if (_verbose) {
         if (_dmem_pending_op) {
-          std::cout << "  [DMEM REQ] WRITE addr=0x" << std::hex << std::setw(8)
-                    << std::setfill('0') << _dmem_pending_addr << " data=0x"
-                    << std::setw(8) << _dmem_pending_data << std::endl;
+          for (int i = 0; i < _dut->dmem_req_bits_data.size(); i++) {
+            std::cout << "  [DMEM REQ] WRITE addr=0x" << std::hex
+                      << std::setw(8) << std::setfill('0')
+                      << _dmem_pending_addr + (i * 4) << " data=0x"
+                      << std::setw(8) << _dmem_pending_data[i] << std::endl;
+          }
         } else {
           std::cout << "  [DMEM REQ] READ addr=0x" << std::hex << std::setw(8)
                     << std::setfill('0') << _dmem_pending_addr << std::endl;
@@ -130,31 +156,42 @@ void CPUSimulator::handle_dmem_interface() {
 
     if (_dmem_pending_latency > 0) {
       _dut->dmem_resp_valid = 0;
-      _dut->dmem_resp_bits_data = 0;
+      for (int i = 0; i < _dut->dmem_resp_bits_data.size(); i++) {
+        _dut->dmem_resp_bits_data[i] = 0;
+      }
 
     } else {
       if (_dmem_pending_op) {
         // Write
-        _dmem->write_word(_dmem_pending_addr, _dmem_pending_data);
-        _dut->dmem_resp_bits_data = 0;
+        for (int i = 0; i < _dmem_pending_data.size(); i++) {
+          addr_t addr = _dmem_pending_addr + (i * 4);
+          _dmem->write_word(addr, _dmem_pending_data[i]);
+        }
+        for (int i = 0; i < _dut->dmem_resp_bits_data.size(); i++) {
+          _dut->dmem_resp_bits_data[i] = 0;
+        }
 
         if (_verbose) {
-          std::cout << "  [DMEM WRITE] addr=0x" << std::hex << std::setw(8)
-                    << std::setfill('0') << _dmem_pending_addr << " data=0x"
-                    << std::setw(8) << _dmem_pending_data << std::dec
-                    << std::endl;
+          for (int i = 0; i < _dmem_pending_data.size(); i++) {
+            addr_t addr = _dmem_pending_addr + (i * 4);
+            std::cout << "  [DMEM WRITE] addr=0x" << std::hex << std::setw(8)
+                      << std::setfill('0') << addr << " data=0x" << std::setw(8)
+                      << _dmem_pending_data[i] << std::dec << std::endl;
+          }
         }
       } else {
         // Read
-        addr_t aligned_addr = _dmem_pending_addr & ~0x3;
-        word_t data = _dmem->read_word(aligned_addr);
-        _dut->dmem_resp_bits_data = data;
+        for (int i = 0; i < _dut->dmem_resp_bits_data.size(); i++) {
+          addr_t addr = _dmem_pending_addr + (i * 4);
+          word_t data = _dmem->read_word(addr);
+          _dut->dmem_resp_bits_data[i] = data;
 
-        if (_verbose) {
-          std::cout << "  [DMEM READ] addr=0x" << std::hex << std::setw(8)
-                    << std::setfill('0') << _dmem_pending_addr << " aligned=0x"
-                    << std::setw(8) << aligned_addr << " data=0x"
-                    << std::setw(8) << data << std::dec << std::endl;
+          if (_verbose) {
+            std::cout << "  [DMEM READ] addr=0x" << std::hex << std::setw(8)
+                      << std::setfill('0') << _dmem_pending_addr
+                      << " aligned=0x" << std::setw(8) << addr << " data=0x"
+                      << std::setw(8) << data << std::dec << std::endl;
+          }
         }
       }
 

@@ -1,29 +1,34 @@
 #pragma once
 
 #include "../isa/isa.hh"
-#include "./ihardware.hh"
 
 namespace demu::hal {
 using namespace isa;
 
-class EmulatedHardware : public IHardware {
+class EmulatedHardware {
 public:
   virtual ~EmulatedHardware() = default;
 
-  void clock_tick() override {
-    // Default: do nothing
+  [[nodiscard]] virtual addr_t base_address() const noexcept = 0;
+  [[nodiscard]] virtual size_t address_range() const noexcept = 0;
+
+  [[nodiscard]] bool is_valid_offset(addr_t offset) const noexcept {
+    return offset < address_range();
+  }
+  [[nodiscard]] addr_t to_offset(addr_t addr) const noexcept {
+    return addr - base_address();
+  }
+  [[nodiscard]] bool owns_address(addr_t addr) const noexcept {
+    addr_t base = base_address();
+    return addr >= base && addr < (base + address_range());
   }
 
-protected:
-  EmulatedHardware(addr_t base, size_t range)
-      : _base_addr(base), _addr_range(range) {}
+  virtual void clock_tick() = 0;
+  virtual void reset() = 0;
 
-  addr_t base_address() const noexcept override { return _base_addr; }
-  size_t address_range() const noexcept override { return _addr_range; }
-
-private:
-  addr_t _base_addr;
-  size_t _addr_range;
+  virtual const char *name() const noexcept {
+    return "Unknown Emulated Hardware";
+  }
 };
 
 } // namespace demu::hal

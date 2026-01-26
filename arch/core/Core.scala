@@ -6,15 +6,11 @@ import bru._
 import alu._
 import regfile._
 import lsu._
+import csr._
 import arch.configs._
 import vopts.mem.cache._
 import chisel3._
 import chisel3.util._
-
-class IBufferEntry(implicit p: Parameters) extends Bundle {
-  val pc    = UInt(p(XLen).W)
-  val instr = UInt(p(ILen).W)
-}
 
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
@@ -24,9 +20,20 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val bru_utils     = BruUtilitiesFactory.getOrThrow(p(ISA))
   val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA))
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
+  val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
-  val imem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
-  val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
+  val imem = IO(new UnifiedMemoryReadOnlyIO(p(XLen), p(ILen), p(L1ICacheLineSize) / (p(XLen) / 8)))
+  val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheLineSize) / (p(XLen) / 8)))
+
+  class IBufferEntry extends Bundle {
+    val pc    = UInt(p(XLen).W)
+    val instr = UInt(p(ILen).W)
+  }
+
+  class DBufferReadEntry extends Bundle {
+    val addr = UInt(p(XLen).W)
+    val size = UInt((p(L1DCacheLineSize) / (p(XLen) / 8)).W)
+  }
 
   // Modules
   val decoder = Module(new Decoder)
@@ -38,6 +45,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imm_gen = Module(new ImmGen)
   val alu     = Module(new Alu)
   val lsu     = Module(new Lsu)
+  val csrfile = Module(new CsrFile)
+
+  val l1_icache = Module(new SetAssociativeCacheReadOnly(p(XLen), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy)))
+  val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -60,13 +71,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val load_use_hazard = Wire(Bool())
 
   // IF Stage
-  imem.req.valid     := !imem_pending && !ibuffer_full
-  imem.req.bits.op   := MemoryOp.READ
-  imem.req.bits.addr := pc
-  imem.req.bits.data := 0.U(p(XLen).W)
-  imem.resp.ready    := true.B
+  imem <> l1_icache.lower
 
-  when(imem.req.fire) {
+  l1_icache.upper.req.valid     := !imem_pending && !ibuffer_full
+  l1_icache.upper.req.bits.addr := pc
+  l1_icache.upper.resp.ready    := true.B
+
+  when(l1_icache.upper.req.fire) {
     imem_pending := true.B
     imem_pc      := pc
     imem_valid   := true.B
@@ -76,8 +87,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     imem_valid := false.B
   }
 
-  when(imem.resp.fire) {
-    imem_data    := imem.resp.bits.data
+  when(l1_icache.upper.resp.fire) {
+    imem_data    := l1_icache.upper.resp.bits.data
     imem_pending := false.B
   }
 
@@ -91,9 +102,9 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     reset_ibuffer := false.B
   }
 
-  ibuffer.io.enq.valid      := imem.resp.fire && imem_valid && !ibuffer_full
+  ibuffer.io.enq.valid      := l1_icache.upper.resp.fire && imem_valid && !ibuffer_full
   ibuffer.io.enq.bits.pc    := imem_pc
-  ibuffer.io.enq.bits.instr := imem.resp.bits.data
+  ibuffer.io.enq.bits.instr := l1_icache.upper.resp.bits.data
 
   ibuffer.io.deq.ready := (!ibuffer_empty && !if_id.STALL && !if_id.FLUSH) || reset_ibuffer
 
@@ -109,12 +120,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   imm_gen.instr   := if_id.ID_INSTR
   imm_gen.immType := decoder.decoded.imm_type
 
-  val rs1 = regfile_utils.getRs1(if_id.ID_INSTR)
-  val rs2 = regfile_utils.getRs2(if_id.ID_INSTR)
-  val rd  = regfile_utils.getRd(if_id.ID_INSTR)
+  val rs1      = regfile_utils.getRs1(if_id.ID_INSTR)
+  val rs2      = regfile_utils.getRs2(if_id.ID_INSTR)
+  val rd       = regfile_utils.getRd(if_id.ID_INSTR)
+  val csr_addr = csr_utils.getAddr(if_id.ID_INSTR)
 
-  regfile.rs1_addr := rs1
-  regfile.rs2_addr := rs2
+  regfile.rs1_preg := rs1
+  regfile.rs2_preg := rs2
 
   // ID Forwarding
   id_fwd.id_rs1       := rs1
@@ -160,8 +172,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // ID/EX Pipeline
   id_ex.STALL             := ex_mem.STALL
   id_ex.FLUSH             := (load_use_hazard || (bru.taken && !bru.jump)) && !lsu.busy
-  id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID_INSTR          := if_id.ID_INSTR
+  id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.pc             := if_id.ID.pc
   id_ex.ID.rd             := rd
   id_ex.ID.rs1            := rs1
@@ -169,6 +181,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   id_ex.ID.rs2            := rs2
   id_ex.ID.rs2_data       := id_rs2_data
   id_ex.ID.imm            := imm_gen.imm
+  id_ex.ID.csr_addr       := csr_addr
+  id_ex.ID.csr_imm        := imm_gen.csr_imm
 
   // EX Stage
   ex_fwd.ex_rs1       := id_ex.EX.rs1
@@ -218,17 +232,25 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   alu.fnType := id_ex.EX.decoded_output.alu_fn
   alu.mode   := id_ex.EX.decoded_output.alu_mode
 
+  csrfile.en   := id_ex.EX.decoded_output.csr
+  csrfile.cmd  := id_ex.EX.decoded_output.csr_cmd
+  csrfile.addr := id_ex.EX.csr_addr
+  csrfile.src  := ex_rs1_data
+  csrfile.imm  := id_ex.EX.csr_imm
+
   // EX/MEM Pipeline
   ex_mem.STALL         := mem_wb.STALL || lsu.busy
   ex_mem.FLUSH         := false.B
-  ex_mem.EX.alu_result := alu.result
   ex_mem.EX_INSTR      := id_ex.EX_INSTR
   ex_mem.EX.pc         := id_ex.EX.pc
   ex_mem.EX.rd         := id_ex.EX.rd
+  ex_mem.EX.alu_result := alu.result
   ex_mem.EX.rs2_data   := ex_rs2_data
   ex_mem.EX.regwrite   := id_ex.EX.decoded_output.regwrite
   ex_mem.EX.lsu        := id_ex.EX.decoded_output.lsu
   ex_mem.EX.lsu_cmd    := id_ex.EX.decoded_output.lsu_cmd
+  ex_mem.EX.csr        := id_ex.EX.decoded_output.csr
+  ex_mem.EX.csr_rdata  := csrfile.rd
 
   // MEM Stage
   lsu.en    := ex_mem.MEM.lsu
@@ -236,12 +258,20 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   lsu.addr  := ex_mem.MEM.alu_result
   lsu.wdata := ex_mem.MEM.rs2_data
 
-  dmem <> lsu.mem
+  l1_dcache.upper <> lsu.mem
+  dmem <> l1_dcache.lower
 
-  val mem_wb_data = Mux(
-    lsu.mem_read,
-    lsu.rdata,
-    ex_mem.MEM.alu_result
+  val l1_dcache_pending = RegInit(false.B)
+  when(l1_dcache.miss) {
+    l1_dcache_pending := true.B
+  }
+
+  val mem_wb_data = MuxCase(
+    ex_mem.MEM.alu_result,
+    Seq(
+      lsu.mem_read   -> lsu.rdata,
+      ex_mem.MEM.csr -> ex_mem.MEM.csr_rdata
+    )
   )
 
   // MEM/WB Pipeline
@@ -254,7 +284,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   mem_wb.MEM.wb_data  := mem_wb_data
 
   // WB Stage
-  regfile.write_addr := mem_wb.WB.rd
+  regfile.write_preg := mem_wb.WB.rd
   regfile.write_data := mem_wb.WB.wb_data
   regfile.write_en   := mem_wb.WB.regwrite
 
@@ -270,7 +300,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val debug_pc       = IO(Output(UInt(p(XLen).W)))
     val debug_instr    = IO(Output(UInt(p(ILen).W)))
     val debug_reg_we   = IO(Output(Bool()))
-    val debug_reg_addr = IO(Output(UInt(regfile_utils.width.W)))
+    val debug_reg_addr = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
     val debug_reg_data = IO(Output(UInt(p(XLen).W)))
 
     val debug_branch_taken  = IO(Output(Bool()))
@@ -283,9 +313,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val debug_mem_instr = IO(Output(UInt(p(ILen).W)))
     val debug_wb_instr  = IO(Output(UInt(p(ILen).W)))
 
+    val debug_l1_dcache_miss = IO(Output(Bool()))
+
     debug_pc       := mem_wb.WB.pc
     debug_instr    := mem_wb.WB_INSTR
-    debug_reg_addr := regfile.write_addr
+    debug_reg_addr := regfile.write_preg
     debug_reg_we   := regfile.write_en
     debug_reg_data := regfile.write_data
 
@@ -300,5 +332,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_ex_instr  := id_ex.EX_INSTR
     debug_mem_instr := ex_mem.MEM_INSTR
     debug_wb_instr  := mem_wb.WB_INSTR
+
+    // Cache Debugging
+    debug_l1_dcache_miss := l1_dcache.miss
   }
 }

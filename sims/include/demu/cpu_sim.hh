@@ -87,7 +87,7 @@ protected:
   bool _imem_pending;
 
   addr_t _dmem_pending_addr;
-  word_t _dmem_pending_data;
+  std::vector<word_t> _dmem_pending_data;
   uint64_t _dmem_pending_latency;
   bool _dmem_pending_op;
   bool _dmem_pending;

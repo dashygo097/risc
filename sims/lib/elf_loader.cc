@@ -4,6 +4,7 @@
 #include <iostream>
 
 namespace demu {
+
 bool ELFLoader::is_elf(const std::string &filename) {
   std::ifstream file(filename, std::ios::binary);
   if (!file.is_open())
