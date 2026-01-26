@@ -95,11 +95,12 @@ void SystemSimulator::dump_memory(addr_t start, size_t size) const {
     return;
   }
 
+  // TODO: Not only AXI Lite memories
   auto *mem = dynamic_cast<hal::axi::AXILiteMemory *>(slave);
   if (mem) {
     printf("Memory dump [0x%08x - 0x%08zx]:\n", start, start + size);
     addr_t offset = start - mem->base_address();
-    byte_t *ptr = mem->get_ptr(start + offset);
+    byte_t *ptr = mem->get_ptr(start);
 
     if (ptr) {
       for (size_t i = 0; i < size && (offset + i) < mem->address_range();
