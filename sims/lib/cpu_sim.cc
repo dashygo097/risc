@@ -11,7 +11,9 @@ CPUSimulator::CPUSimulator(bool enable_trace)
       _dmem(new hal::Memory(16 * 1024, 0x80000000)),
       _trace(new ExecutionTrace()), _time_counter(0), _cycle_count(0),
       _instr_count(0), _timeout(1000000), _terminate(false), _verbose(false),
-      _show_pipeline(false), _trace_enabled(enable_trace) {
+      _show_pipeline(false), _trace_enabled(enable_trace),
+      _l1_icache_accesses(0), _l1_icache_misses(0), _l1_dcache_accesses(0),
+      _l1_dcache_misses(0), _imem_pending(false), _dmem_pending(false) {
 #ifdef ENABLE_TRACE
   if (_trace_enabled) {
     Verilated::traceEverOn(true);
@@ -78,6 +80,22 @@ void CPUSimulator::reset() {
   _dmem_pending_data.resize(_dut->dmem_req_bits_data.size());
 
   on_reset();
+}
+
+void CPUSimulator::handle_cache_profiling() {
+  if (_dut->debug_l1_icache_access) {
+    _l1_icache_accesses++;
+    if (_dut->debug_l1_icache_miss) {
+      _l1_icache_misses++;
+    }
+  }
+
+  if (_dut->debug_l1_dcache_access) {
+    _l1_dcache_accesses++;
+    if (_dut->debug_l1_dcache_miss) {
+      _l1_dcache_misses++;
+    }
+  }
 }
 
 void CPUSimulator::handle_imem_interface() {
@@ -226,6 +244,8 @@ void CPUSimulator::clock_tick() {
 #endif
 
   _cycle_count++;
+
+  handle_cache_profiling();
 
   if (_dut->debug_reg_addr != 0) {
     if (_dut->debug_reg_we) {

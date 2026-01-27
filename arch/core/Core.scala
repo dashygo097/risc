@@ -313,7 +313,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val debug_mem_instr = IO(Output(UInt(p(ILen).W)))
     val debug_wb_instr  = IO(Output(UInt(p(ILen).W)))
 
-    val debug_l1_dcache_miss = IO(Output(Bool()))
+    val debug_l1_icache_access = IO(Output(Bool()))
+    val debug_l1_icache_miss   = IO(Output(Bool()))
+    val debug_l1_dcache_access = IO(Output(Bool()))
+    val debug_l1_dcache_miss   = IO(Output(Bool()))
 
     debug_pc       := mem_wb.WB.pc
     debug_instr    := mem_wb.WB_INSTR
@@ -334,6 +337,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_wb_instr  := mem_wb.WB_INSTR
 
     // Cache Debugging
-    debug_l1_dcache_miss := l1_dcache.miss
+    // NOTE: Align the access signal timing if needed
+    debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
+    debug_l1_icache_miss   := l1_icache.miss
+    debug_l1_dcache_access := RegNext(l1_dcache.upper.req.fire)
+    debug_l1_dcache_miss   := l1_dcache.miss
   }
 }

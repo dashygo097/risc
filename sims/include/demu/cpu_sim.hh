@@ -48,6 +48,16 @@ public:
   [[nodiscard]] double ipc() const noexcept {
     return _cycle_count > 0 ? (double)_instr_count / _cycle_count : 0.0;
   };
+  [[nodiscard]] double l1_icache_hit_rate() const noexcept {
+    return _l1_icache_accesses > 0
+               ? 1.0 - (double)_l1_icache_misses / _l1_icache_accesses
+               : 0.0;
+  };
+  [[nodiscard]] double l1_dcache_hit_rate() const noexcept {
+    return _l1_dcache_accesses > 0
+               ? 1.0 - (double)_l1_dcache_misses / _l1_dcache_accesses
+               : 0.0;
+  };
 
   // Simulator configuration
   void verbose(bool verbose) noexcept { _verbose = verbose; }
@@ -82,6 +92,12 @@ protected:
   bool _show_pipeline;
   bool _trace_enabled;
 
+  // Cache profiler
+  uint64_t _l1_icache_accesses;
+  uint64_t _l1_icache_misses;
+  uint64_t _l1_dcache_accesses;
+  uint64_t _l1_dcache_misses;
+
   addr_t _imem_pending_addr;
   uint64_t _imem_pending_latency;
   bool _imem_pending;
@@ -97,6 +113,7 @@ protected:
 
   // Internal simulation methods
   void clock_tick();
+  void handle_cache_profiling();
   void handle_imem_interface();
   void handle_dmem_interface();
   void check_termination();
