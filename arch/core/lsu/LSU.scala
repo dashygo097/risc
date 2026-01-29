@@ -18,7 +18,7 @@ class Lsu(implicit p: Parameters) extends Module {
   val wdata = IO(Input(UInt(p(XLen).W)))
 
   // Memory interface
-  val mem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), 1, 1))
+  val mem = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
 
   // Outputs
   val rdata     = IO(Output(UInt(p(XLen).W)))
@@ -84,7 +84,7 @@ class Lsu(implicit p: Parameters) extends Module {
 
   // Memory request
   mem.req.valid     := en && !req_fired
-  mem.req.bits.op   := Mux(mem_write, MemoryOp.WRITE, MemoryOp.READ)
+  mem.req.bits.op   := Mux(mem_write, CacheOp.WRITE, CacheOp.READ)
   mem.req.bits.addr := addr
   mem.req.bits.data := aligned_wdata
   mem.resp.ready    := true.B

@@ -13,11 +13,11 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
     override def busType: Bundle =
       new AXIFullMasterIO(addrWidth = p(XLen), dataWidth = p(XLen), idWidth = 4)
 
-    override def createBridge(memory: UnifiedMemoryIO): Bundle = {
+    override def createBridge[T <: Data](gen: T, memory: CacheIO[T]): Bundle = {
       val axi = Wire(new AXIFullMasterIO(addrWidth = p(XLen), dataWidth = p(XLen), idWidth = 4))
 
-      val isWrite = memory.req.bits.op === MemoryOp.WRITE
-      val isRead  = memory.req.bits.op === MemoryOp.READ
+      val isWrite = memory.req.bits.op === CacheOp.WRITE
+      val isRead  = memory.req.bits.op === CacheOp.READ
 
       val wordsPerRequest = memory.req.bits.data.getWidth / p(XLen)
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
@@ -41,7 +41,7 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       when(memory.req.fire && isWrite) {
         w_active     := true.B
         w_beat_count := 0.U
-        w_data_reg   := memory.req.bits.data
+        w_data_reg   := memory.req.bits.data.asUInt
       }.elsewhen(w_active && axi.w.fire) {
         when(w_beat_count === writeBurstLen) {
           w_active := false.B
@@ -117,12 +117,13 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val r_complete = r_active && axi.r.valid && axi.r.bits.last
 
       memory.resp.valid     := w_complete || r_complete
-      memory.resp.bits.data := Cat(r_data_buffer.reverse)
+      memory.resp.bits.data := Cat(r_data_buffer.reverse).asTypeOf(memory.resp.bits.data)
+      memory.resp.bits.hit  := true.B
 
       axi
     }
 
-    override def createBridgeReadOnly(memory: UnifiedMemoryReadOnlyIO): Bundle = {
+    override def createBridgeReadOnly[T <: Data](gen: T, memory: CacheReadOnlyIO[T]): Bundle = {
       val axi = Wire(new AXIFullMasterIO(addrWidth = p(XLen), dataWidth = p(XLen), idWidth = 4))
 
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
@@ -195,7 +196,8 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val r_complete = r_active && axi.r.valid && axi.r.bits.last
 
       memory.resp.valid     := r_complete
-      memory.resp.bits.data := Cat(r_data_buffer.reverse)
+      memory.resp.bits.data := Cat(r_data_buffer.reverse).asTypeOf(memory.resp.bits.data)
+      memory.resp.bits.hit  := true.B
 
       axi
     }

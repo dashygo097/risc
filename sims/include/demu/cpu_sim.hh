@@ -13,6 +13,41 @@
 #include "verilated_vcd_c.h"
 #endif
 
+#define IMEM_SET_RESP_DATA(dut, data_ptr, num_words)                           \
+  do {                                                                         \
+    for (int i = 0; i < (num_words); i++) {                                    \
+      *(&((dut)->imem_resp_bits_data_0) + i) = *(data_ptr + i);                \
+    }                                                                          \
+  } while (0);
+
+#define IMEM_CLEAR_RESP_DATA(dut, num_words)                                   \
+  do {                                                                         \
+    for (int i = 0; i < (num_words); i++) {                                    \
+      *(&((dut)->imem_resp_bits_data_0) + i) = 0;                              \
+    }                                                                          \
+  } while (0);
+
+#define DMEM_SET_RESP_DATA(dut, data_ptr, num_words)                           \
+  do {                                                                         \
+    for (int i = 0; i < (num_words); i++) {                                    \
+      *(&((dut)->dmem_resp_bits_data_0) + i) = *(data_ptr + i);                \
+    }                                                                          \
+  } while (0);
+
+#define DMEM_GET_REQ_DATA(dut, data_ptr, num_words)                            \
+  do {                                                                         \
+    for (int i = 0; i < (num_words); i++) {                                    \
+      *(data_ptr + i) = *(&((dut)->dmem_req_bits_data_0) + i);                 \
+    }                                                                          \
+  } while (0);
+
+#define DMEM_CLEAR_RESP_DATA(dut, num_words)                                   \
+  do {                                                                         \
+    for (int i = 0; i < (num_words); i++) {                                    \
+      *(&((dut)->dmem_resp_bits_data_0) + i) = 0;                              \
+    }                                                                          \
+  } while (0);
+
 namespace demu {
 using namespace isa;
 
