@@ -13,11 +13,11 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
     override def busType: Bundle =
       new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen))
 
-    override def createBridge(memory: UnifiedMemoryIO): Bundle = {
+    override def createBridge[T <: Data](gen: T, memory: CacheIO[T]): Bundle = {
       val axi = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
 
-      val isWrite = memory.req.bits.op === MemoryOp.WRITE
-      val isRead  = memory.req.bits.op === MemoryOp.READ
+      val isWrite = memory.req.bits.op === CacheOp.WRITE
+      val isRead  = memory.req.bits.op === CacheOp.READ
 
       val wordsPerRequest = memory.req.bits.data.getWidth / p(XLen)
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
@@ -42,7 +42,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         w_word_count  := 0.U
         w_active      := true.B
         w_complete    := false.B
-        w_data_reg    := memory.req.bits.data
+        w_data_reg    := memory.req.bits.data.asUInt
         w_base_addr   := memory.req.bits.addr
       }
 
@@ -133,12 +133,13 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       memory.req.ready := (!aw_active && !w_active && !b_active && !ar_active && !r_active)
 
       memory.resp.valid     := w_complete || r_complete
-      memory.resp.bits.data := Cat(r_data_buffer.reverse)
+      memory.resp.bits.data := Cat(r_data_buffer.reverse).asTypeOf(memory.resp.bits.data)
+      memory.resp.bits.hit  := true.B
 
       axi
     }
 
-    override def createBridgeReadOnly(memory: UnifiedMemoryReadOnlyIO): Bundle = {
+    override def createBridgeReadOnly[T <: Data](gen: T, memory: CacheReadOnlyIO[T]): Bundle = {
       val axi = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
 
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
@@ -203,7 +204,8 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       memory.req.ready := !r_active
 
       memory.resp.valid     := r_complete
-      memory.resp.bits.data := Cat(r_data_buffer.reverse)
+      memory.resp.bits.data := Cat(r_data_buffer.reverse).asTypeOf(memory.resp.bits.data)
+      memory.resp.bits.hit  := true.B
 
       axi
     }

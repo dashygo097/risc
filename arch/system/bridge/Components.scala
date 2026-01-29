@@ -6,8 +6,8 @@ import chisel3._
 
 trait BusBridgeUtilities extends Utilities {
   def busType: Bundle
-  def createBridge(memory: UnifiedMemoryIO): Bundle
-  def createBridgeReadOnly(memory: UnifiedMemoryReadOnlyIO): Bundle
+  def createBridge[T <: Data](gen: T, memory: CacheIO[T]): Bundle
+  def createBridgeReadOnly[T <: Data](gen: T, memory: CacheReadOnlyIO[T]): Bundle
 }
 
 object BusBridgeUtilitiesFactory extends UtilitiesFactory[BusBridgeUtilities]("BusBridge")

@@ -22,8 +22,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
   val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
-  val imem = IO(new UnifiedMemoryReadOnlyIO(p(XLen), p(ILen), p(L1ICacheLineSize) / (p(XLen) / 8)))
-  val dmem = IO(new UnifiedMemoryIO(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheLineSize) / (p(XLen) / 8)))
+  val imem = IO(new CacheReadOnlyIO(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(ILen)))
+  val dmem = IO(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen)))
 
   class IBufferEntry extends Bundle {
     val pc    = UInt(p(XLen).W)
@@ -47,8 +47,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu     = Module(new Lsu)
   val csrfile = Module(new CsrFile)
 
-  val l1_icache = Module(new SetAssociativeCacheReadOnly(p(XLen), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy)))
-  val l1_dcache = Module(new SetAssociativeCache(p(XLen), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
+  val l1_icache = Module(new SetAssociativeCacheReadOnly(UInt(p(XLen).W), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy)))
+  val l1_dcache = Module(new SetAssociativeCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
   // Pipelines
   val if_id  = Module(new IF_ID)
@@ -262,7 +262,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   dmem <> l1_dcache.lower
 
   val l1_dcache_pending = RegInit(false.B)
-  when(l1_dcache.miss) {
+  when(!l1_dcache.upper.resp.bits.hit) {
     l1_dcache_pending := true.B
   }
 
@@ -339,8 +339,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     // Cache Debugging
     // NOTE: Align the access signal timing if needed
     debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
-    debug_l1_icache_miss   := l1_icache.miss
+    debug_l1_icache_miss   := !l1_icache.upper.resp.bits.hit
     debug_l1_dcache_access := RegNext(l1_dcache.upper.req.fire)
-    debug_l1_dcache_miss   := l1_dcache.miss
+    debug_l1_dcache_miss   := !l1_dcache.upper.resp.bits.hit
   }
 }
