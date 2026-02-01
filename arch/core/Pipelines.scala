@@ -4,7 +4,7 @@ import common._
 import decoder._
 import lsu._
 import csr._
-import arch.configs._
+import _root_.arch.configs._
 import chisel3._
 import chisel3.util._
 

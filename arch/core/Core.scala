@@ -64,7 +64,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val ibuffer_full  = ibuffer.io.count === p(IBufferSize).U
 
   val imem_pending = RegInit(false.B)
-  val imem_data    = RegInit(decoder_utils.bubble.value.U(p(ILen).W))
+  val imem_data    = RegInit(p(Bubble).value.U(p(ILen).W))
   val imem_pc      = RegInit(0.U(p(XLen).W))
   val imem_valid   = RegInit(false.B)
 
@@ -111,8 +111,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // IF/ID Pipeline
   if_id.STALL    := id_ex.STALL || load_use_hazard
   if_id.FLUSH    := (bru.taken || !imem_valid || reset_ibuffer) && !lsu.busy
-  if_id.IF_INSTR := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.instr, decoder_utils.bubble.value.U(p(ILen).W))
-  if_id.IF.pc    := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.pc, decoder_utils.bubble.value.U(p(XLen).W))
+  if_id.IF_INSTR := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.instr, p(Bubble).value.U(p(ILen).W))
+  if_id.IF.pc    := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.pc, p(Bubble).value.U(p(XLen).W))
 
   // ID Stage
   decoder.instr := if_id.ID_INSTR
@@ -330,7 +330,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_branch_target := bru.target
 
     // Pipelines Debugging
-    debug_if_instr  := Mux(ibuffer.io.deq.fire && !reset_ibuffer, ibuffer.io.deq.bits.instr, decoder_utils.bubble.value.U(p(ILen).W))
+    debug_if_instr  := Mux(ibuffer.io.deq.fire && !reset_ibuffer, ibuffer.io.deq.bits.instr, p(Bubble).value.U(p(ILen).W))
     debug_id_instr  := if_id.ID_INSTR
     debug_ex_instr  := id_ex.EX_INSTR
     debug_mem_instr := ex_mem.MEM_INSTR

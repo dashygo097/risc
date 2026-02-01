@@ -3,6 +3,7 @@ package arch
 package object configs {
   import isa._
   import vopts.mem.cache._
+  import chisel3.util.BitPat
 
   // User Options
   // You should only modify these parameters
@@ -44,13 +45,15 @@ package object configs {
   object ILen        extends Field[Int](ISADefinition.ilen(ISA()))
   object NumArchRegs extends Field[Int](ISADefinition.numArchRegs(ISA()))
   object IsBigEndian extends Field[Boolean](ISADefinition.isBigEndian(ISA()))
+  object Bubble      extends Field[BitPat](ISADefinition.bubble(ISA()))
 
   implicit val p: Parameters = Parameters.empty ++ Map(
     ISA         -> ISA.apply(),
     XLen        -> XLen.apply(),
     ILen        -> ILen.apply(),
     NumArchRegs -> NumArchRegs.apply(),
-    IsBigEndian -> IsBigEndian.apply()
+    IsBigEndian -> IsBigEndian.apply(),
+    Bubble      -> Bubble.apply(),
   )
 }
 
