@@ -9,6 +9,7 @@ verilate(demu
     -Wno-UNUSED
     -Wno-UNOPTFLAT
     -Wno-DECLFILENAME
+    -Wno-PINCONNECTEMPTY
     --top-module ${ISA}_cpu
   PREFIX V${ISA}_cpu
   TRACE_THREADS 2
