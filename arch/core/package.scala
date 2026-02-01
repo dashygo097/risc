@@ -2,20 +2,24 @@ package arch.core
 
 package object common {}
 
-package object decoder {}
+// IF
+package object ifu {}
 
+// ID
 package object bru {}
 
-package object bpu {}
-
-package object alu {}
-
-package object lsu {}
+package object decoder {}
 
 package object imm {}
 
 package object regfile {}
 
+// EX
+package object alu {}
+
 package object csr {}
 
-package object rename {}
+// MEM
+package object lsu {}
+
+// WB
