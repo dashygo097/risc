@@ -65,3 +65,9 @@ Run sta using **Yosys** or **Vivado** through **sta_yosys.sh(sta_vivado.sh)** wi
 > ```bash
 > make sta # (FZF=true STA_TOOL=yosys(vivado))
 > ```
+
+## Acknowledgememt
+- [chisel](https://github.com/chipsalliance/chisel)
+- [rocket-chip](https://github.com/chipsalliance/rocket-chip)
+
+## Licence
