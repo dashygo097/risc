@@ -71,3 +71,6 @@ Run sta using **Yosys** or **Vivado** through **sta_yosys.sh(sta_vivado.sh)** wi
 - [rocket-chip](https://github.com/chipsalliance/rocket-chip)
 
 ## Licence
+Copyright 2025-2026 dashygo097
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
