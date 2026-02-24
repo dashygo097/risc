@@ -2,8 +2,8 @@ BASE_DIR = $(shell pwd)
 BUILD_DIR = $(BASE_DIR)/build
 SCRIPTS_DIR = $(BASE_DIR)/scripts
 SIM_DIR = $(BASE_DIR)/sims
+TB_DIR = $(BASE_DIR)/testbenchs
 SYNTH_DIR = $(BASE_DIR)/synth
-TB_DIR = $(SIM_DIR)/tb
 
 LIB ?= arch 
 FZF ?= $(shell [ -x "$$(command -v fzf)" ] && echo true || echo false)

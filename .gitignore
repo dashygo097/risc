@@ -17,3 +17,4 @@ sims/tests/elf
 sims/tests/bin
 sims/tests/hex
 sims/tests/dump
+testbenchs/
