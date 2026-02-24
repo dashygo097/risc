@@ -20,17 +20,14 @@ void Logger::init() {
   sinks.push_back(
       std::make_shared<spdlog::sinks::basic_file_sink_mt>("demu.log", true));
 
-  for (auto &sink : sinks) {
-  }
-
   sinks[0]->set_formatter(std::move(formatter));
   sinks[1]->set_pattern("[%T] [%l] %n: %v");
 
   // Initialize individual loggers
   demu_logger_ =
-      std::make_shared<spdlog::logger>("demu", sinks.begin(), sinks.end());
+      std::make_shared<spdlog::logger>("demu  ", sinks.begin(), sinks.end());
   cpu_logger_ =
-      std::make_shared<spdlog::logger>("cpu", sinks.begin(), sinks.end());
+      std::make_shared<spdlog::logger>("cpu   ", sinks.begin(), sinks.end());
   system_logger_ =
       std::make_shared<spdlog::logger>("system", sinks.begin(), sinks.end());
 

@@ -5,6 +5,10 @@
 #include <string>
 #include <vector>
 
+#ifndef PT_LOAD
+#define PT_LOAD 1
+#endif
+
 namespace demu {
 struct ELF32_Header {
   uint8_t e_ident[16];

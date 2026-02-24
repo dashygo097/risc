@@ -1,6 +1,7 @@
 #pragma once
 
 #include "./hal/hal.hh"
+#include "./logger.hh"
 #include "./trace.hh"
 #include "Vrv32i_cpu.h"
 #include "verilated.h"

@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <demu.hh>
+#include <demu/logger.hh>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -37,6 +38,7 @@ void print_usage(const char *prog) {
 }
 
 int main(int argc, char **argv) {
+  demu::Logger::init();
   if (argc < 2) {
     print_usage(argv[0]);
     return 1;

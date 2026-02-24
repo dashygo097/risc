@@ -1,5 +1,6 @@
 #include "demu/cpu_sim.hh"
 #include "demu/elf_loader.hh"
+#include "demu/logger.hh"
 #include <iomanip>
 #include <iostream>
 
