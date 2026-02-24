@@ -28,8 +28,8 @@ run: pre
 
 clean:
 	@rm -rf $(SYNTH_DIR)
-	@rm -rf $(SIM_DIR)/logs
-	@rm -rf $(SIM_DIR)/build
+	@rm -rf $(TB_DIR)/logs
+	@rm -rf $(TB_DIR)/build
 
 update:
 	@sbt clean bloopInstall
