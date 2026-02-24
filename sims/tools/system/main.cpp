@@ -54,7 +54,6 @@ void print_usage(const char *prog) {
 }
 
 int main(int argc, char **argv) {
-  demu::Logger::init();
   if (argc < 2) {
     print_usage(argv[0]);
     return 1;
@@ -107,6 +106,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  demu::Logger::init();
   SystemSimulatorTop sim(enable_trace);
   sim.verbose(verbose);
 

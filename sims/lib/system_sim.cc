@@ -5,9 +5,7 @@
 namespace demu {
 SystemSimulator::SystemSimulator(bool enabled_trace)
     : _dut(std::make_unique<Vrv32i_system>()),
-      _device_manager(std::make_unique<hal::DeviceManager>()), _time_counter(0),
-      _timeout(0), _trace_enabled(enabled_trace), _terminate(false),
-      _verbose(false) {
+      _device_manager(std::make_unique<hal::DeviceManager>()) {
 
   _imem = _device_manager->register_slave<hal::axi::AXILiteMemory>(
       0, "imem", 4 * 1024, 0x00000000);

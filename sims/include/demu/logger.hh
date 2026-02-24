@@ -46,19 +46,14 @@ public:
 class Logger {
 public:
   static void init();
+  static void init(spdlog::level::level_enum level);
 
   static std::shared_ptr<spdlog::logger> &getDemuLogger() {
     return demu_logger_;
   }
-  static std::shared_ptr<spdlog::logger> &getCpuLogger() { return cpu_logger_; }
-  static std::shared_ptr<spdlog::logger> &getSystemLogger() {
-    return system_logger_;
-  }
 
 private:
   static std::shared_ptr<spdlog::logger> demu_logger_;
-  static std::shared_ptr<spdlog::logger> cpu_logger_;
-  static std::shared_ptr<spdlog::logger> system_logger_;
 };
 } // namespace demu
 
@@ -71,33 +66,5 @@ private:
 #define DEMU_ERROR(...)                                                        \
   do {                                                                         \
     ::demu::Logger::getDemuLogger()->error(__VA_ARGS__);                       \
-    std::abort();                                                              \
-  } while (0);
-
-#define DEMU_CPU_TRACE(...) ::demu::Logger::getCpuLogger()->trace(__VA_ARGS__);
-#define DEMU_CPU_DEBUG(...) ::demu::Logger::getCpuLogger()->debug(__VA_ARGS__);
-#define DEMU_CPU_INFO(...) ::demu::Logger::getCpuLogger()->info(__VA_ARGS__);
-#define DEMU_CPU_WARN(...) ::demu::Logger::getCpuLogger()->warn(__VA_ARGS__);
-#define DEMU_CPU_CRIT(...)                                                     \
-  ::demu::Logger::getCpuLogger()->critical(__VA_ARGS__);
-#define DEMU_CPU_ERROR(...)                                                    \
-  do {                                                                         \
-    ::demu::Logger::getCpuLogger()->error(__VA_ARGS__);                        \
-    std::abort();                                                              \
-  } while (0);
-
-#define DEMU_SYSTEM_TRACE(...)                                                 \
-  ::demu::Logger::getSystemLogger()->trace(__VA_ARGS__);
-#define DEMU_SYSTEM_DEBUG(...)                                                 \
-  ::demu::Logger::getSystemLogger()->debug(__VA_ARGS__);
-#define DEMU_SYSTEM_INFO(...)                                                  \
-  ::demu::Logger::getSystemLogger()->info(__VA_ARGS__);
-#define DEMU_SYSTEM_WARN(...)                                                  \
-  ::demu::Logger::getSystemLogger()->warn(__VA_ARGS__);
-#define DEMU_SYSTEM_CRIT(...)                                                  \
-  ::demu::Logger::getSystemLogger()->critical(__VA_ARGS__);
-#define DEMU_SYSTEM_ERROR(...)                                                 \
-  do {                                                                         \
-    ::demu::Logger::getSystemLogger()->error(__VA_ARGS__);                     \
     std::abort();                                                              \
   } while (0);

@@ -8,19 +8,16 @@ namespace demu {
 using namespace isa;
 
 CPUSimulator::CPUSimulator(bool enable_trace)
-    : _dut(new cpu_t), _imem(new hal::Memory(4 * 1024, 0x00000000)),
-      _dmem(new hal::Memory(16 * 1024, 0x80000000)),
-      _trace(new ExecutionTrace()), _time_counter(0), _cycle_count(0),
-      _instr_count(0), _timeout(1000000), _terminate(false), _verbose(false),
-      _show_pipeline(false), _trace_enabled(enable_trace),
-      _l1_icache_accesses(0), _l1_icache_misses(0), _l1_dcache_accesses(0),
-      _l1_dcache_misses(0), _imem_pending(false), _dmem_pending(false) {
+    : dut_(std::make_unique<cpu_t>()),
+      imem_(std::make_unique<hal::Memory>(4 * 1024, 0x00000000)),
+      dmem_(std::make_unique<hal::Memory>(16 * 1024, 0x80000000)),
+      trace_(std::make_unique<ExecutionTrace>()), trace_enabled_(enable_trace) {
 #ifdef ENABLE_TRACE
-  if (_trace_enabled) {
+  if (trace_enabled_) {
     Verilated::traceEverOn(true);
-    _vcd = std::make_unique<VerilatedVcdC>();
-    _dut->trace(_vcd.get(), 99);
-    _vcd->open((std::string(ISA_NAME) + "_cpu.vcd").c_str());
+    vcd_ = std::make_unique<VerilatedVcdC>();
+    dut_->trace(vcd_.get(), 99);
+    vcd_->open((std::string(ISA_NAME) + "_cpu.vcd").c_str());
   }
 #endif
   on_init();
@@ -28,49 +25,49 @@ CPUSimulator::CPUSimulator(bool enable_trace)
 
 CPUSimulator::~CPUSimulator() {
 #ifdef ENABLE_TRACE
-  if (_vcd) {
-    _vcd->close();
+  if (vcd_) {
+    vcd_->close();
   }
 #endif
 }
 
 bool CPUSimulator::load_bin(const std::string &filename, addr_t base_addr) {
-  return _imem->load_binary(filename, base_addr);
+  return imem_->load_binary(filename, base_addr);
 }
 
 bool CPUSimulator::load_elf(const std::string &filename) {
-  return ELFLoader::load(*_imem, filename);
+  return ELFLoader::load(*imem_, filename);
 }
 
 void CPUSimulator::reset() {
-  _dut->reset = 1;
-  _dut->clock = 0;
+  dut_->reset = 1;
+  dut_->clock = 0;
 
-  _dut->imem_req_ready = 1;
-  _dut->imem_resp_valid = 0;
-  IMEM_CLEAR_RESP_DATA(_dut, 4)
+  dut_->imem_req_ready = 1;
+  dut_->imem_resp_valid = 0;
+  IMEM_CLEAR_RESP_DATA(dut_, 4)
 
-  _dut->dmem_req_ready = 1;
-  _dut->dmem_resp_valid = 0;
-  DMEM_CLEAR_RESP_DATA(_dut, 4)
+  dut_->dmem_req_ready = 1;
+  dut_->dmem_resp_valid = 0;
+  DMEM_CLEAR_RESP_DATA(dut_, 4)
 
-  _dut->eval();
+  dut_->eval();
 
   for (int i = 0; i < 5; i++) {
-    _dut->clock = 1;
-    _dut->eval();
-    _dut->clock = 0;
-    _dut->eval();
+    dut_->clock = 1;
+    dut_->eval();
+    dut_->clock = 0;
+    dut_->eval();
   }
 
-  _dut->reset = 0;
-  _dut->eval();
+  dut_->reset = 0;
+  dut_->eval();
 
-  _cycle_count = 0;
-  _instr_count = 0;
-  _terminate = false;
+  cycleCount = 0;
+  instrCount = 0;
+  terminate_ = false;
   _register_values.clear();
-  _trace->clear();
+  trace_->clear();
 
   _imem_pending = 0;
   _dmem_pending = 0;
@@ -81,16 +78,16 @@ void CPUSimulator::reset() {
 }
 
 void CPUSimulator::handle_cache_profiling() {
-  if (_dut->debug_l1_icache_access) {
+  if (dut_->debug_l1_icache_access) {
     _l1_icache_accesses++;
-    if (_dut->debug_l1_icache_miss) {
+    if (dut_->debug_l1_icache_miss) {
       _l1_icache_misses++;
     }
   }
 
-  if (_dut->debug_l1_dcache_access) {
+  if (dut_->debug_l1_dcache_access) {
     _l1_dcache_accesses++;
-    if (_dut->debug_l1_dcache_miss) {
+    if (dut_->debug_l1_dcache_miss) {
       _l1_dcache_misses++;
     }
   }
@@ -98,38 +95,38 @@ void CPUSimulator::handle_cache_profiling() {
 
 void CPUSimulator::handle_imem_interface() {
   if (!_imem_pending) {
-    _dut->imem_resp_valid = 0;
-    IMEM_CLEAR_RESP_DATA(_dut, 4)
+    dut_->imem_resp_valid = 0;
+    IMEM_CLEAR_RESP_DATA(dut_, 4)
 
-    if (_dut->imem_req_valid && _dut->imem_req_ready) {
-      _imem_pending_addr = static_cast<addr_t>(_dut->imem_req_bits_addr);
-      _imem_pending_latency = _imem_delay;
+    if (dut_->imem_req_valid && dut_->imem_req_ready) {
+      _imem_pending_addr = static_cast<addr_t>(dut_->imem_req_bits_addr);
+      _imem_pending_latency = imem_delay_;
       _imem_pending = true;
     }
   } else {
     _imem_pending_latency--;
 
     if (_imem_pending_latency > 0) {
-      _dut->imem_resp_valid = 0;
-      IMEM_CLEAR_RESP_DATA(_dut, 4)
+      dut_->imem_resp_valid = 0;
+      IMEM_CLEAR_RESP_DATA(dut_, 4)
 
     } else {
       word_t data_ptr[4];
       for (int i = 0; i < 4; i++) {
         addr_t addr = _imem_pending_addr + (i * 4);
-        word_t data = _imem->read_word(addr);
+        word_t data = imem_->read_word(addr);
         data_ptr[i] = data;
 
-        if (_verbose) {
+        if (verbose_) {
           std::cout << "  [IMEM READ] addr=0x" << std::hex << std::setw(8)
                     << std::setfill('0') << addr << " data=0x" << std::setw(8)
                     << data << std::dec << std::endl;
         }
       }
-      IMEM_SET_RESP_DATA(_dut, data_ptr, 4)
-      _dut->imem_resp_valid = 1;
+      IMEM_SET_RESP_DATA(dut_, data_ptr, 4)
+      dut_->imem_resp_valid = 1;
 
-      if (_dut->imem_resp_ready) {
+      if (dut_->imem_resp_ready) {
         _imem_pending = false;
       }
     }
@@ -138,22 +135,22 @@ void CPUSimulator::handle_imem_interface() {
 
 void CPUSimulator::handle_dmem_interface() {
   if (!_dmem_pending) {
-    _dut->dmem_resp_valid = 0;
-    DMEM_CLEAR_RESP_DATA(_dut, 4)
+    dut_->dmem_resp_valid = 0;
+    DMEM_CLEAR_RESP_DATA(dut_, 4)
 
-    if (_dut->dmem_req_valid && _dut->dmem_req_ready) {
-      _dmem_pending_addr = static_cast<addr_t>(_dut->dmem_req_bits_addr);
-      _dmem_pending_op = _dut->dmem_req_bits_op;
+    if (dut_->dmem_req_valid && dut_->dmem_req_ready) {
+      _dmem_pending_addr = static_cast<addr_t>(dut_->dmem_req_bits_addr);
+      _dmem_pending_op = dut_->dmem_req_bits_op;
 
       word_t data_ptr[4];
-      DMEM_GET_REQ_DATA(_dut, data_ptr, 4)
+      DMEM_GET_REQ_DATA(dut_, data_ptr, 4)
       for (int i = 0; i < 4; i++) {
         _dmem_pending_data[i] = data_ptr[i];
       }
-      _dmem_pending_latency = _dmem_delay;
+      _dmem_pending_latency = dmem_delay_;
       _dmem_pending = true;
 
-      if (_verbose) {
+      if (verbose_) {
         if (_dmem_pending_op) {
           for (int i = 0; i < 4; i++) {
             std::cout << "  [DMEM REQ] WRITE addr=0x" << std::hex
@@ -171,19 +168,19 @@ void CPUSimulator::handle_dmem_interface() {
     _dmem_pending_latency--;
 
     if (_dmem_pending_latency > 0) {
-      _dut->dmem_resp_valid = 0;
-      DMEM_CLEAR_RESP_DATA(_dut, 4)
+      dut_->dmem_resp_valid = 0;
+      DMEM_CLEAR_RESP_DATA(dut_, 4)
 
     } else {
       if (_dmem_pending_op) {
         // Write
         for (int i = 0; i < _dmem_pending_data.size(); i++) {
           addr_t addr = _dmem_pending_addr + (i * 4);
-          _dmem->write_word(addr, _dmem_pending_data[i]);
+          dmem_->write_word(addr, _dmem_pending_data[i]);
         }
-        DMEM_CLEAR_RESP_DATA(_dut, 4)
+        DMEM_CLEAR_RESP_DATA(dut_, 4)
 
-        if (_verbose) {
+        if (verbose_) {
           for (int i = 0; i < _dmem_pending_data.size(); i++) {
             addr_t addr = _dmem_pending_addr + (i * 4);
             std::cout << "  [DMEM WRITE] addr=0x" << std::hex << std::setw(8)
@@ -196,22 +193,22 @@ void CPUSimulator::handle_dmem_interface() {
         word_t data_ptr[4];
         for (int i = 0; i < 4; i++) {
           addr_t addr = _dmem_pending_addr + (i * 4);
-          word_t data = _dmem->read_word(addr);
+          word_t data = dmem_->read_word(addr);
           data_ptr[i] = data;
 
-          if (_verbose) {
+          if (verbose_) {
             std::cout << "  [DMEM READ] addr=0x" << std::hex << std::setw(8)
                       << std::setfill('0') << _dmem_pending_addr
                       << " aligned=0x" << std::setw(8) << addr << " data=0x"
                       << std::setw(8) << data << std::dec << std::endl;
           }
         }
-        DMEM_SET_RESP_DATA(_dut, data_ptr, 4)
+        DMEM_SET_RESP_DATA(dut_, data_ptr, 4)
       }
 
-      _dut->dmem_resp_valid = 1;
+      dut_->dmem_resp_valid = 1;
 
-      if (_dut->dmem_resp_ready) {
+      if (dut_->dmem_resp_ready) {
         _dmem_pending = false;
       }
     }
@@ -219,76 +216,76 @@ void CPUSimulator::handle_dmem_interface() {
 }
 
 void CPUSimulator::clock_tick() {
-  _dut->clock = 0;
+  dut_->clock = 0;
   handle_imem_interface();
   handle_dmem_interface();
-  _dut->eval();
+  dut_->eval();
 
 #ifdef ENABLE_TRACE
-  if (_vcd) {
-    _vcd->dump(_time_counter++);
+  if (vcd_) {
+    vcd_->dump(timeCount++);
   }
 #endif
 
-  _dut->clock = 1;
-  _dut->eval();
+  dut_->clock = 1;
+  dut_->eval();
 
 #ifdef ENABLE_TRACE
-  if (_vcd) {
-    _vcd->dump(_time_counter++);
+  if (vcd_) {
+    vcd_->dump(timeCount++);
   }
 #endif
 
-  _cycle_count++;
+  cycleCount++;
 
   handle_cache_profiling();
 
-  if (_dut->debug_reg_addr != 0) {
-    if (_dut->debug_reg_we) {
-      word_t reg_data = static_cast<word_t>(_dut->debug_reg_data);
-      _register_values[_dut->debug_reg_addr] = reg_data;
+  if (dut_->debug_reg_addr != 0) {
+    if (dut_->debug_reg_we) {
+      word_t reg_data = static_cast<word_t>(dut_->debug_reg_data);
+      _register_values[dut_->debug_reg_addr] = reg_data;
     }
-    if (_trace_enabled) {
+    if (trace_enabled_) {
       TraceEntry entry;
-      entry.cycle = _cycle_count;
-      entry.pc = static_cast<addr_t>(_dut->debug_pc);
-      entry.inst = static_cast<instr_t>(_dut->debug_instr);
-      entry.rd = _dut->debug_reg_addr;
-      entry.rd_val = static_cast<word_t>(_dut->debug_reg_data);
-      entry.regwrite = _dut->debug_reg_we;
+      entry.cycle = cycleCount;
+      entry.pc = static_cast<addr_t>(dut_->debug_pc);
+      entry.inst = static_cast<instr_t>(dut_->debug_instr);
+      entry.rd = dut_->debug_reg_addr;
+      entry.rd_val = static_cast<word_t>(dut_->debug_reg_data);
+      entry.regwrite = dut_->debug_reg_we;
       Instruction inst(entry.inst);
       entry.disasm = inst.to_string();
-      _trace->add_entry(entry);
+      trace_->add_entry(entry);
     }
   }
 
-  if (_show_pipeline) {
-    std::cout << "Cycle " << std::dec << std::setw(6) << _cycle_count
+  if (show_pipeline_) {
+    std::cout << "Cycle " << std::dec << std::setw(6) << cycleCount
               << " | IF: " << std::hex << std::setw(8) << std::setfill('0')
-              << _dut->debug_if_instr << " | ID: " << std::setw(8)
-              << _dut->debug_id_instr << " | EX: " << std::setw(8)
-              << _dut->debug_ex_instr << " | MEM: " << std::setw(8)
-              << _dut->debug_mem_instr << " | WB: " << std::setw(8)
-              << _dut->debug_wb_instr << std::dec << std::endl;
+              << dut_->debug_if_instr << " | ID: " << std::setw(8)
+              << dut_->debug_id_instr << " | EX: " << std::setw(8)
+              << dut_->debug_ex_instr << " | MEM: " << std::setw(8)
+              << dut_->debug_mem_instr << " | WB: " << std::setw(8)
+              << dut_->debug_wb_instr << std::dec << std::endl;
   }
 
-  if (_dut->debug_branch_taken) {
-    if (_verbose) {
+  if (dut_->debug_branch_taken) {
+    if (verbose_) {
       std::cout << "  [BRANCH TAKEN] Source=0x" << std::hex << std::setw(8)
-                << std::setfill('0') << _dut->debug_branch_source
-                << " | Target=0x" << std::setw(8) << _dut->debug_branch_target
+                << std::setfill('0') << dut_->debug_branch_source
+                << " | Target=0x" << std::setw(8) << dut_->debug_branch_target
                 << std::dec << std::endl;
     }
   }
 
-  if (_dut->debug_wb_instr != BUBBLE) {
-    _instr_count++;
-    if (_verbose) {
-      Instruction inst(static_cast<instr_t>(_dut->debug_wb_instr));
-      std::cout << "Cycle " << std::dec << std::setw(6) << _cycle_count
+  if (dut_->debug_wb_instr != BUBBLE) {
+    instrCount++;
+    if (verbose_) {
+      Instruction inst(static_cast<instr_t>(dut_->debug_wb_instr));
+      std::cout << "Cycle " << std::dec << std::setw(6) << cycleCount
                 << " | PC=0x" << std::hex << std::setw(8) << std::setfill('0')
-                << _dut->debug_pc << " | Inst=0x" << std::setw(8)
-                << _dut->debug_wb_instr << " (" << inst.to_string() << ")"
+                << dut_->debug_pc << " | Inst=0x" << std::setw(8)
+                << dut_->debug_wb_instr << " (" << inst.to_string() << ")"
                 << std::dec << std::endl;
     }
   }
@@ -304,14 +301,14 @@ void CPUSimulator::step(uint64_t cycles) {
 
 void CPUSimulator::run(uint64_t max_cycles) {
   on_init();
-  uint64_t target = max_cycles > 0 ? max_cycles : _timeout;
-  while (_cycle_count < target && !_terminate) {
+  uint64_t target = max_cycles > 0 ? max_cycles : timeout_;
+  while (cycleCount < target && !terminate_) {
     clock_tick();
     check_termination();
   }
 
-  if (_verbose) {
-    std::cout << "\nSimulation completed after " << _cycle_count << " cycles\n";
+  if (verbose_) {
+    std::cout << "\nSimulation completed after " << cycleCount << " cycles\n";
   }
 
   on_exit();
@@ -319,8 +316,8 @@ void CPUSimulator::run(uint64_t max_cycles) {
 
 void CPUSimulator::run_until(addr_t pc) {
   on_init();
-  while (static_cast<addr_t>(_dut->debug_pc) != pc && _cycle_count < _timeout &&
-         !_terminate) {
+  while (static_cast<addr_t>(dut_->debug_pc) != pc && cycleCount < timeout_ &&
+         !terminate_) {
     clock_tick();
     check_termination();
   }
@@ -329,17 +326,17 @@ void CPUSimulator::run_until(addr_t pc) {
 }
 
 word_t CPUSimulator::read_mem(addr_t addr) const {
-  if (addr >= _dmem->base_address()) {
-    return _dmem->read_word(addr);
+  if (addr >= dmem_->base_address()) {
+    return dmem_->read_word(addr);
   }
-  return _imem->read_word(addr);
+  return imem_->read_word(addr);
 }
 
 void CPUSimulator::write_mem(addr_t addr, word_t data) {
-  if (addr >= _dmem->base_address()) {
-    _dmem->write_word(addr, data);
+  if (addr >= dmem_->base_address()) {
+    dmem_->write_word(addr, data);
   } else {
-    _imem->write_word(addr, data);
+    imem_->write_word(addr, data);
   }
 }
 
@@ -377,17 +374,17 @@ void CPUSimulator::dump_memory(addr_t start, size_t size) const {
 }
 
 void CPUSimulator::save_trace(const std::string &filename) {
-  _trace->save(filename);
+  trace_->save(filename);
 }
 
 void CPUSimulator::check_termination() {
   instr_t ebreak_instr = EBREAK;
-  if (static_cast<instr_t>(_dut->debug_instr) == ebreak_instr) {
-    if (_verbose) {
+  if (static_cast<instr_t>(dut_->debug_instr) == ebreak_instr) {
+    if (verbose_) {
       std::cout << "\n[TERMINATION] EBREAK instruction at PC=0x" << std::hex
-                << _dut->debug_pc << std::dec << std::endl;
+                << dut_->debug_pc << std::dec << std::endl;
     }
-    _terminate = true;
+    terminate_ = true;
   }
 }
 

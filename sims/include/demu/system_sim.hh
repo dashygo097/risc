@@ -59,11 +59,11 @@ protected:
   hal::axi::AXILiteMemory *_imem;
 
   // Simulator state
-  uint64_t _time_counter;
-  uint64_t _timeout;
-  bool _trace_enabled;
-  bool _terminate;
-  bool _verbose;
+  uint64_t _time_counter{0};
+  uint64_t _timeout{1000000};
+  bool _trace_enabled{false};
+  bool _terminate{false};
+  bool _verbose{false};
 
   // Internal simulation methods
   void clock_tick();

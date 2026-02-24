@@ -12,8 +12,8 @@ public:
 
 protected:
   void on_init() override {
-    _imem_delay = 1;
-    _dmem_delay = 10;
+    imem_delay(1);
+    dmem_delay(1);
   };
   void on_clock_tick() override {};
   void on_exit() override {};
@@ -38,7 +38,6 @@ void print_usage(const char *prog) {
 }
 
 int main(int argc, char **argv) {
-  demu::Logger::init();
   if (argc < 2) {
     print_usage(argv[0]);
     return 1;
@@ -97,6 +96,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  demu::Logger::init();
   CPUSimulatorTop sim(enable_trace);
   sim.verbose(verbose);
   sim.show_pipeline(show_pipeline);
