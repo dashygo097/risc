@@ -24,13 +24,14 @@ void print_usage(const char *prog) {
   std::cout << "Usage: " << prog << " [options] <program_file>\n\n";
   std::cout << "Options:\n";
   std::cout << "  -h, --help           Show this help message\n";
-  std::cout << "  -v, --verbose        Enable verbose output\n";
   std::cout << "  -t, --trace          Enable VCD trace\n";
   std::cout << "  -c, --cycles <n>     Run for n cycles (0=unlimited)\n";
   std::cout << "  -b, --base <addr>    Binary load base address (hex)\n";
   std::cout << "  -d, --dump-regs      Dump registers after execution\n";
   std::cout << "  -m, --dump-mem <addr> <size>  Dump memory region\n";
   std::cout << "  -p, --show-pipeline   Show pipeline state each cycle\n";
+  std::cout << "  -L12345,             Set log level ( 1=error, 2=warn, "
+               "3=info, 4=debug, 5=trace)\n";
   std::cout << "\nSupported file formats:\n";
   std::cout << "  .bin                 Raw binary\n";
   std::cout << "  .elf                 ELF executable\n";
@@ -44,7 +45,6 @@ int main(int argc, char **argv) {
   }
 
   std::string program_file;
-  bool verbose = false;
   bool enable_trace = false;
   bool dump_regs = false;
   bool show_pipeline = false;
@@ -53,6 +53,7 @@ int main(int argc, char **argv) {
   uint32_t dump_mem_addr = 0;
   uint32_t dump_mem_size = 0;
   bool dump_mem = false;
+  spdlog::level::level_enum spdlog_level = spdlog::level::info;
 
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
@@ -60,8 +61,6 @@ int main(int argc, char **argv) {
     if (arg == "-h" || arg == "--help") {
       print_usage(argv[0]);
       return 0;
-    } else if (arg == "-v" || arg == "--verbose") {
-      verbose = true;
     } else if (arg == "-t" || arg == "--trace") {
       enable_trace = true;
     } else if (arg == "-d" || arg == "--dump-regs") {
@@ -82,6 +81,27 @@ int main(int argc, char **argv) {
       }
     } else if (arg == "-p" || arg == "--show-pipeline") {
       show_pipeline = true;
+    } else if (arg[0] == '-' && arg[1] == 'L') {
+      int log_level = std::stoi(arg.substr(2));
+      switch (log_level) {
+      case 1:
+        spdlog_level = spdlog::level::err;
+        break;
+      case 2:
+        spdlog_level = spdlog::level::warn;
+        break;
+      case 3:
+        spdlog_level = spdlog::level::info;
+        break;
+      case 4:
+        spdlog_level = spdlog::level::debug;
+        break;
+      case 5:
+        spdlog_level = spdlog::level::trace;
+        break;
+      default:
+        std::cerr << "Unknown log level: " << log_level << std::endl;
+      }
     } else if (arg[0] != '-') {
       program_file = arg;
     } else {
@@ -96,9 +116,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  demu::Logger::init();
+  demu::Logger::init(spdlog_level);
   CPUSimulatorTop sim(enable_trace);
-  sim.verbose(verbose);
   sim.show_pipeline(show_pipeline);
 
   std::cout << "Resetting CPU..." << std::endl;

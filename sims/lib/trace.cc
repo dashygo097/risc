@@ -1,4 +1,5 @@
 #include "demu/trace.hh"
+#include "demu/logger.hh"
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -11,7 +12,7 @@ void ExecutionTrace::add_entry(const TraceEntry &entry) {
 void ExecutionTrace::save(const std::string &filename) const {
   std::ofstream file(filename);
   if (!file.is_open()) {
-    std::cerr << "Failed to open trace file: " << filename << std::endl;
+    DEMU_ERROR("Failed to open trace file: {}", filename);
     return;
   }
 
@@ -35,7 +36,7 @@ void ExecutionTrace::save(const std::string &filename) const {
   }
 
   file.close();
-  std::cout << "Execution trace saved to " << filename << std::endl;
+  DEMU_INFO("Execution trace saved to {}", filename);
 }
 
 void ExecutionTrace::clear() { _entries.clear(); }

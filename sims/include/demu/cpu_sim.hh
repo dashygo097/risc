@@ -96,7 +96,6 @@ public:
   };
 
   // Simulator configuration
-  void verbose(bool verbose) noexcept { verbose_ = verbose; }
   void timeout(uint64_t timeout) noexcept { timeout_ = timeout; }
   void show_pipeline(bool show) noexcept { show_pipeline_ = show; }
   void imem_delay(uint8_t cycles) noexcept { imem_delay_ = cycles; }
@@ -122,7 +121,6 @@ protected:
   uint8_t dmem_delay_{1};
   uint64_t timeout_{1000000};
   bool terminate_{false};
-  bool verbose_{false};
   bool show_pipeline_{false};
   bool trace_enabled_{false};
 

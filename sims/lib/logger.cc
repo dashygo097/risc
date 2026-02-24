@@ -20,7 +20,7 @@ void Logger::init(spdlog::level::level_enum level) {
   // Create formatter for console sink
   auto console_formatter = std::make_unique<spdlog::pattern_formatter>();
   console_formatter->add_flag<Formatter>('*');
-  console_formatter->set_pattern("%^%*%$ \033[2mlibdemu\033[0m %v");
+  console_formatter->set_pattern("%^%*%$ \033[2mlibdemu::%n\033[0m %v");
   console_sink->set_formatter(std::move(console_formatter));
 
   // Set pattern for file sink

@@ -1,4 +1,5 @@
 #include "demu/elf_loader.hh"
+#include "demu/logger.hh"
 #include <cstring>
 #include <fstream>
 #include <iostream>

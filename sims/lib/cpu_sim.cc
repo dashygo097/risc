@@ -2,7 +2,7 @@
 #include "demu/elf_loader.hh"
 #include "demu/logger.hh"
 #include <iomanip>
-#include <iostream>
+#include <sstream>
 
 namespace demu {
 using namespace isa;
@@ -109,7 +109,6 @@ void CPUSimulator::handle_imem_interface() {
     if (_imem_pending_latency > 0) {
       dut_->imem_resp_valid = 0;
       IMEM_CLEAR_RESP_DATA(dut_, 4)
-
     } else {
       word_t data_ptr[4];
       for (int i = 0; i < 4; i++) {
@@ -117,11 +116,7 @@ void CPUSimulator::handle_imem_interface() {
         word_t data = imem_->read_word(addr);
         data_ptr[i] = data;
 
-        if (verbose_) {
-          std::cout << "  [IMEM READ] addr=0x" << std::hex << std::setw(8)
-                    << std::setfill('0') << addr << " data=0x" << std::setw(8)
-                    << data << std::dec << std::endl;
-        }
+        DEMU_TRACE("[IMEM READ] addr=0x{:08x} data=0x{:08x}", addr, data)
       }
       IMEM_SET_RESP_DATA(dut_, data_ptr, 4)
       dut_->imem_resp_valid = 1;
@@ -150,18 +145,13 @@ void CPUSimulator::handle_dmem_interface() {
       _dmem_pending_latency = dmem_delay_;
       _dmem_pending = true;
 
-      if (verbose_) {
-        if (_dmem_pending_op) {
-          for (int i = 0; i < 4; i++) {
-            std::cout << "  [DMEM REQ] WRITE addr=0x" << std::hex
-                      << std::setw(8) << std::setfill('0')
-                      << _dmem_pending_addr + (i * 4) << " data=0x"
-                      << std::setw(8) << _dmem_pending_data[i] << std::endl;
-          }
-        } else {
-          std::cout << "  [DMEM REQ] READ addr=0x" << std::hex << std::setw(8)
-                    << std::setfill('0') << _dmem_pending_addr << std::endl;
+      if (_dmem_pending_op) {
+        for (int i = 0; i < 4; i++) {
+          DEMU_TRACE("[DMEM REQ] WRITE addr=0x{:08x} data=0x{:08x}",
+                     _dmem_pending_addr + (i * 4), _dmem_pending_data[i])
         }
+      } else {
+        DEMU_TRACE("[DMEM REQ] READ addr=0x{:08x}", _dmem_pending_addr)
       }
     }
   } else {
@@ -170,23 +160,19 @@ void CPUSimulator::handle_dmem_interface() {
     if (_dmem_pending_latency > 0) {
       dut_->dmem_resp_valid = 0;
       DMEM_CLEAR_RESP_DATA(dut_, 4)
-
     } else {
       if (_dmem_pending_op) {
         // Write
-        for (int i = 0; i < _dmem_pending_data.size(); i++) {
+        for (int i = 0; i < (int)_dmem_pending_data.size(); i++) {
           addr_t addr = _dmem_pending_addr + (i * 4);
           dmem_->write_word(addr, _dmem_pending_data[i]);
         }
         DMEM_CLEAR_RESP_DATA(dut_, 4)
 
-        if (verbose_) {
-          for (int i = 0; i < _dmem_pending_data.size(); i++) {
-            addr_t addr = _dmem_pending_addr + (i * 4);
-            std::cout << "  [DMEM WRITE] addr=0x" << std::hex << std::setw(8)
-                      << std::setfill('0') << addr << " data=0x" << std::setw(8)
-                      << _dmem_pending_data[i] << std::dec << std::endl;
-          }
+        for (int i = 0; i < (int)_dmem_pending_data.size(); i++) {
+          addr_t addr = _dmem_pending_addr + (i * 4);
+          DEMU_TRACE("[DMEM WRITE] addr=0x{:08x} data=0x{:08x}", addr,
+                     _dmem_pending_data[i])
         }
       } else {
         // Read
@@ -196,12 +182,8 @@ void CPUSimulator::handle_dmem_interface() {
           word_t data = dmem_->read_word(addr);
           data_ptr[i] = data;
 
-          if (verbose_) {
-            std::cout << "  [DMEM READ] addr=0x" << std::hex << std::setw(8)
-                      << std::setfill('0') << _dmem_pending_addr
-                      << " aligned=0x" << std::setw(8) << addr << " data=0x"
-                      << std::setw(8) << data << std::dec << std::endl;
-          }
+          DEMU_TRACE("[DMEM READ] addr=0x{:08x} aligned=0x{:08x} data=0x{:08x}",
+                     _dmem_pending_addr, addr, data)
         }
         DMEM_SET_RESP_DATA(dut_, data_ptr, 4)
       }
@@ -260,41 +242,31 @@ void CPUSimulator::clock_tick() {
   }
 
   if (show_pipeline_) {
-    std::cout << "Cycle " << std::dec << std::setw(6) << cycleCount
-              << " | IF: " << std::hex << std::setw(8) << std::setfill('0')
-              << dut_->debug_if_instr << " | ID: " << std::setw(8)
-              << dut_->debug_id_instr << " | EX: " << std::setw(8)
-              << dut_->debug_ex_instr << " | MEM: " << std::setw(8)
-              << dut_->debug_mem_instr << " | WB: " << std::setw(8)
-              << dut_->debug_wb_instr << std::dec << std::endl;
+    DEMU_DEBUG("Cycle {:6d} | IF: {:08x} | ID: {:08x} | EX: {:08x} "
+               "| MEM: {:08x} | WB: {:08x}",
+               cycleCount, dut_->debug_if_instr, dut_->debug_id_instr,
+               dut_->debug_ex_instr, dut_->debug_mem_instr,
+               dut_->debug_wb_instr)
   }
 
   if (dut_->debug_branch_taken) {
-    if (verbose_) {
-      std::cout << "  [BRANCH TAKEN] Source=0x" << std::hex << std::setw(8)
-                << std::setfill('0') << dut_->debug_branch_source
-                << " | Target=0x" << std::setw(8) << dut_->debug_branch_target
-                << std::dec << std::endl;
-    }
+    DEMU_TRACE("[BRANCH TAKEN] Source=0x{:08x} | Target=0x{:08x}",
+               dut_->debug_branch_source, dut_->debug_branch_target)
   }
 
   if (dut_->debug_wb_instr != BUBBLE) {
     instrCount++;
-    if (verbose_) {
-      Instruction inst(static_cast<instr_t>(dut_->debug_wb_instr));
-      std::cout << "Cycle " << std::dec << std::setw(6) << cycleCount
-                << " | PC=0x" << std::hex << std::setw(8) << std::setfill('0')
-                << dut_->debug_pc << " | Inst=0x" << std::setw(8)
-                << dut_->debug_wb_instr << " (" << inst.to_string() << ")"
-                << std::dec << std::endl;
-    }
+    Instruction inst(static_cast<instr_t>(dut_->debug_wb_instr));
+    DEMU_DEBUG("Cycle {:6d} | PC=0x{:08x} | Inst=0x{:08x} ({})", cycleCount,
+               static_cast<addr_t>(dut_->debug_pc), dut_->debug_wb_instr,
+               inst.to_string())
   }
 
   on_clock_tick();
 }
 
 void CPUSimulator::step(uint64_t cycles) {
-  for (int i = 0; i < cycles; i++) {
+  for (int i = 0; i < (int)cycles; i++) {
     clock_tick();
   }
 }
@@ -307,9 +279,7 @@ void CPUSimulator::run(uint64_t max_cycles) {
     check_termination();
   }
 
-  if (verbose_) {
-    std::cout << "\nSimulation completed after " << cycleCount << " cycles\n";
-  }
+  DEMU_INFO("Simulation completed after {} cycles", cycleCount)
 
   on_exit();
 }
@@ -341,36 +311,30 @@ void CPUSimulator::write_mem(addr_t addr, word_t data) {
 }
 
 void CPUSimulator::dump_registers() const {
-  std::cout << "Register Dump:\n";
-  std::cout << "x00 = 0x" << std::hex << std::setw(8) << std::setfill('0')
-            << reg(0) << "  ";
-  for (int i = 1; i < NUM_GPRS; i++) {
-    std::cout << "x" << std::dec << std::setw(2) << i << " = 0x" << std::hex
-              << std::setw(8) << std::setfill('0') << reg(i);
-    if (i % 4 == 3)
-      std::cout << "\n";
-    else
-      std::cout << "  ";
+  DEMU_INFO("Register Dump:")
+  for (int i = 0; i < NUM_GPRS; i += 4) {
+    DEMU_INFO("x{:02d}={:08x}  x{:02d}={:08x}  x{:02d}={:08x}  x{:02d}={:08x}",
+              i, reg(i), i + 1, reg(i + 1), i + 2, reg(i + 2), i + 3,
+              reg(i + 3))
   }
-  std::cout << std::dec << std::endl;
 }
 
 void CPUSimulator::dump_memory(addr_t start, size_t size) const {
-  printf("Memory dump [0x%08x - 0x%08zx]:\n", start, start + size);
+  DEMU_INFO("Memory dump [0x{:08x} - 0x{:08x}]:", start, start + size)
   for (addr_t addr = start; addr < start + size; addr += 16) {
-    std::cout << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";
+    std::ostringstream line;
+    line << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";
     for (size_t i = 0; i < 16 && (addr + i) < (start + size); i += 4) {
       word_t word = read_mem(addr + i);
       for (int j = 0; j < 4 && (i + j) < 16; j++) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0')
-                  << (int)((word >> (j * 8)) & 0xFF) << " ";
+        line << std::hex << std::setw(2) << std::setfill('0')
+             << (int)((word >> (j * 8)) & 0xFF) << " ";
       }
       if (i == 4)
-        std::cout << " ";
+        line << " ";
     }
-    std::cout << std::endl;
+    DEMU_INFO("{}", line.str())
   }
-  std::cout << std::dec << std::endl;
 }
 
 void CPUSimulator::save_trace(const std::string &filename) {
@@ -380,10 +344,8 @@ void CPUSimulator::save_trace(const std::string &filename) {
 void CPUSimulator::check_termination() {
   instr_t ebreak_instr = EBREAK;
   if (static_cast<instr_t>(dut_->debug_instr) == ebreak_instr) {
-    if (verbose_) {
-      std::cout << "\n[TERMINATION] EBREAK instruction at PC=0x" << std::hex
-                << dut_->debug_pc << std::dec << std::endl;
-    }
+    DEMU_INFO("[TERMINATION] EBREAK instruction at PC=0x{:08x}",
+              static_cast<addr_t>(dut_->debug_pc))
     terminate_ = true;
   }
 }
