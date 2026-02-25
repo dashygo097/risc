@@ -20,7 +20,6 @@ CPUSimulator::CPUSimulator(bool enable_trace)
     vcd_->open((std::string(ISA_NAME) + "_cpu.vcd").c_str());
   }
 #endif
-  on_init();
 }
 
 CPUSimulator::~CPUSimulator() {
@@ -326,6 +325,7 @@ void CPUSimulator::dump_memory(addr_t start, size_t size) const {
 
 void CPUSimulator::save_trace(const std::string &filename) {
   trace_->save(filename);
+  DEMU_INFO("Trace saved to trace.log")
 }
 
 void CPUSimulator::check_termination() {

@@ -51,9 +51,11 @@ public:
   static std::shared_ptr<spdlog::logger> &getDemuLogger() {
     return demu_logger_;
   }
+  static std::shared_ptr<spdlog::logger> &getHalLogger() { return hal_logger_; }
 
 private:
   static std::shared_ptr<spdlog::logger> demu_logger_;
+  static std::shared_ptr<spdlog::logger> hal_logger_;
 };
 } // namespace demu
 
@@ -80,10 +82,13 @@ private:
 #define DEMU_PIPE_STAGE(stage, pc, instr_name)                                 \
   DEMU_TRACE("{:<4} | PC: 0x{:08x} | [{}]", stage, pc, instr_name)
 
-#define DEMU_ASSERT(cond, ...)                                                 \
+#define HAL_TRACE(...) ::demu::Logger::getHalLogger()->trace(__VA_ARGS__);
+#define HAL_DEBUG(...) ::demu::Logger::getHalLogger()->debug(__VA_ARGS__);
+#define HAL_INFO(...) ::demu::Logger::getHalLogger()->info(__VA_ARGS__);
+#define HAL_WARN(...) ::demu::Logger::getHalLogger()->warn(__VA_ARGS__);
+#define HAL_CRIT(...) ::demu::Logger::getHalLogger()->critical(__VA_ARGS__);
+#define HAL_ERROR(...)                                                         \
   do {                                                                         \
-    if (!(cond)) {                                                             \
-      DEMU_CRIT("ASSERTION FAILED: " __VA_ARGS__);                             \
-      std::abort();                                                            \
-    }                                                                          \
-  } while (0)
+    ::demu::Logger::getHalLogger()->error(__VA_ARGS__);                        \
+    std::abort();                                                              \
+  } while (0);

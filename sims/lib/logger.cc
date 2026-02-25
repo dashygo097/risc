@@ -7,6 +7,7 @@
 namespace demu {
 
 std::shared_ptr<spdlog::logger> Logger::demu_logger_;
+std::shared_ptr<spdlog::logger> Logger::hal_logger_;
 
 // Overload for backward compatibility
 void Logger::init() { init(spdlog::level::info); }
@@ -31,16 +32,21 @@ void Logger::init(spdlog::level::level_enum level) {
 
   // Initialize individual loggers
   demu_logger_ =
-      std::make_shared<spdlog::logger>("demu", sinks.begin(), sinks.end());
+      std::make_shared<spdlog::logger>("   ", sinks.begin(), sinks.end());
+  hal_logger_ =
+      std::make_shared<spdlog::logger>("hal", sinks.begin(), sinks.end());
 
   // Register loggers with spdlog registry
   spdlog::register_logger(demu_logger_);
+  spdlog::register_logger(hal_logger_);
 
   // Set log levels
   demu_logger_->set_level(level);
+  hal_logger_->set_level(level);
 
   // Set flush level
   demu_logger_->flush_on(spdlog::level::err);
+  hal_logger_->flush_on(spdlog::level::err);
 
   demu_logger_->log(spdlog::level::info, "Logger initialized with level: {}",
                     spdlog::level::to_string_view(level));

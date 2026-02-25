@@ -5,9 +5,7 @@ namespace demu::hal::axi {
 AXIFullMemory::AXIFullMemory(size_t size, addr_t base_addr, size_t read_delay,
                              size_t write_delay)
     : _memory(std::make_unique<Memory>(size, base_addr)),
-      _read_delay(read_delay), _write_delay(write_delay) {
-  reset();
-}
+      _read_delay(read_delay), _write_delay(write_delay) {}
 
 void AXIFullMemory::reset() {
   _memory->clear();

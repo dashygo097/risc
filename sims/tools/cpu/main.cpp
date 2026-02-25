@@ -2,7 +2,6 @@
 #include <cstring>
 #include <demu.hh>
 #include <demu/logger.hh>
-#include <iomanip>
 #include <iostream>
 #include <string>
 
@@ -120,10 +119,7 @@ int main(int argc, char **argv) {
   CPUSimulatorTop sim(enable_trace);
   sim.show_pipeline(show_pipeline);
 
-  std::cout << "Resetting CPU..." << std::endl;
   sim.reset();
-
-  std::cout << "Loading program: " << program_file << std::endl;
 
   bool loaded = false;
   if (program_file.substr(program_file.find_last_of(".") + 1) == "bin") {
@@ -140,12 +136,6 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  std::cout << "Running simulation";
-  if (max_cycles > 0) {
-    std::cout << " for " << max_cycles << " cycles";
-  }
-  std::cout << "..." << std::endl;
-
   sim.run(max_cycles);
 
   if (dump_regs) {
@@ -158,7 +148,6 @@ int main(int argc, char **argv) {
 
   if (enable_trace) {
     sim.save_trace("trace.log");
-    std::cout << "Trace saved to trace.log\n";
   }
 
   return 0;

@@ -11,13 +11,12 @@ public:
 
 protected:
   void register_devices() override {};
-  void set_mem_delay() override {
+  void on_init() override {
     _imem->read_delay(1);
     _imem->write_delay(1);
     _dmem->read_delay(10);
     _dmem->write_delay(10);
   };
-  void check_termination() override {};
   void on_clock_tick() override {};
   void on_exit() override {};
   void on_reset() override {};
@@ -47,6 +46,8 @@ void print_usage(const char *prog) {
   std::cout << "  -c, --cycles <n>     Run for n cycles (0=unlimited)\n";
   std::cout << "  -b, --base <addr>    Binary load base address (hex)\n";
   std::cout << "  -m, --dump-mem <addr> <size>  Dump memory region\n";
+  std::cout << "  -L12345,             Set log level ( 1=error, 2=warn, "
+               "3=info, 4=debug, 5=trace)\n";
   std::cout << "\nSupported file formats:\n";
   std::cout << "  .bin                 Raw binary\n";
   std::cout << "  .elf                 ELF executable\n";
@@ -67,6 +68,7 @@ int main(int argc, char **argv) {
   uint32_t dump_mem_addr = 0;
   uint32_t dump_mem_size = 0;
   bool dump_mem = false;
+  spdlog::level::level_enum spdlog_level = spdlog::level::info;
 
   for (int i = 1; i < argc; i++) {
     std::string arg = argv[i];
@@ -92,6 +94,27 @@ int main(int argc, char **argv) {
         dump_mem_size = std::stoul(argv[++i], nullptr, 16);
         dump_mem = true;
       }
+    } else if (arg[0] == '-' && arg[1] == 'L') {
+      int log_level = std::stoi(arg.substr(2));
+      switch (log_level) {
+      case 1:
+        spdlog_level = spdlog::level::err;
+        break;
+      case 2:
+        spdlog_level = spdlog::level::warn;
+        break;
+      case 3:
+        spdlog_level = spdlog::level::info;
+        break;
+      case 4:
+        spdlog_level = spdlog::level::debug;
+        break;
+      case 5:
+        spdlog_level = spdlog::level::trace;
+        break;
+      default:
+        std::cerr << "Unknown log level: " << log_level << std::endl;
+      }
     } else if (arg[0] != '-') {
       program_file = arg;
     } else {
@@ -106,14 +129,11 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  demu::Logger::init();
+  demu::Logger::init(spdlog_level);
   SystemSimulatorTop sim(enable_trace);
   sim.verbose(verbose);
 
-  std::cout << "Resetting System..." << std::endl;
   sim.reset();
-
-  std::cout << "Loading program: " << program_file << std::endl;
 
   bool loaded = false;
   if (program_file.substr(program_file.find_last_of(".") + 1) == "bin") {
@@ -130,32 +150,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  std::cout << "Running simulation";
-  if (max_cycles > 0) {
-    std::cout << " for " << max_cycles << " cycles";
-  }
-  std::cout << "..." << std::endl;
-
-  auto start_time = std::chrono::high_resolution_clock::now();
   sim.run(max_cycles);
-  auto end_time = std::chrono::high_resolution_clock::now();
-
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      end_time - start_time)
-                      .count();
-
-  std::cout << "\n========================================\n";
-  std::cout << "Simulation Statistics\n";
-  std::cout << "========================================\n";
-  std::cout << "Runtime:      " << duration << " ms\n";
-  std::cout << "========================================\n\n";
 
   if (dump_mem) {
     sim.dump_memory(dump_mem_addr, dump_mem_size);
-  }
-
-  if (enable_trace) {
-    std::cout << "Trace saved!\n";
   }
 
   return 0;

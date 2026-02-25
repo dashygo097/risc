@@ -29,6 +29,7 @@ public:
   void reset();
   void step(uint64_t cycles = 1);
   void run(uint64_t max_cycles = 0);
+  void check_termination();
 
   // Simulator configuration
   void verbose(bool verbose) noexcept { _verbose = verbose; }
@@ -60,6 +61,7 @@ protected:
 
   // Simulator state
   uint64_t _time_counter{0};
+  uint64_t _cycle_count{0};
   uint64_t _timeout{1000000};
   bool _trace_enabled{false};
   bool _terminate{false};
@@ -70,14 +72,13 @@ protected:
 
   // Overridable hooks
   virtual void register_devices() {};
-  virtual void set_mem_delay() {
+  virtual void on_clock_tick() {};
+  virtual void on_init() {
     _imem->read_delay(1);
     _imem->write_delay(1);
     _dmem->read_delay(1);
     _dmem->write_delay(1);
   };
-  virtual void check_termination() {};
-  virtual void on_clock_tick() {};
   virtual void on_exit() {};
   virtual void on_reset() {};
 
