@@ -146,27 +146,7 @@ int main(int argc, char **argv) {
   }
   std::cout << "..." << std::endl;
 
-  auto start_time = std::chrono::high_resolution_clock::now();
   sim.run(max_cycles);
-  auto end_time = std::chrono::high_resolution_clock::now();
-
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                      end_time - start_time)
-                      .count();
-
-  std::cout << "\n========================================\n";
-  std::cout << "Simulation Statistics\n";
-  std::cout << "========================================\n";
-  std::cout << "Cycles:       " << std::dec << sim.cycle_count() << "\n";
-  std::cout << "Instructions: " << std::dec << sim.instr_count() << "\n";
-  std::cout << "IPC:          " << std::fixed << std::setprecision(3)
-            << sim.ipc() << "\n";
-  std::cout << "L1 Icache Hit Rate: " << std::fixed << std::setprecision(2)
-            << sim.l1_icache_hit_rate() * 100 << " %\n";
-  std::cout << "L1 Dcache Hit Rate: " << std::fixed << std::setprecision(2)
-            << sim.l1_dcache_hit_rate() * 100 << " %\n";
-  std::cout << "Runtime:      " << duration << " ms\n";
-  std::cout << "========================================\n\n";
 
   if (dump_regs) {
     sim.dump_registers();

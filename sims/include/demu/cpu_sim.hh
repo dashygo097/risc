@@ -65,7 +65,6 @@ public:
   void reset();
   void step(uint64_t cycles = 1);
   void run(uint64_t max_cycles = 0);
-  void run_until(addr_t pc);
 
   // Architecture state access
   [[nodiscard]] addr_t pc() const noexcept {
@@ -79,10 +78,14 @@ public:
   void write_mem(addr_t addr, word_t data);
 
   // Simulator statistics
-  [[nodiscard]] uint64_t cycle_count() const noexcept { return cycleCount; }
+  [[nodiscard]] uint64_t cycle_count() const noexcept {
+    return dut_->debug_cycle_count;
+  }
   [[nodiscard]] uint64_t instr_count() const { return instrCount; }
   [[nodiscard]] double ipc() const noexcept {
-    return cycleCount > 0 ? (double)instrCount / cycleCount : 0.0;
+    return dut_->debug_cycle_count > 0
+               ? (double)instrCount / dut_->debug_cycle_count
+               : 0.0;
   };
   [[nodiscard]] double l1_icache_hit_rate() const noexcept {
     return _l1_icache_accesses > 0
@@ -126,7 +129,6 @@ protected:
 
   // Simulator state
   uint64_t timeCount{0};
-  uint64_t cycleCount{0};
   uint64_t instrCount{0};
 
   uint64_t _l1_icache_accesses{0};

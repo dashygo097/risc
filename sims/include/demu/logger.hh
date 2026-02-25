@@ -68,3 +68,22 @@ private:
     ::demu::Logger::getDemuLogger()->error(__VA_ARGS__);                       \
     std::abort();                                                              \
   } while (0);
+
+#define DEMU_CPU_TICK(cycle) DEMU_TRACE("CYCLE {:<6}", cycle)
+
+#define DEMU_REG_WRITE(reg, val)                                               \
+  DEMU_DEBUG("REG [x{:02d}] <- 0x{:08x}", reg, val)
+
+#define DEMU_MEM_TRACE(type, addr, data)                                       \
+  DEMU_TRACE("[MEM {}] Addr: 0x{:08x} | Data: 0x{:08x}", type, addr, data)
+
+#define DEMU_PIPE_STAGE(stage, pc, instr_name)                                 \
+  DEMU_TRACE("{:<4} | PC: 0x{:08x} | [{}]", stage, pc, instr_name)
+
+#define DEMU_ASSERT(cond, ...)                                                 \
+  do {                                                                         \
+    if (!(cond)) {                                                             \
+      DEMU_CRIT("ASSERTION FAILED: " __VA_ARGS__);                             \
+      std::abort();                                                            \
+    }                                                                          \
+  } while (0)
