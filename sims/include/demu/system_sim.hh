@@ -32,7 +32,6 @@ public:
   void check_termination();
 
   // Simulator configuration
-  void verbose(bool verbose) noexcept { _verbose = verbose; }
   void timeout(uint64_t timeout) noexcept { _timeout = timeout; }
 
   // Debug output
@@ -65,7 +64,6 @@ protected:
   uint64_t _timeout{1000000};
   bool _trace_enabled{false};
   bool _terminate{false};
-  bool _verbose{false};
 
   // Internal simulation methods
   void clock_tick();

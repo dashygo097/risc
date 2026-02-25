@@ -1,0 +1,40 @@
+import { InfoBox, TipBox } from '@components'
+
+# DEMU Logging System 
+
+```info
+You should firstly build cpu/system simulator on your machine. make sure you have spdlog.
+```
+Logging system is built on top of [spdlog](https://github.com/gabime/spdlog). <br/>
+<br/>
+The logging levels are divided into 5 levels: `TRACE`, `DEBUG`, `INFO`, `WARN`, and `ERROR`(from low to high).
+Typically `TRACE`, `DEBUG`, `INFO` are the most informative level and are used for debugging, while `WARN` and `ERROR` are used to indicate potential issues or errors in the system. <br/>
+
+| Log Level | Description 
+| --- | --- 
+| `TRACE` | The most detailed level of logging, providing information about every step of the execution process. It is typically used for debugging and troubleshooting purposes.
+| `DEBUG` | Provides detailed information about the execution process, but is less verbose than ` TRACE`. It is often used for debugging and development purposes.
+| `INFO` | Provides general information about the execution process, such as the start and end of a process, or the values of important variables. It is often used for monitoring and tracking the execution of a program.
+| `WARN` | Indicates a potential issue or problem that may not necessarily cause the program to fail, but should be investigated. It is often used to indicate a situation that may require attention or action.
+| `ERROR` | Indicates a serious issue or problem that has occurred, which may cause the program to fail or produce incorrect results. It is often used to indicate a situation that requires immediate attention or action.
+
+Some debug options are controlled by the level of logging, for example, the `--show-pipeline` option will print all the pipeline states of cpu when the logging level is set to `TRACE` or `DEBUG`. <br/>
+So the `--show-pipeline` info is at the level of `DEBUG`.
+
+```tip
+Note that the logging level is set by set -L parameter with the excutables.(e.g. -L4 -> `WARN`, -L1 -> `TRACE`)
+```
+
+## CPU Simulator 
+Here are the levels of the logging options for cpu simulator:
+| Options | Log Level | Description
+| --- | --- | ---
+| `--dump-regs` | `INFO` | Dump the general purpose register' values.
+| `--dump-mem` | `INFO` | Dump the memory for selected address range.
+| `--show-pipeline` | `DEBUG` | Show the pipeline states of cpu.
+
+## System Simulator
+Here are the levels of the logging options for system simulator:
+| Options | Log Level | Description
+| --- | --- | ---
+| `--dump-mem` | `INFO` | Dump the memory for selected address range.

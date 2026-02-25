@@ -6,6 +6,10 @@
       {
         "title": "Getting Started",
         "path": "/user-guide/getting-started"
+      },
+      {
+        "title": "DEMU Logging System",
+        "path": "/user-guide/demu-logging"
       }
     ]
   },

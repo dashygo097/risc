@@ -6,6 +6,7 @@ import "@styles/global.css";
 import RootPage from "@assets/root.mdx";
 import UserGuidePage from "@assets/user-guide/root.mdx";
 import QuickStartPage from "@assets/user-guide/getting-started.mdx";
+import DEMULoggingPage from "@assets/user-guide/demu-logging.mdx";
 import DevGuidePage from "@assets/dev-guide/root.mdx";
 import HowToDrawWaveforms from "@assets/dev-guide/how-to-draw-waveforms.mdx";
 import TodoListPage from "@assets/dev-guide/todo-list.mdx";
@@ -27,6 +28,10 @@ const App: React.FC = () => {
             <Route
               path="/user-guide/getting-started"
               element={<QuickStartPage />}
+            />
+            <Route
+              path="/user-guide/demu-logging"
+              element={<DEMULoggingPage />}
             />
             <Route path="/dev-guide/root" element={<DevGuidePage />} />
             <Route

@@ -29,8 +29,8 @@ void print_usage(const char *prog) {
   std::cout << "  -d, --dump-regs      Dump registers after execution\n";
   std::cout << "  -m, --dump-mem <addr> <size>  Dump memory region\n";
   std::cout << "  -p, --show-pipeline   Show pipeline state each cycle\n";
-  std::cout << "  -L12345,             Set log level ( 1=error, 2=warn, "
-               "3=info, 4=debug, 5=trace)\n";
+  std::cout << "  -L12345,             Set log level (5=error, 4=warn, "
+               "3=info, 2=debug, 1=trace)\n";
   std::cout << "\nSupported file formats:\n";
   std::cout << "  .bin                 Raw binary\n";
   std::cout << "  .elf                 ELF executable\n";
@@ -84,19 +84,19 @@ int main(int argc, char **argv) {
       int log_level = std::stoi(arg.substr(2));
       switch (log_level) {
       case 1:
-        spdlog_level = spdlog::level::err;
+        spdlog_level = spdlog::level::trace;
         break;
       case 2:
-        spdlog_level = spdlog::level::warn;
+        spdlog_level = spdlog::level::debug;
         break;
       case 3:
         spdlog_level = spdlog::level::info;
         break;
       case 4:
-        spdlog_level = spdlog::level::debug;
+        spdlog_level = spdlog::level::warn;
         break;
       case 5:
-        spdlog_level = spdlog::level::trace;
+        spdlog_level = spdlog::level::err;
         break;
       default:
         std::cerr << "Unknown log level: " << log_level << std::endl;
