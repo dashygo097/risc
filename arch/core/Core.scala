@@ -297,6 +297,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // Debug
   if (p(IsDebug)) {
+    val debug_cycle_count = IO(Output(UInt(64.W)))
+
     val debug_pc       = IO(Output(UInt(p(XLen).W)))
     val debug_instr    = IO(Output(UInt(p(ILen).W)))
     val debug_reg_we   = IO(Output(Bool()))
@@ -317,6 +319,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val debug_l1_icache_miss   = IO(Output(Bool()))
     val debug_l1_dcache_access = IO(Output(Bool()))
     val debug_l1_dcache_miss   = IO(Output(Bool()))
+
+    val cycle_count = RegInit(0.U(64.W))
+    cycle_count       := cycle_count + 1.U
+    debug_cycle_count := cycle_count
 
     debug_pc       := mem_wb.WB.pc
     debug_instr    := mem_wb.WB_INSTR
