@@ -26,6 +26,7 @@ public:
   bool load_elf(const std::string &filename);
 
   // Simulation control
+  void init();
   void reset();
   void step(uint64_t cycles = 1);
   void run(uint64_t max_cycles = 0);

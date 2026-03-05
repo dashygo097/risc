@@ -11,16 +11,8 @@ CPUSimulator::CPUSimulator(bool enable_trace)
     : dut_(std::make_unique<cpu_t>()),
       imem_(std::make_unique<hal::Memory>(4 * 1024, 0x00000000)),
       dmem_(std::make_unique<hal::Memory>(16 * 1024, 0x80000000)),
-      trace_(std::make_unique<ExecutionTrace>()), trace_enabled_(enable_trace) {
-#ifdef ENABLE_TRACE
-  if (trace_enabled_) {
-    Verilated::traceEverOn(true);
-    vcd_ = std::make_unique<VerilatedVcdC>();
-    dut_->trace(vcd_.get(), 99);
-    vcd_->open((std::string(ISA_NAME) + "_cpu.vcd").c_str());
-  }
-#endif
-}
+      trace_(std::make_unique<ExecutionTrace>()),
+      trace_enabled_(enable_trace) {};
 
 CPUSimulator::~CPUSimulator() {
 #ifdef ENABLE_TRACE
@@ -36,6 +28,17 @@ bool CPUSimulator::load_bin(const std::string &filename, addr_t base_addr) {
 
 bool CPUSimulator::load_elf(const std::string &filename) {
   return ELFLoader::load(*imem_, filename);
+}
+
+void CPUSimulator::init() {
+#ifdef ENABLE_TRACE
+  if (trace_enabled_) {
+    Verilated::traceEverOn(true);
+    vcd_ = std::make_unique<VerilatedVcdC>();
+    dut_->trace(vcd_.get(), 99);
+    vcd_->open((std::string(ISA_NAME) + "_cpu.vcd").c_str());
+  }
+#endif
 }
 
 void CPUSimulator::reset() {

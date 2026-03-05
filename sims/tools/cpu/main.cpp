@@ -119,6 +119,7 @@ int main(int argc, char **argv) {
   CPUSimulatorTop sim(enable_trace);
   sim.show_pipeline(show_pipeline);
 
+  sim.init();
   sim.reset();
 
   bool loaded = false;
