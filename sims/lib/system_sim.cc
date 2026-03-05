@@ -6,26 +6,26 @@
 namespace demu {
 
 SystemSimulator::SystemSimulator(bool enabled_trace)
-    : _dut(std::make_unique<Vrv32i_system>()),
-      _device_manager(std::make_unique<hal::DeviceManager>()),
+    : dut_(std::make_unique<Vrv32i_system>()),
+      device_manager_(std::make_unique<hal::DeviceManager>()),
       _trace_enabled(enabled_trace) {
 
   DEMU_INFO("System Simulator Initializing...");
 
-  _imem = _device_manager->register_slave<hal::axi::AXILiteMemory>(
+  imem_ = device_manager_->register_slave<hal::axi::AXILiteMemory>(
       0, "imem", 4 * 1024, 0x00000000);
-  _dmem = _device_manager->register_slave<hal::axi::AXILiteMemory>(
+  dmem_ = device_manager_->register_slave<hal::axi::AXILiteMemory>(
       1, "dmem", 16 * 1024, 0x80000000);
 
   register_devices();
-  _device_manager->dump_device_map();
+  device_manager_->dump_device_map();
 
 #ifdef ENABLE_TRACE
   if (_trace_enabled) {
     Verilated::traceEverOn(true);
-    _vcd = std::make_unique<VerilatedVcdC>();
-    _dut->trace(_vcd.get(), 99);
-    _vcd->open((std::string(ISA_NAME) + "_system.vcd").c_str());
+    vcd_ = std::make_unique<VerilatedVcdC>();
+    dut_->trace(vcd_.get(), 99);
+    vcd_->open((std::string(ISA_NAME) + "_system.vcd").c_str());
     DEMU_DEBUG("VCD tracing enabled: {}_system.vcd", ISA_NAME);
   }
 #endif
@@ -33,14 +33,14 @@ SystemSimulator::SystemSimulator(bool enabled_trace)
 
 SystemSimulator::~SystemSimulator() {
 #ifdef ENABLE_TRACE
-  if (_vcd) {
-    _vcd->close();
+  if (vcd_) {
+    vcd_->close();
   }
 #endif
 }
 
 bool SystemSimulator::load_bin(const std::string &filename, addr_t base_addr) {
-  if (_imem->load_binary(filename, base_addr)) {
+  if (imem_->load_binary(filename, base_addr)) {
     return true;
   }
   DEMU_ERROR("System failed to load binary: {}", filename);
@@ -55,26 +55,26 @@ bool SystemSimulator::load_elf(const std::string &filename) {
 void SystemSimulator::clock_tick() {
   DEMU_CPU_TICK(_cycle_count);
 
-  _dut->clock = 0;
+  dut_->clock = 0;
   handle_port(0);
   handle_port(1);
-  _dut->eval();
+  dut_->eval();
 
 #ifdef ENABLE_TRACE
-  if (_vcd) {
-    _vcd->dump(_time_counter++);
+  if (vcd_) {
+    vcd_->dump(_time_counter++);
   }
 #endif
 
-  _device_manager->clock_tick();
+  device_manager_->clock_tick();
   on_clock_tick();
 
-  _dut->clock = 1;
-  _dut->eval();
+  dut_->clock = 1;
+  dut_->eval();
 
 #ifdef ENABLE_TRACE
-  if (_vcd) {
-    _vcd->dump(_time_counter++);
+  if (vcd_) {
+    vcd_->dump(_time_counter++);
   }
 #endif
   _cycle_count++;
@@ -82,15 +82,15 @@ void SystemSimulator::clock_tick() {
 
 void SystemSimulator::reset() {
   DEMU_INFO("System Resetting...");
-  _dut->reset = 1;
-  _dut->clock = 0;
-  _dut->eval();
-  _dut->clock = 1;
-  _dut->eval();
-  _dut->reset = 0;
-  _dut->eval();
+  dut_->reset = 1;
+  dut_->clock = 0;
+  dut_->eval();
+  dut_->clock = 1;
+  dut_->eval();
+  dut_->reset = 0;
+  dut_->eval();
 
-  _device_manager->reset();
+  device_manager_->reset();
 
   _time_counter = 0;
   _cycle_count = 0;
@@ -129,7 +129,7 @@ void SystemSimulator::run(uint64_t max_cycles) {
 }
 
 void SystemSimulator::dump_memory(addr_t start, size_t size) const {
-  const auto *slave = _device_manager->find_slave_for_address(start);
+  const auto *slave = device_manager_->find_slave_for_address(start);
 
   if (!slave) {
     HAL_WARN("dump_memory: no device owns address 0x{:08X}", start);

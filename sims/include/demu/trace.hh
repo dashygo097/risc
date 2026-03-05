@@ -29,13 +29,13 @@ public:
   void clear();
 
   [[nodiscard]] const TraceEntry &operator[](size_t idx) const {
-    return _entries[idx];
+    return entries_[idx];
   }
 
-  [[nodiscard]] size_t size() const noexcept { return _entries.size(); }
+  [[nodiscard]] size_t size() const noexcept { return entries_.size(); }
 
 private:
-  std::vector<TraceEntry> _entries;
+  std::vector<TraceEntry> entries_;
 };
 
 } // namespace demu

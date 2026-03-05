@@ -15,6 +15,7 @@
 
 namespace demu {
 using namespace isa;
+
 class SystemSimulator {
 public:
   SystemSimulator(bool enabled_trace = false);
@@ -37,25 +38,25 @@ public:
   void dump_memory(addr_t start, size_t size) const;
 
   // Exported Ports
-  [[nodiscard]] system_t &dut() noexcept { return *_dut; }
+  [[nodiscard]] system_t &dut() noexcept { return *dut_; }
   [[nodiscard]] hal::DeviceManager &deviceManager() noexcept {
-    return *_device_manager;
+    return *device_manager_;
   }
-  [[nodiscard]] hal::axi::AXILiteMemory &dmem() noexcept { return *_dmem; }
-  [[nodiscard]] hal::axi::AXILiteMemory &imem() noexcept { return *_imem; }
+  [[nodiscard]] hal::axi::AXILiteMemory &dmem() noexcept { return *dmem_; }
+  [[nodiscard]] hal::axi::AXILiteMemory &imem() noexcept { return *imem_; }
 
 protected:
   // DUT
-  std::unique_ptr<system_t> _dut;
+  std::unique_ptr<system_t> dut_;
 
 #ifdef ENABLE_TRACE
-  std::unique_ptr<VerilatedVcdC> _vcd;
+  std::unique_ptr<VerilatedVcdC> vcd_;
 #endif
 
   // Devices
-  std::unique_ptr<hal::DeviceManager> _device_manager;
-  hal::axi::AXILiteMemory *_dmem;
-  hal::axi::AXILiteMemory *_imem;
+  std::unique_ptr<hal::DeviceManager> device_manager_;
+  hal::axi::AXILiteMemory *dmem_;
+  hal::axi::AXILiteMemory *imem_;
 
   // Simulator state
   uint64_t _time_counter{0};
@@ -71,16 +72,16 @@ protected:
   virtual void register_devices() {};
   virtual void on_clock_tick() {};
   virtual void on_init() {
-    _imem->read_delay(1);
-    _imem->write_delay(1);
-    _dmem->read_delay(1);
-    _dmem->write_delay(1);
+    imem_->read_delay(1);
+    imem_->write_delay(1);
+    dmem_->read_delay(1);
+    dmem_->write_delay(1);
   };
   virtual void on_exit() {};
   virtual void on_reset() {};
 
   virtual void handle_port(uint8_t port) {
-    auto *slave = _device_manager->get_slave<hal::axi::AXILiteSlave>(port);
+    auto *slave = device_manager_->get_slave<hal::axi::AXILiteSlave>(port);
     if (!slave)
       return;
 

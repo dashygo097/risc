@@ -6,7 +6,7 @@
 
 namespace demu {
 void ExecutionTrace::add_entry(const TraceEntry &entry) {
-  _entries.push_back(entry);
+  entries_.push_back(entry);
 }
 
 void ExecutionTrace::save(const std::string &filename) const {
@@ -18,7 +18,7 @@ void ExecutionTrace::save(const std::string &filename) const {
 
   file << "Cycle,PC,Instruction,Disassembly,Reg,Value\n";
 
-  for (const auto &entry : _entries) {
+  for (const auto &entry : entries_) {
     file << std::dec << entry.cycle << ","
          << "0x" << std::hex << std::setw(8) << std::setfill('0') << entry.pc
          << ","
@@ -39,6 +39,6 @@ void ExecutionTrace::save(const std::string &filename) const {
   DEMU_INFO("Execution trace saved to {}", filename);
 }
 
-void ExecutionTrace::clear() { _entries.clear(); }
+void ExecutionTrace::clear() { entries_.clear(); }
 
 } // namespace demu

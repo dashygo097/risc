@@ -13,34 +13,30 @@ Memory::Memory(size_t size, addr_t base_addr)
 }
 
 // Helpers
-bool Memory::load_binary(const std::string &filename, addr_t offset) {
+bool Memory::load_binary(const std::string &filename, addr_t load_offset) {
   std::ifstream file(filename, std::ios::binary | std::ios::ate);
   if (!file.is_open()) {
     HAL_ERROR("Failed to open binary file: {}", filename);
     return false;
   }
 
-  std::streamsize size = file.tellg();
+  const auto size = static_cast<size_t>(file.tellg());
   file.seekg(0, std::ios::beg);
 
-  if (offset + size > memory_.size()) {
+  if (load_offset + size > memory_.size()) {
     HAL_ERROR("Binary file ({}) too large for memory (Size: {}, Available: {})",
-              filename, size, memory_.size() - offset);
+              filename, size, memory_.size() - load_offset);
     return false;
   }
 
-  std::vector<char> buffer(size);
-  if (file.read(buffer.data(), size)) {
-    for (size_t i = 0; i < (size_t)buffer.size(); i++) {
-      memory_[offset + i] = static_cast<byte_t>(buffer[i]);
-    }
-    HAL_INFO("Successfully loaded binary '{}' ({} bytes) at offset 0x{:08x}",
-             filename, size, offset);
-    return true;
+  if (!file.read(reinterpret_cast<char *>(memory_.data() + load_offset),
+                 size)) {
+    HAL_ERROR("Read error while loading binary: {}", filename);
+    return false;
   }
-
-  HAL_ERROR("Read error while loading binary: {}", filename);
-  return false;
+  HAL_INFO("Loaded '{}' ({} bytes) at offset 0x{:08x}", filename, size,
+           load_offset);
+  return true;
 }
 
 void Memory::clear() {
