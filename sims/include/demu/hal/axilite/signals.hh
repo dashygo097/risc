@@ -3,26 +3,26 @@
 #include "../../isa/isa.hh"
 #include <cstdint>
 
-#define MAP_AXIL_SIGNALS(name, port_id)                                        \
-  name.awaddr = &dut_->M_AXIL_##port_id##_AWADDR;                              \
-  name.awprot = &dut_->M_AXIL_##port_id##_AWPROT;                              \
-  name.awvalid = &dut_->M_AXIL_##port_id##_AWVALID;                            \
-  name.awready = &dut_->M_AXIL_##port_id##_AWREADY;                            \
-  name.wdata = &dut_->M_AXIL_##port_id##_WDATA;                                \
-  name.wstrb = &dut_->M_AXIL_##port_id##_WSTRB;                                \
-  name.wvalid = &dut_->M_AXIL_##port_id##_WVALID;                              \
-  name.wready = &dut_->M_AXIL_##port_id##_WREADY;                              \
-  name.bresp = &dut_->M_AXIL_##port_id##_BRESP;                                \
-  name.bvalid = &dut_->M_AXIL_##port_id##_BVALID;                              \
-  name.bready = &dut_->M_AXIL_##port_id##_BREADY;                              \
-  name.araddr = &dut_->M_AXIL_##port_id##_ARADDR;                              \
-  name.arprot = &dut_->M_AXIL_##port_id##_ARPROT;                              \
-  name.arvalid = &dut_->M_AXIL_##port_id##_ARVALID;                            \
-  name.arready = &dut_->M_AXIL_##port_id##_ARREADY;                            \
-  name.rdata = &dut_->M_AXIL_##port_id##_RDATA;                                \
-  name.rresp = &dut_->M_AXIL_##port_id##_RRESP;                                \
-  name.rvalid = &dut_->M_AXIL_##port_id##_RVALID;                              \
-  name.rready = &dut_->M_AXIL_##port_id##_RREADY;
+#define MAP_AXIL_SIGNALS(dut, name, port_id)                                   \
+  name.awaddr = &dut->M_AXIL_##port_id##_AWADDR;                               \
+  name.awprot = &dut->M_AXIL_##port_id##_AWPROT;                               \
+  name.awvalid = &dut->M_AXIL_##port_id##_AWVALID;                             \
+  name.awready = &dut->M_AXIL_##port_id##_AWREADY;                             \
+  name.wdata = &dut->M_AXIL_##port_id##_WDATA;                                 \
+  name.wstrb = &dut->M_AXIL_##port_id##_WSTRB;                                 \
+  name.wvalid = &dut->M_AXIL_##port_id##_WVALID;                               \
+  name.wready = &dut->M_AXIL_##port_id##_WREADY;                               \
+  name.bresp = &dut->M_AXIL_##port_id##_BRESP;                                 \
+  name.bvalid = &dut->M_AXIL_##port_id##_BVALID;                               \
+  name.bready = &dut->M_AXIL_##port_id##_BREADY;                               \
+  name.araddr = &dut->M_AXIL_##port_id##_ARADDR;                               \
+  name.arprot = &dut->M_AXIL_##port_id##_ARPROT;                               \
+  name.arvalid = &dut->M_AXIL_##port_id##_ARVALID;                             \
+  name.arready = &dut->M_AXIL_##port_id##_ARREADY;                             \
+  name.rdata = &dut->M_AXIL_##port_id##_RDATA;                                 \
+  name.rresp = &dut->M_AXIL_##port_id##_RRESP;                                 \
+  name.rvalid = &dut->M_AXIL_##port_id##_RVALID;                               \
+  name.rready = &dut->M_AXIL_##port_id##_RREADY;
 
 namespace demu::hal::axi {
 using namespace isa;
