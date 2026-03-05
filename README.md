@@ -4,7 +4,7 @@
 
 ## Documentation
 
-Check website (here)[https://risc-dashygo097s-projects.vercel.app]
+Check website [here](https://risc-dashygo097s-projects.vercel.app)
 
 ## Acknowledgememt
 
