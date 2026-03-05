@@ -30,11 +30,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val instr = UInt(p(ILen).W)
   }
 
-  class DBufferReadEntry extends Bundle {
-    val addr = UInt(p(XLen).W)
-    val size = UInt((p(L1DCacheLineSize) / (p(XLen) / 8)).W)
-  }
-
   // Modules
   val decoder = Module(new Decoder)
   val ibuffer = Module(new Queue(new IBufferEntry, p(IBufferSize)))

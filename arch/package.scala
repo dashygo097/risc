@@ -13,7 +13,6 @@ package object configs {
 
   // Core Parameters
   object IBufferSize        extends Field[Int](4)
-  object DBufferSize        extends Field[Int](16)
   object IsRegfileUseBypass extends Field[Boolean](true)
   object NumPhyRegs         extends Field[Int](64)
   object ROBSize            extends Field[Int](16)
@@ -48,13 +47,31 @@ package object configs {
   object Bubble      extends Field[BitPat](ISADefinition.bubble(ISA()))
 
   implicit val p: Parameters = Parameters.empty ++ Map(
-    ISA         -> ISA.apply(),
-    XLen        -> XLen.apply(),
-    ILen        -> ILen.apply(),
-    NumArchRegs -> NumArchRegs.apply(),
-    IsBigEndian -> IsBigEndian.apply(),
-    Bubble      -> Bubble.apply(),
+    ISA                -> ISA.apply(),
+    IsDebug            -> IsDebug.apply(),
+    XLen               -> XLen.apply(),
+    ILen               -> ILen.apply(),
+    NumArchRegs        -> NumArchRegs.apply(),
+    IsBigEndian        -> IsBigEndian.apply(),
+    Bubble             -> Bubble.apply(),
+    IBufferSize        -> IBufferSize.apply(),
+    IsRegfileUseBypass -> IsRegfileUseBypass.apply(),
+    NumPhyRegs         -> NumPhyRegs.apply(),
+    ROBSize            -> ROBSize.apply(),
+    L1ICacheWays       -> L1ICacheWays.apply(),
+    L1ICacheSets       -> L1ICacheSets.apply(),
+    L1ICacheLineSize   -> L1ICacheLineSize.apply(),
+    L1ICacheReplPolicy -> L1ICacheReplPolicy.apply(),
+    L1DCacheWays       -> L1DCacheWays.apply(),
+    L1DCacheSets       -> L1DCacheSets.apply(),
+    L1DCacheLineSize   -> L1DCacheLineSize.apply(),
+    L1DCacheReplPolicy -> L1DCacheReplPolicy.apply(),
+    BusType            -> BusType.apply(),
+    FifoDepthPerClient -> FifoDepthPerClient.apply(),
+    BusAddressMap      -> BusAddressMap.apply()
   )
+
+  ConfigDump.dump(p, "build/config.json")
 }
 
 package object isa {}
