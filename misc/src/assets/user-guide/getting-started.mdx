@@ -1,2 +1,49 @@
-# Getting Started
-:)
+import { InfoBox, TipBox } from '@components'
+
+# RISC Framework
+
+```info
+This project is still under active development. 
+```
+
+`risc` is a highly configurable CPU design framework written in [Chisel](https://github.com/chipsalliance/chisel), targeting SystemVerilog code generation for different backends and RISC ISAs(compared to CISC ISAs).
+
+## Prerequisites
+
+- **OS** - This project functions well on Linux/MacOS, but may encounter issues on Windows(we haven't tested it on it). It is recommended to use `WSL` if you are on Windows.
+- **sbt** - version defined in `project/build.properties` (currently `1.10.11`)
+- **Chisel / Scala** — versions defined in `build.sbt`
+- **[Vopts](https://github.com/dashygo097/Vopts.git)** — must be installed before building
+
+### Vopts
+`Vopts` is a libarary containing many useful utilities and modules for this project, including `AXI4 interfaces`, `Cache`, `Multiplier` etc.
+It is required for building this project.
+
+1. Install `Vopts` locally
+```bash
+git clone https://github.com/dashygo097/Vopts.git 
+cd Vopts
+make localpublish
+```
+
+2. Add `Vopts` as a dependency
+
+Simplily run:
+```bash
+make update
+```
+
+## Code Generation
+
+Generate SystemVerilog from the Chisel source:
+
+```bash
+make run
+```
+
+## Configurations
+The configuration file is at arch/package.scala where you can change the parameters of the generated design, such as the ISA, the cache size etc.
+
+```info
+By now we have only impled rv32i but we have a well-designed architecture for supporting other ISAs. We will add more ISAs in the future:)
+```

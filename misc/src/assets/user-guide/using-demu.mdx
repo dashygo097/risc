@@ -1,0 +1,50 @@
+import { InfoBox, TipBox, SuccessBox } from '@components'
+
+# DEMU Simulator
+
+```info
+This project is still under active development. 
+```
+
+`demu` is a **RTL-level** cpu and system simulator built with **Verilator**.
+
+## Prerequisites
+
+- **Make/CMake**
+- **[Verilator](https://github.com/verilator/verilator.git)**
+
+## Building the Simulator
+
+### Quick Build
+
+```bash
+make config # generates a `config.cmake` under `build/` for user to customize
+make    # uses `Ninja` by default
+```
+
+### Manual Build
+
+```bash
+mkdir -p build
+cd build
+cmake ..
+make
+```
+
+## Writing and Running Tests
+
+All tests live under the `tests/` directory. You can write your own assembly or c tests under `tests/asm/`, then run:
+
+```bash
+make all
+```
+
+This generates hex dumps, ELF binaries, disassembly, and other artifacts for every test in the directory.
+
+```tip
+Keep your assembly source or c source files under `tests/asm/` so the build system picks them up automatically.
+```
+
+## Logging
+
+See the [Logging System](./demu-logging) page for full details on log levels and per-option verbosity.
