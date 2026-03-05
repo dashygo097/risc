@@ -56,13 +56,12 @@ void SystemSimulator::clock_tick() {
   DEMU_CPU_TICK(_cycle_count);
 
   dut_->clock = 0;
-  handle_port(0);
-  handle_port(1);
+  device_manager_->handle_ports();
   dut_->eval();
 
 #ifdef ENABLE_TRACE
   if (vcd_) {
-    vcd_->dump(_time_counter++);
+    vcd_->dump(_time_count++);
   }
 #endif
 
@@ -74,7 +73,7 @@ void SystemSimulator::clock_tick() {
 
 #ifdef ENABLE_TRACE
   if (vcd_) {
-    vcd_->dump(_time_counter++);
+    vcd_->dump(_time_count++);
   }
 #endif
   _cycle_count++;
@@ -92,7 +91,7 @@ void SystemSimulator::reset() {
 
   device_manager_->reset();
 
-  _time_counter = 0;
+  _time_count = 0;
   _cycle_count = 0;
   _terminate = false;
 

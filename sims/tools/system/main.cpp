@@ -10,7 +10,22 @@ public:
       : SystemSimulator(enabled_trace) {}
 
 protected:
-  void register_devices() override {};
+  void register_devices() override {
+    device_manager_->register_handler(
+        0, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
+          demu::hal::axi::AXILiteSignals s;
+          MAP_AXIL_SIGNALS(s, 0);
+          return s;
+        }));
+
+    device_manager_->register_handler(
+        1, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
+          demu::hal::axi::AXILiteSignals s;
+          MAP_AXIL_SIGNALS(s, 1);
+          return s;
+        }));
+  };
+
   void on_init() override {
     imem_->read_delay(1);
     imem_->write_delay(1);
@@ -20,21 +35,6 @@ protected:
   void on_clock_tick() override {};
   void on_exit() override {};
   void on_reset() override {};
-
-  demu::hal::axi::AXILiteSignals from_port(uint8_t port) override {
-    demu::hal::axi::AXILiteSignals signals;
-    switch (port) {
-    case 0:
-      MAP_AXIL_SIGNALS(signals, 0)
-      break;
-    case 1:
-      MAP_AXIL_SIGNALS(signals, 1)
-      break;
-    default:
-      break;
-    }
-    return signals;
-  }
 };
 
 void print_usage(const char *prog) {
