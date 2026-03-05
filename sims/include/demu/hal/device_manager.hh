@@ -2,6 +2,7 @@
 
 #include "../logger.hh"
 #include "./emu.hh"
+#include "./port_handler.hh"
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -58,6 +59,10 @@ public:
   [[nodiscard]] const EmulatedHardware *
   find_slave_for_address(addr_t addr) const noexcept;
 
+  // Port Handlers
+  void register_handler(port_id_t port, std::unique_ptr<PortHandler> handler);
+  void handle_ports() noexcept;
+
   // Bulk Operations
   void reset() noexcept;
   void clock_tick() noexcept;
@@ -77,6 +82,7 @@ private:
   struct SlaveSlot {
     std::unique_ptr<EmulatedHardware> device;
     std::string name;
+    std::unique_ptr<PortHandler> handler;
   };
 
   // components

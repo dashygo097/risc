@@ -74,6 +74,22 @@ DeviceManager::find_slave_for_address(addr_t addr) const noexcept {
   return nullptr;
 }
 
+// Port Handlers
+void DeviceManager::register_handler(port_id_t port,
+                                     std::unique_ptr<PortHandler> handler) {
+  ensure_capacity(port);
+  _slots[port].handler = std::move(handler);
+  HAL_DEBUG("Registered '{}' handler on Port {}",
+            _slots[port].handler->protocol_name(), port);
+}
+
+void DeviceManager::handle_ports() noexcept {
+  for (auto &slot : _slots) {
+    if (slot.device && slot.handler)
+      slot.handler->handle(slot.device.get());
+  }
+}
+
 // Bulk Operations
 void DeviceManager::reset() noexcept {
   HAL_DEBUG("Resetting all emulated hardware devices...");
