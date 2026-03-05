@@ -19,14 +19,14 @@ protected:
     device_manager_->register_handler(
         0, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
           demu::hal::axi::AXILiteSignals s;
-          MAP_AXIL_SIGNALS(s, 0);
+          MAP_AXIL_SIGNALS(dut_, s, 0);
           return s;
         }));
 
     device_manager_->register_handler(
         1, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
           demu::hal::axi::AXILiteSignals s;
-          MAP_AXIL_SIGNALS(s, 1);
+          MAP_AXIL_SIGNALS(dut_, s, 1);
           return s;
         }));
   };
