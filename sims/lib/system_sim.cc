@@ -8,14 +8,18 @@ namespace demu {
 SystemSimulator::SystemSimulator(bool enabled_trace)
     : dut_(std::make_unique<Vrv32i_system>()),
       device_manager_(std::make_unique<hal::DeviceManager>()),
-      _trace_enabled(enabled_trace) {
+      _trace_enabled(enabled_trace) {}
 
+SystemSimulator::~SystemSimulator() {
+#ifdef ENABLE_TRACE
+  if (vcd_) {
+    vcd_->close();
+  }
+#endif
+}
+
+void SystemSimulator::init() {
   DEMU_INFO("System Simulator Initializing...");
-
-  imem_ = device_manager_->register_slave<hal::axi::AXILiteMemory>(
-      0, "imem", 4 * 1024, 0x00000000);
-  dmem_ = device_manager_->register_slave<hal::axi::AXILiteMemory>(
-      1, "dmem", 16 * 1024, 0x80000000);
 
   register_devices();
   device_manager_->dump_device_map();
@@ -27,14 +31,6 @@ SystemSimulator::SystemSimulator(bool enabled_trace)
     dut_->trace(vcd_.get(), 99);
     vcd_->open((std::string(ISA_NAME) + "_system.vcd").c_str());
     DEMU_DEBUG("VCD tracing enabled: {}_system.vcd", ISA_NAME);
-  }
-#endif
-}
-
-SystemSimulator::~SystemSimulator() {
-#ifdef ENABLE_TRACE
-  if (vcd_) {
-    vcd_->close();
   }
 #endif
 }

@@ -11,6 +11,11 @@ public:
 
 protected:
   void register_devices() override {
+    imem_ = device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
+        0, "imem", 4 * 1024, 0x00000000);
+    dmem_ = device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
+        1, "dmem", 16 * 1024, 0x80000000);
+
     device_manager_->register_handler(
         0, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
           demu::hal::axi::AXILiteSignals s;
@@ -128,6 +133,7 @@ int main(int argc, char **argv) {
   demu::Logger::init(spdlog_level);
   SystemSimulatorTop sim(enable_trace);
 
+  sim.init();
   sim.reset();
 
   bool loaded = false;
