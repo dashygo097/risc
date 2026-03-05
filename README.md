@@ -10,6 +10,7 @@ Check website [here](https://risc-dashygo097s-projects.vercel.app)
 
 - [chisel](https://github.com/chipsalliance/chisel)
 - [rocket-chip](https://github.com/chipsalliance/rocket-chip)
+- [nlohamnn/json](https://github.com/nlohmann/json.git)
 
 ## Licence
 

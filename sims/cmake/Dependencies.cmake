@@ -38,3 +38,4 @@ else()
 
 endif()
 
+add_subdirectory(${CMAKE_SOURCE_DIR}/third-party/json)

@@ -24,6 +24,7 @@ interface NavigationConfig {
 
 const BREAKPOINT_MOBILE = 768;
 const BREAKPOINT_TABLET = 1024;
+const TRANSITION_DURATION_MS = 300;
 
 function deriveState(width: number): { expanded: boolean; isMobile: boolean } {
   return {
@@ -35,12 +36,16 @@ function deriveState(width: number): { expanded: boolean; isMobile: boolean } {
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const config = navigationConfig as unknown as NavigationConfig;
+
   const initialWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
   const initial = deriveState(initialWidth);
 
   const [expanded, setExpanded] = useState<boolean>(initial.expanded);
   const [isMobile, setIsMobile] = useState<boolean>(initial.isMobile);
+
   const isMobileRef = useRef<boolean>(initial.isMobile);
+  const isTransitioning = useRef<boolean>(false);
+  const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const ro = new ResizeObserver((entries) => {
@@ -61,6 +66,36 @@ const Sidebar: React.FC = () => {
     return () => ro.disconnect();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (transitionTimer.current) clearTimeout(transitionTimer.current);
+    };
+  }, []);
+
+  const handleToggle = useCallback(() => {
+    if (isTransitioning.current) return;
+
+    isTransitioning.current = true;
+    setExpanded((v) => !v);
+
+    transitionTimer.current = setTimeout(() => {
+      isTransitioning.current = false;
+    }, TRANSITION_DURATION_MS);
+  }, []);
+
+  const handleBackdropClick = useCallback(() => {
+    if (isTransitioning.current) return;
+    isTransitioning.current = true;
+    setExpanded(false);
+    transitionTimer.current = setTimeout(() => {
+      isTransitioning.current = false;
+    }, TRANSITION_DURATION_MS);
+  }, []);
+
+  const handleLinkClick = useCallback(() => {
+    if (isMobileRef.current) setExpanded(false);
+  }, []);
+
   const getIcon = (iconName?: string): React.ReactElement => {
     const icons: Record<string, React.ReactElement> = {
       cpu: <Cpu size={15} />,
@@ -70,10 +105,6 @@ const Sidebar: React.FC = () => {
     };
     return icons[iconName ?? "file"] ?? <FileText size={15} />;
   };
-
-  const handleLinkClick = useCallback(() => {
-    if (isMobileRef.current) setExpanded(false);
-  }, []);
 
   const renderSectionList = (sections: Section[]) => (
     <ul className="app-sidebar__section-list">
@@ -100,7 +131,11 @@ const Sidebar: React.FC = () => {
   return (
     <>
       <div
-        className={`app-sidebar-wrapper ${expanded ? "app-sidebar-wrapper--expanded" : "app-sidebar-wrapper--collapsed"}`}
+        className={`app-sidebar-wrapper ${
+          expanded
+            ? "app-sidebar-wrapper--expanded"
+            : "app-sidebar-wrapper--collapsed"
+        }`}
       >
         <aside className="app-sidebar">
           <div className="app-sidebar__header">
@@ -123,7 +158,7 @@ const Sidebar: React.FC = () => {
 
         <button
           className="app-sidebar__toggle-button"
-          onClick={() => setExpanded((v) => !v)}
+          onClick={handleToggle}
           aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
         >
           {expanded ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
@@ -133,7 +168,7 @@ const Sidebar: React.FC = () => {
       {isMobile && expanded && (
         <div
           className="app-sidebar__backdrop"
-          onClick={() => setExpanded(false)}
+          onClick={handleBackdropClick}
           aria-hidden="true"
         />
       )}
