@@ -9,9 +9,9 @@ GENERATOR ?= Ninja
 
 # Detect generator command
 ifeq ($(GENERATOR),Ninja)
-    BUILD_CMD = ninja -C $(BUILD_DIR)
+  BUILD_CMD = ninja -C $(BUILD_DIR)
 else
-    BUILD_CMD = cmake --build $(BUILD_DIR)
+  BUILD_CMD = cmake --build $(BUILD_DIR)
 endif
 
 .PHONY: all config build reconfigure clean help
