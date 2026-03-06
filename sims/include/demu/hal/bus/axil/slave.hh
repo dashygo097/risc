@@ -1,12 +1,12 @@
 #pragma once
 
-#include "../../emu.hh"
+#include "../../hardware.hh"
 #include <cstdint>
 
 namespace demu::hal::axi {
 using namespace isa;
 
-class AXILiteSlave : public EmulatedHardware {
+class AXILiteSlave : public Hardware {
 public:
   virtual ~AXILiteSlave() override = default;
 
