@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../emu.hh"
+#include "../../emu.hh"
 #include <cstdint>
 
 namespace demu::hal::axi {

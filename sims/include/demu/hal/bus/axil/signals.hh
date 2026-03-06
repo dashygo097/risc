@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../isa/isa.hh"
+#include "../../../isa/isa.hh"
 #include <cstdint>
 
 #define MAP_AXIL_SIGNALS(dut, name, port_id)                                   \
