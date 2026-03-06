@@ -14,7 +14,7 @@ public:
   explicit AXILitePortHandler(SignalProvider provider)
       : provider_(std::move(provider)) {}
 
-  void handle(hal::EmulatedHardware *hw) noexcept override {
+  void handle(hal::Hardware *hw) noexcept override {
     auto *slave = dynamic_cast<AXILiteSlave *>(hw);
     if (!slave)
       return;

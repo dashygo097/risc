@@ -1,5 +1,5 @@
 #pragma once
-#include "./emu.hh"
+#include "./hardware.hh"
 
 namespace demu::hal {
 
@@ -7,7 +7,7 @@ class PortHandler {
 public:
   virtual ~PortHandler() = default;
 
-  virtual void handle(EmulatedHardware *slave) noexcept = 0;
+  virtual void handle(Hardware *hw) noexcept = 0;
 
   virtual const char *protocol_name() const noexcept = 0;
 };

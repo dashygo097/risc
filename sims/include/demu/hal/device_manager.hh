@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../logger.hh"
-#include "./emu.hh"
+#include "./hardware.hh"
 #include "./port_handler.hh"
 #include <cstdint>
 #include <map>
@@ -32,9 +32,8 @@ public:
   T *register_slave(port_id_t port, std::string_view name, Args &&...args);
 
   // Slave Retrieval — by port
-  [[nodiscard]] EmulatedHardware *get_slave(port_id_t port) noexcept;
-  [[nodiscard]] const EmulatedHardware *
-  get_slave(port_id_t port) const noexcept;
+  [[nodiscard]] Hardware *get_slave(port_id_t port) noexcept;
+  [[nodiscard]] const Hardware *get_slave(port_id_t port) const noexcept;
 
   template <typename T> [[nodiscard]] T *get_slave(port_id_t port) noexcept;
 
@@ -42,9 +41,8 @@ public:
   [[nodiscard]] const T *get_slave(port_id_t port) const noexcept;
 
   // Slave Retrieval — by name
-  [[nodiscard]] EmulatedHardware *
-  get_slave_by_name(std::string_view name) noexcept;
-  [[nodiscard]] const EmulatedHardware *
+  [[nodiscard]] Hardware *get_slave_by_name(std::string_view name) noexcept;
+  [[nodiscard]] const Hardware *
   get_slave_by_name(std::string_view name) const noexcept;
 
   template <typename T>
@@ -55,8 +53,8 @@ public:
   get_slave_by_name(std::string_view name) const noexcept;
 
   // Slave Retrieval — by address
-  [[nodiscard]] EmulatedHardware *find_slave_for_address(addr_t addr) noexcept;
-  [[nodiscard]] const EmulatedHardware *
+  [[nodiscard]] Hardware *find_slave_for_address(addr_t addr) noexcept;
+  [[nodiscard]] const Hardware *
   find_slave_for_address(addr_t addr) const noexcept;
 
   // Port Handlers
@@ -80,7 +78,7 @@ public:
 
 private:
   struct SlaveSlot {
-    std::unique_ptr<EmulatedHardware> device;
+    std::unique_ptr<Hardware> device;
     std::string name;
     std::unique_ptr<PortHandler> handler;
   };
@@ -99,8 +97,7 @@ private:
 template <typename T, typename... Args>
 T *DeviceManager::register_slave(port_id_t port, std::string_view name,
                                  Args &&...args) {
-  static_assert(std::is_base_of_v<EmulatedHardware, T>,
-                "T must derive from EmulatedHardware");
+  static_assert(std::is_base_of_v<Hardware, T>, "T must derive from Hardware");
 
   ensure_capacity(port);
 
@@ -129,30 +126,26 @@ T *DeviceManager::register_slave(port_id_t port, std::string_view name,
 }
 
 template <typename T> T *DeviceManager::get_slave(port_id_t port) noexcept {
-  static_assert(std::is_base_of_v<EmulatedHardware, T>,
-                "T must derive from EmulatedHardware");
+  static_assert(std::is_base_of_v<Hardware, T>, "T must derive from Hardware");
   return dynamic_cast<T *>(get_slave(port));
 }
 
 template <typename T>
 const T *DeviceManager::get_slave(port_id_t port) const noexcept {
-  static_assert(std::is_base_of_v<EmulatedHardware, T>,
-                "T must derive from EmulatedHardware");
+  static_assert(std::is_base_of_v<Hardware, T>, "T must derive from Hardware");
   return dynamic_cast<const T *>(get_slave(port));
 }
 
 template <typename T>
 T *DeviceManager::get_slave_by_name(std::string_view name) noexcept {
-  static_assert(std::is_base_of_v<EmulatedHardware, T>,
-                "T must derive from EmulatedHardware");
+  static_assert(std::is_base_of_v<Hardware, T>, "T must derive from Hardware");
   return dynamic_cast<T *>(get_slave_by_name(name));
 }
 
 template <typename T>
 const T *
 DeviceManager::get_slave_by_name(std::string_view name) const noexcept {
-  static_assert(std::is_base_of_v<EmulatedHardware, T>,
-                "T must derive from EmulatedHardware");
+  static_assert(std::is_base_of_v<Hardware, T>, "T must derive from Hardware");
   return dynamic_cast<const T *>(get_slave_by_name(name));
 }
 
