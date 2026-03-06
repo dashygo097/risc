@@ -114,8 +114,8 @@ public:
 protected:
   // components
   std::unique_ptr<cpu_t> dut_;
-  std::unique_ptr<hal::Memory> imem_;
-  std::unique_ptr<hal::Memory> dmem_;
+  std::unique_ptr<hal::MemoryAllocator> imem_;
+  std::unique_ptr<hal::MemoryAllocator> dmem_;
   std::unique_ptr<ExecutionTrace> trace_;
   std::unique_ptr<Config> config_;
 

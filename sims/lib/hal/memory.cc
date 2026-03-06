@@ -1,4 +1,4 @@
-#include "demu/hal/memory.hh"
+#include "demu/hal/allocator.hh"
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -6,14 +6,15 @@
 
 namespace demu::hal {
 
-Memory::Memory(size_t size, addr_t base_addr)
+MemoryAllocator::MemoryAllocator(size_t size, addr_t base_addr)
     : memory_(size, 0), base_addr_(base_addr) {
-  HAL_INFO("Memory initialized: Size={} bytes, BaseAddr=0x{:08x}", size,
-           base_addr);
+  HAL_INFO("MemoryAllocator initialized: Size={} bytes, BaseAddr=0x{:08x}",
+           size, base_addr);
 }
 
 // Helpers
-bool Memory::load_binary(const std::string &filename, addr_t load_offset) {
+bool MemoryAllocator::load_binary(const std::string &filename,
+                                  addr_t load_offset) {
   std::ifstream file(filename, std::ios::binary | std::ios::ate);
   if (!file.is_open()) {
     HAL_ERROR("Failed to open binary file: {}", filename);
@@ -39,13 +40,14 @@ bool Memory::load_binary(const std::string &filename, addr_t load_offset) {
   return true;
 }
 
-void Memory::clear() {
-  HAL_DEBUG("Memory cleared (zeroed)");
+void MemoryAllocator::clear() {
+  HAL_DEBUG("MemoryAllocator cleared (zeroed)");
   memset(memory_.data(), 0, memory_.size());
 }
 
-void Memory::dump(addr_t start, addr_t length) const {
-  HAL_INFO("Memory Dump [0x{:08x} - 0x{:08x}]:", start, start + length);
+void MemoryAllocator::dump(addr_t start, addr_t length) const {
+  HAL_INFO("MemoryAllocator Dump [0x{:08x} - 0x{:08x}]:", start,
+           start + length);
   for (addr_t addr = start; addr < start + length; addr += 16) {
     std::stringstream ss;
     ss << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";
@@ -68,12 +70,12 @@ void Memory::dump(addr_t start, addr_t length) const {
   }
 }
 
-[[nodiscard]] bool Memory::is_valid_addr(addr_t addr) const noexcept {
+[[nodiscard]] bool MemoryAllocator::is_valid_addr(addr_t addr) const noexcept {
   return addr >= base_addr_ &&
          (addr - base_addr_) < static_cast<addr_t>(memory_.size());
 }
 
-[[nodiscard]] addr_t Memory::to_offset(addr_t addr) const noexcept {
+[[nodiscard]] addr_t MemoryAllocator::to_offset(addr_t addr) const noexcept {
   return addr - base_addr_;
 }
 

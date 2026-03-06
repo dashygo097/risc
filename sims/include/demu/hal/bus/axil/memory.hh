@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../memory.hh"
+#include "../../allocator.hh"
 #include "./slave.hh"
 #include <cstddef>
 #include <cstdint>
@@ -17,10 +17,10 @@ public:
   ~AXILiteMemory() override = default;
 
   [[nodiscard]] addr_t base_address() const noexcept override {
-    return memory_->base_address();
+    return memory_allocator_->base_address();
   }
   [[nodiscard]] size_t address_range() const noexcept override {
-    return memory_->size();
+    return memory_allocator_->size();
   }
 
   void reset() override;
@@ -51,16 +51,16 @@ public:
 
   // Bypass Methods
   bool load_binary(const std::string &filename, addr_t offset = 0) {
-    return memory_->load_binary(filename, offset);
+    return memory_allocator_->load_binary(filename, offset);
   };
   void read_delay(size_t cycles) { read_delay_ = cycles; };
   void write_delay(size_t cycles) { write_delay_ = cycles; };
 
   [[nodiscard]] byte_t *get_ptr(addr_t offset = 0) {
-    return memory_->get_ptr(offset);
+    return memory_allocator_->get_ptr(offset);
   }
   [[nodiscard]] const byte_t *get_ptr(addr_t offset = 0) const {
-    return memory_->get_ptr(offset);
+    return memory_allocator_->get_ptr(offset);
   };
 
   [[nodiscard]] const char *name() const noexcept override {
@@ -71,7 +71,7 @@ public:
 
 private:
   // components
-  std::unique_ptr<Memory> memory_;
+  std::unique_ptr<MemoryAllocator> memory_allocator_;
   size_t read_delay_;
   size_t write_delay_;
 

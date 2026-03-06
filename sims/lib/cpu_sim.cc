@@ -46,8 +46,8 @@ CPUSimulator::CPUSimulator(bool enable_trace) : trace_enabled_(enable_trace) {
     }
   }
 
-  imem_ = std::make_unique<hal::Memory>(imem_size, imem_base);
-  dmem_ = std::make_unique<hal::Memory>(dmem_size, dmem_base);
+  imem_ = std::make_unique<hal::MemoryAllocator>(imem_size, imem_base);
+  dmem_ = std::make_unique<hal::MemoryAllocator>(dmem_size, dmem_base);
 
   l1_icache_line_size_ =
       config_->getNestedValue<uint32_t>("cache.l1i.L1ICacheLineSize") /

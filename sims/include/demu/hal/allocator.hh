@@ -8,10 +8,10 @@
 namespace demu::hal {
 using namespace isa;
 
-class Memory final {
+class MemoryAllocator final {
 public:
-  Memory(size_t size, addr_t base_addr = 0x0);
-  ~Memory() = default;
+  MemoryAllocator(size_t size, addr_t base_addr = 0x0);
+  ~MemoryAllocator() = default;
 
   template <typename T> [[nodiscard]] T read(addr_t addr) const noexcept {
     if (!is_valid_addr(addr)) {
