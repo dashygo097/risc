@@ -2,6 +2,7 @@ package arch
 
 package object configs {
   import isa._
+  import system._
   import vopts.mem.cache._
   import chisel3.util.BitPat
 
@@ -31,11 +32,12 @@ package object configs {
   // System Parameters
   object BusType            extends Field[String]("axil")
   object FifoDepthPerClient extends Field[Int](4)
+
   object BusAddressMap
-      extends Field[Seq[(Long, Long)]](
+      extends Field[Seq[DeviceDescriptor]](
         Seq(
-          (0x00000000L, 0x00001000L), // DRAM(IMEM)
-          (0x80000000L, 0x80004000L), // DRAM(DMEM)
+          DeviceDescriptor("imem", "memory", 0x00000000L, 0x00001000L),
+          DeviceDescriptor("dmem", "memory", 0x80000000L, 0x80004000L)
         )
       )
 

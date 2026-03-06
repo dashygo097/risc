@@ -6,9 +6,13 @@
 namespace demu {
 
 SystemSimulator::SystemSimulator(bool enabled_trace)
-    : dut_(std::make_unique<Vrv32i_system>()),
-      device_manager_(std::make_unique<hal::DeviceManager>()),
-      _trace_enabled(enabled_trace) {}
+    : _trace_enabled(enabled_trace) {
+  dut_ = std::make_unique<system_t>();
+  device_manager_ = std::make_unique<hal::DeviceManager>();
+
+  config_ = std::make_unique<Config>();
+  config_->dump();
+};
 
 SystemSimulator::~SystemSimulator() {
 #ifdef ENABLE_TRACE
@@ -118,7 +122,8 @@ void SystemSimulator::run(uint64_t max_cycles) {
                       end_time - start_time)
                       .count();
 
-  DEMU_INFO("Simulation completed: {} cycles, "
+  DEMU_INFO("Simulation completed!")
+  DEMU_INFO("  With {} cycles "
             "after {} ms",
             _cycle_count, duration / 1000.0);
 }

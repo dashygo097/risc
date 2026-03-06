@@ -1,5 +1,6 @@
 package arch.configs
 
+import arch.system.DeviceDescriptor
 import chisel3.util.BitPat
 import java.nio.file.{ Files, Paths }
 import java.nio.charset.StandardCharsets
@@ -27,32 +28,27 @@ object ConfigDump {
   case class JsonArr(items: Seq[JsonNode])          extends JsonNode
 
   private def toJsonNode(v: Any): JsonNode = v match {
-    case s: String          => JsonLeaf(s""""$s"""")
-    case b: Boolean         => JsonLeaf(b.toString)
-    case i: Int             => JsonLeaf(i.toString)
-    case l: Long            => JsonLeaf(l.toString)
-    case d: Double          => JsonLeaf(d.toString)
-    case f: Float           => JsonLeaf(f.toString)
-    case bit: BitPat        => JsonLeaf(s""""0x${bit.value.longValue.toHexString}"""")
-    case opt: Option[_]     => opt.map(toJsonNode).getOrElse(JsonLeaf("null"))
-    case seq: Seq[_]        => JsonArr(seq.map(toJsonNode))
-    case (a: Long, b: Long) =>
+    case s: String              => JsonLeaf(s""""$s"""")
+    case b: Boolean             => JsonLeaf(b.toString)
+    case i: Int                 => JsonLeaf(i.toString)
+    case l: Long                => JsonLeaf(l.toString)
+    case d: Double              => JsonLeaf(d.toString)
+    case f: Float               => JsonLeaf(f.toString)
+    case bit: BitPat            => JsonLeaf(s""""0x${bit.value.longValue.toHexString}"""")
+    case opt: Option[_]         => opt.map(toJsonNode).getOrElse(JsonLeaf("null"))
+    case seq: Seq[_]            => JsonArr(seq.map(toJsonNode))
+    case desc: DeviceDescriptor =>
       JsonObj(
         Map(
-          "start" -> JsonLeaf(s""""0x${a.toHexString}""""),
-          "end"   -> JsonLeaf(s""""0x${b.toHexString}""""),
+          "device" -> JsonLeaf(s""""${desc.name}""""),
+          "type"   -> JsonLeaf(s""""${desc.deviceType}""""),
+          "start"  -> JsonLeaf(s""""0x${desc.startAddr.toHexString}""""),
+          "end"    -> JsonLeaf(s""""0x${desc.endAddr.toHexString}""""),
         )
       )
-    case (a, b)             =>
-      JsonObj(
-        Map(
-          "first"  -> toJsonNode(a),
-          "second" -> toJsonNode(b),
-        )
-      )
-    case m: Map[_, _]       =>
+    case m: Map[_, _]           =>
       JsonObj(m.map { case (k, v2) => k.toString -> toJsonNode(v2) })
-    case other              => JsonLeaf(s""""${other.toString}"""")
+    case other                  => JsonLeaf(s""""${other.toString}"""")
   }
 
   private def render(node: JsonNode, indent: Int = 0): String = {

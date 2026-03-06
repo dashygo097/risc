@@ -7,12 +7,56 @@
 namespace demu {
 using namespace isa;
 
-CPUSimulator::CPUSimulator(bool enable_trace)
-    : dut_(std::make_unique<cpu_t>()),
-      imem_(std::make_unique<hal::Memory>(4 * 1024, 0x00000000)),
-      dmem_(std::make_unique<hal::Memory>(16 * 1024, 0x80000000)),
-      trace_(std::make_unique<ExecutionTrace>()),
-      trace_enabled_(enable_trace) {};
+CPUSimulator::CPUSimulator(bool enable_trace) : trace_enabled_(enable_trace) {
+  dut_ = std::make_unique<cpu_t>();
+
+  trace_ = std::make_unique<ExecutionTrace>();
+
+  config_ = std::make_unique<Config>();
+  config_->dump();
+
+  addr_t imem_base;
+  size_t imem_size;
+  addr_t dmem_base;
+  size_t dmem_size;
+
+  if (config_->hasKey("system") &&
+      config_->getJson()["system"].contains("BusAddressMap")) {
+    auto bus_map = config_->getJson()["system"]["BusAddressMap"];
+
+    for (const auto &entry : bus_map) {
+      std::string device_name = entry.value("device", "");
+      std::string device_type = entry.value("type", "");
+
+      if (device_name == "imem") {
+        std::string start_str = entry.value("start", "0x0");
+        std::string end_str = entry.value("end", "0x0");
+
+        imem_base = static_cast<addr_t>(std::stoul(start_str, nullptr, 16));
+        addr_t imem_end = static_cast<addr_t>(std::stoul(end_str, nullptr, 16));
+        imem_size = imem_end - imem_base;
+      } else if (device_name == "dmem") {
+        std::string start_str = entry.value("start", "0x0");
+        std::string end_str = entry.value("end", "0x0");
+
+        dmem_base = static_cast<addr_t>(std::stoul(start_str, nullptr, 16));
+        addr_t dmem_end = static_cast<addr_t>(std::stoul(end_str, nullptr, 16));
+        dmem_size = dmem_end - dmem_base;
+      }
+    }
+  }
+
+  imem_ = std::make_unique<hal::Memory>(imem_size, imem_base);
+  dmem_ = std::make_unique<hal::Memory>(dmem_size, dmem_base);
+
+  l1_icache_line_size_ =
+      config_->getNestedValue<uint32_t>("cache.l1i.L1ICacheLineSize") /
+      sizeof(word_t);
+
+  l1_dcache_line_size_ =
+      config_->getNestedValue<uint32_t>("cache.l1d.L1DCacheLineSize") /
+      sizeof(word_t);
+};
 
 CPUSimulator::~CPUSimulator() {
 #ifdef ENABLE_TRACE
@@ -276,12 +320,13 @@ void CPUSimulator::run(uint64_t max_cycles) {
                       end_time - start_time)
                       .count();
 
-  DEMU_INFO("Simulation completed: {} cycles, {} instructions, IPC: {:.2f}, "
+  DEMU_INFO("Simulation completed!")
+  DEMU_INFO("  With {} cycles, {} instructions, IPC: {:.2f} "
             "after {} ms",
             cycle_count(), instr_count(), ipc(), duration / 1000.0);
 
-  DEMU_INFO("L1 Icache Hit Rate: {:.2f} %", l1_icache_hit_rate() * 100);
-  DEMU_INFO("L1 Dcache Hit Rate: {:.2f} %", l1_dcache_hit_rate() * 100);
+  DEMU_INFO("  L1 Icache Hit Rate: {:.2f} %", l1_icache_hit_rate() * 100);
+  DEMU_INFO("  L1 Dcache Hit Rate: {:.2f} %", l1_dcache_hit_rate() * 100);
 }
 
 word_t CPUSimulator::read_mem(addr_t addr) const {
@@ -302,9 +347,9 @@ void CPUSimulator::write_mem(addr_t addr, word_t data) {
 void CPUSimulator::dump_registers() const {
   DEMU_INFO("Register Dump:");
   for (int i = 0; i < NUM_GPRS; i += 4) {
-    DEMU_INFO("x{:02d}={:08x}  x{:02d}={:08x}  x{:02d}={:08x}  x{:02d}={:08x}",
-              i, reg(i), i + 1, reg(i + 1), i + 2, reg(i + 2), i + 3,
-              reg(i + 3));
+    DEMU_INFO(
+        "  x{:02d}={:08x}  x{:02d}={:08x}  x{:02d}={:08x}  x{:02d}={:08x}", i,
+        reg(i), i + 1, reg(i + 1), i + 2, reg(i + 2), i + 3, reg(i + 3));
   }
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "./config.hh"
 #include "./hal/hal.hh"
 #include "./logger.hh"
 #include "./trace.hh"
@@ -116,6 +117,7 @@ protected:
   std::unique_ptr<hal::Memory> imem_;
   std::unique_ptr<hal::Memory> dmem_;
   std::unique_ptr<ExecutionTrace> trace_;
+  std::unique_ptr<Config> config_;
 
 #ifdef ENABLE_TRACE
   std::unique_ptr<VerilatedVcdC> vcd_;
@@ -127,6 +129,8 @@ protected:
   bool terminate_{false};
   bool show_pipeline_{false};
   bool trace_enabled_{false};
+  uint32_t l1_icache_line_size_;
+  uint32_t l1_dcache_line_size_;
 
   // Simulator state
   uint64_t _time_count{0};

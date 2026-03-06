@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 
+using namespace demu::isa;
+
 class CPUSimulatorTop final : public demu::CPUSimulator {
 public:
   CPUSimulatorTop(bool enabled_trace = false) : CPUSimulator(enabled_trace) {}

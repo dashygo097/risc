@@ -1,6 +1,7 @@
 #pragma once
 
 #ifdef ENABLE_SYSTEM
+#include "./config.hh"
 #include "./hal/hal.hh"
 #include "./trace.hh"
 #include "Vrv32i_system.h"
@@ -49,6 +50,7 @@ public:
 protected:
   // DUT
   std::unique_ptr<system_t> dut_;
+  std::unique_ptr<Config> config_;
 
 #ifdef ENABLE_TRACE
   std::unique_ptr<VerilatedVcdC> vcd_;

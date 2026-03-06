@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 
+using namespace demu::isa;
+
 class SystemSimulatorTop final : public demu::SystemSimulator {
 public:
   SystemSimulatorTop(bool enabled_trace = false)
@@ -11,10 +13,43 @@ public:
 
 protected:
   void register_devices() override {
+    addr_t imem_base;
+    size_t imem_size;
+    addr_t dmem_base;
+    size_t dmem_size;
+
+    if (config_->hasKey("system") &&
+        config_->getJson()["system"].contains("BusAddressMap")) {
+      auto bus_map = config_->getJson()["system"]["BusAddressMap"];
+
+      for (const auto &entry : bus_map) {
+        std::string device_name = entry.value("device", "");
+        std::string device_type = entry.value("type", "");
+
+        if (device_name == "imem") {
+          std::string start_str = entry.value("start", "0x0");
+          std::string end_str = entry.value("end", "0x0");
+
+          imem_base = static_cast<addr_t>(std::stoul(start_str, nullptr, 16));
+          addr_t imem_end =
+              static_cast<addr_t>(std::stoul(end_str, nullptr, 16));
+          imem_size = imem_end - imem_base;
+        } else if (device_name == "dmem") {
+          std::string start_str = entry.value("start", "0x0");
+          std::string end_str = entry.value("end", "0x0");
+
+          dmem_base = static_cast<addr_t>(std::stoul(start_str, nullptr, 16));
+          addr_t dmem_end =
+              static_cast<addr_t>(std::stoul(end_str, nullptr, 16));
+          dmem_size = dmem_end - dmem_base;
+        }
+      }
+    }
+
     imem_ = device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
-        0, "imem", 4 * 1024, 0x00000000);
+        0, "imem", imem_size, imem_base);
     dmem_ = device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
-        1, "dmem", 16 * 1024, 0x80000000);
+        1, "dmem", dmem_size, dmem_base);
 
     device_manager_->register_handler(
         0, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
