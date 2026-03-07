@@ -44,7 +44,20 @@ set_target_properties(demu PROPERTIES
 target_link_libraries(demu PUBLIC spdlog::spdlog)
 target_link_libraries(demu PUBLIC nlohmann_json::nlohmann_json)
 
-target_compile_definitions(demu PRIVATE 
+if(NOT DEFINED RTL_CONFIG_FILE)
+  set(RTL_CONFIG_FILE "${RTL_DIR}/config.json")
+endif()
+
+if(NOT EXISTS "${RTL_CONFIG_FILE}")
+  message(FATAL_ERROR 
+    "[demu] config.json not found at: ${RTL_CONFIG_FILE}\n"
+    "  Run 'sbt run' to generate it first, or set -DRTL_CONFIG_FILE=<path>"
+  )
+endif()
+
+target_compile_definitions(demu PRIVATE
   RTL_DIR="${RTL_DIR}"
-  RTL_CONFIG_FILE="${RTL_DIR}/config.json"
+  RTL_CONFIG_FILE="${RTL_CONFIG_FILE}"
 )
+
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${RTL_CONFIG_FILE}")

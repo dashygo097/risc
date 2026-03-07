@@ -1,6 +1,7 @@
 package arch.configs
 
 import arch.system.DeviceDescriptor
+import scala.collection.immutable.ListMap
 import chisel3.util.BitPat
 import java.nio.file.{ Files, Paths }
 import java.nio.charset.StandardCharsets
@@ -20,12 +21,16 @@ class View[T](pname: Parameters => T) {
   def apply(p: Parameters): T = pname(p)
 }
 
+trait ConfigField {
+  def section: String
+}
+
 object ConfigDump {
 
   sealed trait JsonNode
-  case class JsonLeaf(value: String)                extends JsonNode
-  case class JsonObj(fields: Map[String, JsonNode]) extends JsonNode
-  case class JsonArr(items: Seq[JsonNode])          extends JsonNode
+  case class JsonLeaf(value: String)                    extends JsonNode
+  case class JsonObj(fields: ListMap[String, JsonNode]) extends JsonNode
+  case class JsonArr(items: Seq[JsonNode])              extends JsonNode
 
   private def toJsonNode(v: Any): JsonNode = v match {
     case s: String              => JsonLeaf(s""""$s"""")
@@ -39,7 +44,7 @@ object ConfigDump {
     case seq: Seq[_]            => JsonArr(seq.map(toJsonNode))
     case desc: DeviceDescriptor =>
       JsonObj(
-        Map(
+        ListMap(
           "device" -> JsonLeaf(s""""${desc.name}""""),
           "type"   -> JsonLeaf(s""""${desc.deviceType}""""),
           "start"  -> JsonLeaf(s""""0x${desc.startAddr.toHexString}""""),
@@ -47,7 +52,9 @@ object ConfigDump {
         )
       )
     case m: Map[_, _]           =>
-      JsonObj(m.map { case (k, v2) => k.toString -> toJsonNode(v2) })
+      JsonArr(m.toSeq.map { case (k, v2) =>
+        JsonObj(ListMap(k.toString -> toJsonNode(v2)))
+      })
     case other                  => JsonLeaf(s""""${other.toString}"""")
   }
 
@@ -67,20 +74,10 @@ object ConfigDump {
     }
   }
 
-  private val sectionRules: Seq[(String => Boolean, String)] = Seq(
-    (n => Set("ISA", "IsDebug").contains(n), "common"),
-    (n => Set("XLen", "ILen", "NumArchRegs", "IsBigEndian", "Bubble").contains(n), "isa"),
-    (n => Set("IBufferSize", "IsRegfileUseBypass", "NumPhyRegs", "ROBSize").contains(n), "core"),
-    (n => n.startsWith("L1I"), "cache.l1i"),
-    (n => n.startsWith("L1D"), "cache.l1d"),
-    (n => Set("BusType", "FifoDepthPerClient", "BusAddressMap").contains(n), "system"),
-  )
-
-  private def sectionOf(name: String): List[String] =
-    sectionRules
-      .find { case (pred, _) => pred(name) }
-      .map { case (_, s) => s.split("\\.").toList }
-      .getOrElse(List("misc"))
+  private def sectionOf(field: Any): List[String] = field match {
+    case f: ConfigField => f.section.split("\\.").toList
+    case _              => Nil
+  }
 
   private def fieldSimpleName(field: Any): String =
     field.getClass.getName
@@ -99,13 +96,13 @@ object ConfigDump {
     case head :: tail =>
       val child = obj.fields.get(head) match {
         case Some(o: JsonObj) => o
-        case _                => JsonObj(Map.empty)
+        case _                => JsonObj(ListMap.empty)
       }
       JsonObj(obj.fields + (head -> insertIntoObj(child, tail, key, node)))
   }
 
   def dump(p: Parameters, path: String = "config.json"): Unit = {
-    var root: JsonObj = JsonObj(Map.empty)
+    var root: JsonObj = JsonObj(ListMap.empty)
 
     p.site.foreach { case (field, value) =>
       val name    = fieldSimpleName(field)
