@@ -117,7 +117,7 @@ protected:
   std::unique_ptr<hal::MemoryAllocator> imem_;
   std::unique_ptr<hal::MemoryAllocator> dmem_;
   std::unique_ptr<ExecutionTrace> trace_;
-  std::unique_ptr<Config> config_;
+  std::unique_ptr<RiscConfig> config_;
 
 #ifdef ENABLE_TRACE
   std::unique_ptr<VerilatedVcdC> vcd_;

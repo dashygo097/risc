@@ -12,7 +12,7 @@ object AXILiteCrossbarUtilities extends RegisteredUtilities[BusCrossbarUtilities
       Flipped(new AXILiteMasterExtIO(addrWidth = p(XLen), dataWidth = p(XLen)))
     override def slaveType: Bundle             =
       Flipped(new AXILiteSlaveExtIO(addrWidth = p(XLen), dataWidth = p(XLen)))
-    override def addressMap: Seq[(Long, Long)] = p(BusAddressMap).map { case desc => (desc.startAddr, desc.endAddr) }
+    override def addressMap: Seq[(Long, Long)] = p(BusAddressMap).map { case desc => (desc.base, desc.base + desc.size) } // (base, size) -> (begin, end)
 
     override def createInterface(ibus: Bundle, dbus: Bundle): Vec[Bundle] = {
       val crossbar  = Module(new AXILiteCrossbar(p(XLen), p(XLen), 2, addressMap, p(BusCrossbarFifoDepthPerClient)))

@@ -50,7 +50,7 @@ public:
 protected:
   // DUT
   std::unique_ptr<system_t> dut_;
-  std::unique_ptr<Config> config_;
+  std::unique_ptr<RiscConfig> config_;
 
 #ifdef ENABLE_TRACE
   std::unique_ptr<VerilatedVcdC> vcd_;

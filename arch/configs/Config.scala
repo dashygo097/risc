@@ -42,9 +42,9 @@ object ConfigDump {
       JsonObj(
         ListMap(
           "device" -> JsonLeaf(s""""${desc.name}""""),
-          "type"   -> JsonLeaf(s""""${desc.deviceType}""""),
-          "start"  -> JsonLeaf(s""""0x${desc.startAddr.toHexString}""""),
-          "end"    -> JsonLeaf(s""""0x${desc.endAddr.toHexString}""""),
+          "type"   -> JsonLeaf(s""""${desc.dtype}""""),
+          "base"   -> JsonLeaf(s""""0x${desc.base.toHexString}""""),
+          "size"   -> JsonLeaf(s""""0x${desc.size.toHexString}""""),
         )
       )
     case m: Map[_, _]           =>

@@ -12,50 +12,18 @@ CPUSimulator::CPUSimulator(bool enable_trace) : trace_enabled_(enable_trace) {
 
   trace_ = std::make_unique<ExecutionTrace>();
 
-  config_ = std::make_unique<Config>();
+  config_ = std::make_unique<RiscConfig>();
   config_->dump();
+  config_->validate();
 
-  addr_t imem_base;
-  size_t imem_size;
-  addr_t dmem_base;
-  size_t dmem_size;
+  const auto *imem_r = config_->imem();
+  const auto *dmem_r = config_->dmem();
 
-  if (config_->hasKey("system") &&
-      config_->getJson()["system"].contains("BusAddressMap")) {
-    auto bus_map = config_->getJson()["system"]["BusAddressMap"];
+  imem_ = std::make_unique<hal::MemoryAllocator>(imem_r->size, imem_r->base);
+  dmem_ = std::make_unique<hal::MemoryAllocator>(dmem_r->size, dmem_r->base);
 
-    for (const auto &entry : bus_map) {
-      std::string device_name = entry.value("device", "");
-      std::string device_type = entry.value("type", "");
-
-      if (device_name == "imem") {
-        std::string start_str = entry.value("start", "0x0");
-        std::string end_str = entry.value("end", "0x0");
-
-        imem_base = static_cast<addr_t>(std::stoul(start_str, nullptr, 16));
-        addr_t imem_end = static_cast<addr_t>(std::stoul(end_str, nullptr, 16));
-        imem_size = imem_end - imem_base;
-      } else if (device_name == "dmem") {
-        std::string start_str = entry.value("start", "0x0");
-        std::string end_str = entry.value("end", "0x0");
-
-        dmem_base = static_cast<addr_t>(std::stoul(start_str, nullptr, 16));
-        addr_t dmem_end = static_cast<addr_t>(std::stoul(end_str, nullptr, 16));
-        dmem_size = dmem_end - dmem_base;
-      }
-    }
-  }
-
-  imem_ = std::make_unique<hal::MemoryAllocator>(imem_size, imem_base);
-  dmem_ = std::make_unique<hal::MemoryAllocator>(dmem_size, dmem_base);
-
-  l1_icache_line_size_ =
-      config_->getNestedValue<uint32_t>("cache.l1i.L1ICacheLineSize") /
-      sizeof(word_t);
-
-  l1_dcache_line_size_ =
-      config_->getNestedValue<uint32_t>("cache.l1d.L1DCacheLineSize") /
-      sizeof(word_t);
+  l1_icache_line_size_ = config_->l1i().line_words(sizeof(word_t));
+  l1_dcache_line_size_ = config_->l1d().line_words(sizeof(word_t));
 };
 
 CPUSimulator::~CPUSimulator() {

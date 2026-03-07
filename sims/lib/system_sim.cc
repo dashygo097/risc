@@ -10,8 +10,9 @@ SystemSimulator::SystemSimulator(bool enabled_trace)
   dut_ = std::make_unique<system_t>();
   device_manager_ = std::make_unique<hal::DeviceManager>();
 
-  config_ = std::make_unique<Config>();
+  config_ = std::make_unique<RiscConfig>();
   config_->dump();
+  config_->validate();
 };
 
 SystemSimulator::~SystemSimulator() {

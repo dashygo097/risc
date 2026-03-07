@@ -37,8 +37,8 @@ package object configs {
   object BusAddressMap
       extends Field[Seq[DeviceDescriptor]](
         Seq(
-          DeviceDescriptor("imem", "memory", 0x00000000L, 0x00001000L),
-          DeviceDescriptor("dmem", "memory", 0x80000000L, 0x80004000L)
+          DeviceDescriptor("imem", "memory", 0x00000000L, 0x1000L),
+          DeviceDescriptor("dmem", "memory", 0x80000000L, 0x4000L)
         ),
         "bus"
       )

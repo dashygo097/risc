@@ -2,7 +2,7 @@ package arch.system
 
 case class DeviceDescriptor(
   name: String,
-  deviceType: String,
-  startAddr: Long,
-  endAddr: Long
+  dtype: String,
+  base: Long,
+  size: Long
 )
