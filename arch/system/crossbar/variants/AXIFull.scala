@@ -15,7 +15,7 @@ object AXIFullCrossbarUtilities extends RegisteredUtilities[BusCrossbarUtilities
     override def addressMap: Seq[(Long, Long)] = p(BusAddressMap).map { case desc => (desc.startAddr, desc.endAddr) }
 
     override def createInterface(ibus: Bundle, dbus: Bundle): Vec[Bundle] = {
-      val crossbar  = Module(new AXIFullCrossbar(p(XLen), p(XLen), 4, 2, addressMap, p(FifoDepthPerClient)))
+      val crossbar  = Module(new AXIFullCrossbar(p(XLen), p(XLen), 4, 2, addressMap, p(BusCrossbarFifoDepthPerClient)))
       val interface = Wire(Vec(addressMap.length, slaveType.cloneType))
 
       crossbar.masters_ext(0) <> ibus
