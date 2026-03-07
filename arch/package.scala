@@ -79,9 +79,3 @@ package object configs {
 
   ConfigDump.dump(p, "build/config.json")
 }
-
-package object isa {}
-
-package object core {}
-
-package object system {}
