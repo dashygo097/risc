@@ -42,33 +42,41 @@ get_filename_component(PROTO_ROOT
   "${CMAKE_CURRENT_SOURCE_DIR}/../proto"
   ABSOLUTE
 )
-set(PROTO_FILE "${PROTO_ROOT}/risc_config.proto")
-set(PROTO_OUT  "${CMAKE_BINARY_DIR}/generated")
-
-if(NOT EXISTS "${PROTO_FILE}")
-  message(FATAL_ERROR
-    "[proto] File not found: ${PROTO_FILE}\n"
-    "Run 'sbt run' first to generate proto/risc_config.proto.")
-endif()
-
+set(PROTO_OUT "${CMAKE_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${PROTO_OUT}")
 
+file(GLOB PROTO_FILES "${PROTO_ROOT}/*.proto")
+
+if(NOT PROTO_FILES)
+  message(FATAL_ERROR "[proto] No .proto files found in ${PROTO_ROOT}")
+endif()
+
+set(PROTO_GENERATED_HEADERS "")
+set(PROTO_GENERATED_SOURCES "")
+
+foreach(PROTO_FILE ${PROTO_FILES})
+  get_filename_component(PROTO_NAME "${PROTO_FILE}" NAME_WE)
+  list(APPEND PROTO_GENERATED_HEADERS "${PROTO_OUT}/${PROTO_NAME}.pb.h")
+  list(APPEND PROTO_GENERATED_SOURCES "${PROTO_OUT}/${PROTO_NAME}.pb.cc")
+endforeach()
+
 add_custom_command(
-  OUTPUT
-    "${PROTO_OUT}/risc_config.pb.h"
-    "${PROTO_OUT}/risc_config.pb.cc"
-  COMMAND
-    ${Protobuf_PROTOC_EXECUTABLE}
-    --cpp_out=${PROTO_OUT}
-    --proto_path=${PROTO_ROOT}
-    ${PROTO_FILE}
-  DEPENDS "${PROTO_FILE}"
-  COMMENT "[protoc] Generating risc_config.pb.h / risc_config.pb.cc"
+  OUTPUT  ${PROTO_GENERATED_HEADERS} ${PROTO_GENERATED_SOURCES}
+  COMMAND ${Protobuf_PROTOC_EXECUTABLE}
+          --cpp_out=${PROTO_OUT}
+          --proto_path=${PROTO_ROOT}
+          ${PROTO_FILES}
+  DEPENDS ${PROTO_FILES}
+  COMMENT "[protoc] Generating pb files from ${PROTO_ROOT}/*.proto"
 )
 
 add_custom_target(gen_proto DEPENDS
-  "${PROTO_OUT}/risc_config.pb.h"
-  "${PROTO_OUT}/risc_config.pb.cc"
+  ${PROTO_GENERATED_HEADERS}
+  ${PROTO_GENERATED_SOURCES}
 )
 
+set(PROTO_GENERATED_SOURCES "${PROTO_GENERATED_SOURCES}" CACHE INTERNAL "")
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/third-party/json)
+
+

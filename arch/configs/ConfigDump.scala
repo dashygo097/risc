@@ -10,15 +10,15 @@ object ConfigDump {
 
   def buildProto(p: Parameters): RiscConfig =
     RiscConfig(
+      isDebug = p(IsDebug),
       isa = Some(
-        IsaConfig(
-          isaName = p(ISA),
+        Isa(
+          name = p(ISA),
           xlen = p(XLen),
           ilen = p(ILen),
           numArchRegs = p(NumArchRegs),
           isBigEndian = p(IsBigEndian),
           bubble = s"0x${p(Bubble).value.longValue.toHexString}",
-          isDebug = p(IsDebug),
         )
       ),
       l1I = Some(

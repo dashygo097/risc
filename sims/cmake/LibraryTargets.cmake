@@ -3,7 +3,7 @@
 add_library(demu
   ${DEMU_SOURCES}
   ${DEMU_HEADERS}
-  "${PROTO_OUT}/risc_config.pb.cc"
+  ${PROTO_GENERATED_SOURCES} 
 )
 
 add_dependencies(demu gen_proto)
@@ -18,6 +18,7 @@ verilate(demu
     -Wno-DECLFILENAME
     -Wno-PINCONNECTEMPTY
     --top-module ${ISA}_cpu
+    -CFLAGS "-Wno-unused-variable -Wno-bool-operation -Wno-parentheses-equality"
   PREFIX V${ISA}_cpu
   TRACE_THREADS 2
 )
@@ -33,6 +34,7 @@ if(ENABLE_SYSTEM)
       -Wno-DECLFILENAME
       -Wno-PINCONNECTEMPTY
       --top-module ${ISA}_system
+      -CFLAGS "-Wno-unused-variable -Wno-bool-operation -Wno-parentheses-equality"
     PREFIX V${ISA}_system
     TRACE_THREADS 2
   )

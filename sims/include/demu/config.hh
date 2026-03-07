@@ -29,9 +29,7 @@ public:
   RiscConfig() { load(get_config_path()); }
   explicit RiscConfig(const std::string &p) { load(p); }
 
-  [[nodiscard]] const risc::IsaConfig &isa() const noexcept {
-    return proto_.isa();
-  }
+  [[nodiscard]] const risc::Isa &isa() const noexcept { return proto_.isa(); }
   [[nodiscard]] const risc::CacheConfig &l1i() const noexcept {
     return proto_.l1i();
   }
@@ -88,7 +86,7 @@ public:
     DEMU_INFO("=== RiscConfig ===");
     DEMU_INFO("  config: {}", config_path_);
     std::string json;
-    google::protobuf::util::MessageToJsonString(proto_, &json);
+    (void)google::protobuf::util::MessageToJsonString(proto_, &json);
     std::istringstream ss(json);
     std::string line;
     while (std::getline(ss, line))

@@ -2,62 +2,19 @@ syntax = "proto3";
 
 package risc;
 
+import "isa.proto";
+import "cache_config.proto";
+import "cpu_config.proto";
+import "bus_config.proto";
+
 option java_package = "arch.configs.proto";
 option java_outer_classname = "RiscConfigProto";
 
-enum BusType {
-  BUS_TYPE_UNKNOWN = 0;
-  BUS_TYPE_AXIL = 1;
-}
-
-enum ReplPolicy {
-  REPL_POLICY_UNKNOWN = 0;
-  REPL_POLICY_RANDOM = 1;
-  REPL_POLICY_LRU = 2;
-  REPL_POLICY_PSEUDO_LRU = 3;
-}
-
-message MemRegion {
-  string device = 1;
-  string type = 2;
-  uint64 base = 3;
-  uint64 size = 4;
-}
-
-message IsaConfig {
-  string isa_name = 1;
-  uint32 xlen = 2;
-  uint32 ilen = 3;
-  uint32 num_arch_regs = 4;
-  bool is_big_endian = 5;
-  string bubble = 6;
-  bool is_debug = 7;
-}
-
-message CacheConfig {
-  uint32 sets = 1;
-  uint32 ways = 2;
-  uint32 line_size = 3;
-  ReplPolicy repl_policy = 4;
-}
-
-message CpuConfig {
-  uint32 num_phy_regs = 1;
-  uint32 ibuffer_size = 2;
-  uint32 rob_size = 3;
-  bool regfile_use_bypass = 4;
-}
-
-message BusConfig {
-  BusType type = 1;
-  uint32 crossbar_fifo_depth = 2;
-  repeated MemRegion address_map = 3;
-}
-
 message RiscConfig {
-  IsaConfig isa = 1;
-  CacheConfig l1i = 2;
-  CacheConfig l1d = 3;
-  CpuConfig cpu = 4;
-  BusConfig bus = 5;
+  bool is_debug = 1;
+  Isa isa = 2;
+  CacheConfig l1i = 3;
+  CacheConfig l1d = 4;
+  CpuConfig cpu = 5;
+  BusConfig bus = 6;
 }

@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package risc;
+
+option java_package = "arch.configs.proto";
+option java_outer_classname = "BusConfigProto";
+
+message MemRegion {
+  string device = 1;
+  string type = 2;
+  uint64 base = 3;
+  uint64 size = 4;
+}
+
+enum BusType {
+  BUS_TYPE_UNKNOWN = 0;
+  BUS_TYPE_AXIL = 1;
+}
+
+message BusConfig {
+  BusType type = 1;
+  uint32 crossbar_fifo_depth = 2;
+  repeated MemRegion address_map = 3;
+}
