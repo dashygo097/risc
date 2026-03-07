@@ -5,10 +5,22 @@ package risc;
 option java_package = "arch.configs.proto";
 option java_outer_classname = "IsaProto";
 
+message ProtoInstrEncoding {
+  string name = 1;
+  uint32 value = 2;
+  uint32 mask = 3;
+}
+
+message ProtoInstrSet {
+  string name = 1;
+  repeated ProtoInstrEncoding encodings = 2;
+}
+
 message Isa {
   string name = 1;
   uint32 xlen = 2;
   uint32 ilen = 3;
   uint32 num_arch_regs = 4;
   bool is_big_endian = 5;
+  ProtoInstrSet instr_set = 6;
 }

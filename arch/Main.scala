@@ -24,7 +24,13 @@ object MainCore extends App {
   CsrInit
 
   VerilogEmitter.parse(new RiscCore, s"${p(ISA)}_cpu.sv", lowering = true)
-  ConfigDump.dump(p, "build/config.json")
+  RiscDump.dump(
+    p = p,
+    configPath = "build/config.json",
+    isaPath = "build/isa.json",
+    binPath = Some("build/config.pb"),
+    isaBinPath = Some("build/isa.pb"),
+  )
 }
 
 object MainSystem extends App {
@@ -40,5 +46,11 @@ object MainSystem extends App {
   BusCrossbarInit
 
   VerilogEmitter.parse(new RiscSystem, s"${p(ISA)}_system.sv", lowering = true)
-  ConfigDump.dump(p, "build/config.json")
+  RiscDump.dump(
+    p = p,
+    configPath = "build/config.json",
+    isaPath = "build/isa.json",
+    binPath = Some("build/config.pb"),
+    isaBinPath = Some("build/isa.pb"),
+  )
 }

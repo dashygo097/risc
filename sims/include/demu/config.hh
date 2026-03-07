@@ -29,7 +29,6 @@ public:
   RiscConfig() { load(get_config_path()); }
   explicit RiscConfig(const std::string &p) { load(p); }
 
-  [[nodiscard]] const risc::Isa &isa() const noexcept { return proto_.isa(); }
   [[nodiscard]] const risc::CacheConfig &l1i() const noexcept {
     return proto_.l1i();
   }
@@ -69,10 +68,6 @@ public:
     }
     if (!dmem()) {
       DEMU_ERROR("RiscConfig: dmem not found");
-      ok = false;
-    }
-    if (proto_.isa().xlen() != 32 && proto_.isa().xlen() != 64) {
-      DEMU_ERROR("RiscConfig: invalid XLen={}", proto_.isa().xlen());
       ok = false;
     }
     if (proto_.bus().type() == risc::BUS_TYPE_UNKNOWN) {
