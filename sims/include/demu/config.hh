@@ -45,8 +45,8 @@ inline ReplPolicy parseReplPolicy(const std::string &s) {
 struct MemRegion {
   std::string device;
   std::string type;
-  addr_t base{0};
-  addr_t size{0};
+  addr_t base;
+  addr_t size;
 
   [[nodiscard]] addr_t end() const noexcept { return base + size; }
   [[nodiscard]] bool contains(addr_t addr) const noexcept {
@@ -55,20 +55,20 @@ struct MemRegion {
 };
 
 struct IsaConfig {
-  std::string isa_name{"rv32i"};
-  uint32_t xlen{32};
-  uint32_t ilen{32};
-  uint32_t num_arch_regs{32};
-  bool is_big_endian{false};
-  std::string bubble{"0x13"};
-  bool is_debug{false};
+  std::string isa_name;
+  uint32_t xlen;
+  uint32_t ilen;
+  uint32_t num_arch_regs;
+  bool is_big_endian;
+  std::string bubble;
+  bool is_debug;
 };
 
 struct CacheConfig {
-  uint32_t sets{8};
-  uint32_t ways{2};
-  uint32_t line_size{16};
-  ReplPolicy repl_policy{ReplPolicy::LRU};
+  uint32_t sets;
+  uint32_t ways;
+  uint32_t line_size;
+  ReplPolicy repl_policy;
 
   [[nodiscard]] uint32_t line_words(uint32_t word_bytes = 4) const noexcept {
     return line_size / word_bytes;
@@ -79,15 +79,15 @@ struct CacheConfig {
 };
 
 struct CpuConfig {
-  uint32_t num_phy_regs{64};
-  uint32_t ibuffer_size{4};
-  uint32_t rob_size{16};
-  bool use_bypass{true};
+  uint32_t num_phy_regs;
+  uint32_t ibuffer_size;
+  uint32_t rob_size;
+  bool use_bypass;
 };
 
 struct BusConfig {
-  BusType type{BusType::AXILite};
-  uint32_t crossbar_fifo_depth{4};
+  BusType type;
+  uint32_t crossbar_fifo_depth;
   std::vector<MemRegion> address_map;
 
   [[nodiscard]] const MemRegion *
