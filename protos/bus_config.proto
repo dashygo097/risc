@@ -5,7 +5,7 @@ package risc;
 option java_package = "arch.configs.proto";
 option java_outer_classname = "BusConfigProto";
 
-message MemRegion {
+message DeviceDescriptor {
   string device = 1;
   string type = 2;
   uint64 base = 3;
@@ -20,5 +20,5 @@ enum BusType {
 message BusConfig {
   BusType type = 1;
   uint32 crossbar_fifo_depth = 2;
-  repeated MemRegion address_map = 3;
+  repeated DeviceDescriptor address_map = 3;
 }

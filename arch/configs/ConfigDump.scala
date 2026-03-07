@@ -1,6 +1,6 @@
 package arch.configs
 
-import arch.configs.proto._
+import proto._
 import vopts.mem.cache._
 import scalapb.json4s.JsonFormat
 import java.nio.file.{ Files, Paths }
@@ -18,7 +18,6 @@ object ConfigDump {
           ilen = p(ILen),
           numArchRegs = p(NumArchRegs),
           isBigEndian = p(IsBigEndian),
-          bubble = s"0x${p(Bubble).value.longValue.toHexString}",
         )
       ),
       l1I = Some(
@@ -49,9 +48,7 @@ object ConfigDump {
         BusConfig(
           `type` = toProtoBus(p(arch.configs.BusType)),
           crossbarFifoDepth = p(BusCrossbarFifoDepthPerClient),
-          addressMap = p(BusAddressMap).map { d =>
-            MemRegion(device = d.name, `type` = d.dtype, base = d.base, size = d.size)
-          },
+          addressMap = p(BusAddressMap)
         )
       ),
     )

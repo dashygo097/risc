@@ -1,8 +1,8 @@
 package arch
 
 package object configs {
+  import proto._
   import isa._
-  import system._
   import vopts.mem.cache._
   import chisel3.util.BitPat
 
@@ -19,7 +19,7 @@ package object configs {
   object NumPhyRegs         extends Field[Int](64)
   object ROBSize            extends Field[Int](16)
 
-  // Cache
+  // Cache Parameters
   object L1ICacheWays       extends Field[Int](2)
   object L1ICacheSets       extends Field[Int](8)
   object L1ICacheLineSize   extends Field[Int](16) // in bytes
@@ -30,15 +30,15 @@ package object configs {
   object L1DCacheLineSize   extends Field[Int](16) // in bytes
   object L1DCacheReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
 
-  // System Parameters
+  // Bus Parameters
   object BusType                       extends Field[String]("axil")
   object BusCrossbarFifoDepthPerClient extends Field[Int](4)
 
   object BusAddressMap
       extends Field[Seq[DeviceDescriptor]](
         Seq(
-          DeviceDescriptor("imem", "memory", 0x00000000L, 0x1000L),
-          DeviceDescriptor("dmem", "memory", 0x80000000L, 0x4000L)
+          DeviceDescriptor(device = "imem", `type` = "memory", base = 0x00000000L, size = 0x1000L),
+          DeviceDescriptor(device = "dmem", `type` = "memory", base = 0x80000000L, size = 0x4000L),
         )
       )
   // --------------------------------------------
@@ -52,28 +52,37 @@ package object configs {
   object Bubble      extends Field[BitPat](ISADefinition.bubble(ISA()))
 
   implicit val p: Parameters = Parameters.empty ++ Map(
-    ISA                           -> ISA(),
-    IsDebug                       -> IsDebug(),
-    XLen                          -> XLen(),
-    ILen                          -> ILen(),
-    NumArchRegs                   -> NumArchRegs(),
-    IsBigEndian                   -> IsBigEndian(),
-    Bubble                        -> Bubble(),
-    IBufferSize                   -> IBufferSize(),
-    IsRegfileUseBypass            -> IsRegfileUseBypass(),
-    NumPhyRegs                    -> NumPhyRegs(),
-    ROBSize                       -> ROBSize(),
-    L1ICacheWays                  -> L1ICacheWays(),
-    L1ICacheSets                  -> L1ICacheSets(),
-    L1ICacheLineSize              -> L1ICacheLineSize(),
-    L1ICacheReplPolicy            -> L1ICacheReplPolicy(),
-    L1DCacheWays                  -> L1DCacheWays(),
-    L1DCacheSets                  -> L1DCacheSets(),
-    L1DCacheLineSize              -> L1DCacheLineSize(),
-    L1DCacheReplPolicy            -> L1DCacheReplPolicy(),
+    // ISA
+    ISA         -> ISA(),
+    IsDebug     -> IsDebug(),
+    XLen        -> XLen(),
+    ILen        -> ILen(),
+    NumArchRegs -> NumArchRegs(),
+    IsBigEndian -> IsBigEndian(),
+
+    // Core
+    IBufferSize        -> IBufferSize(),
+    IsRegfileUseBypass -> IsRegfileUseBypass(),
+    NumPhyRegs         -> NumPhyRegs(),
+    ROBSize            -> ROBSize(),
+
+    // Cache
+    L1ICacheWays       -> L1ICacheWays(),
+    L1ICacheSets       -> L1ICacheSets(),
+    L1ICacheLineSize   -> L1ICacheLineSize(),
+    L1ICacheReplPolicy -> L1ICacheReplPolicy(),
+    L1DCacheWays       -> L1DCacheWays(),
+    L1DCacheSets       -> L1DCacheSets(),
+    L1DCacheLineSize   -> L1DCacheLineSize(),
+    L1DCacheReplPolicy -> L1DCacheReplPolicy(),
+
+    // Bus
     BusType                       -> BusType(),
     BusCrossbarFifoDepthPerClient -> BusCrossbarFifoDepthPerClient(),
-    BusAddressMap                 -> BusAddressMap()
+    BusAddressMap                 -> BusAddressMap(),
+
+    // Instructions
+    Bubble -> Bubble(),
   )
 
   ConfigDump.dump(p, "build/config.json")

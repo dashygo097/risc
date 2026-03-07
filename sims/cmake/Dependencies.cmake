@@ -39,7 +39,7 @@ else()
 endif()
 
 get_filename_component(PROTO_ROOT
-  "${CMAKE_CURRENT_SOURCE_DIR}/../proto"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../protos"
   ABSOLUTE
 )
 set(PROTO_OUT "${CMAKE_BINARY_DIR}/generated")

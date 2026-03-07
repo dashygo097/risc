@@ -3,7 +3,7 @@ syntax = "proto3";
 package risc;
 
 option java_package = "arch.configs.proto";
-option java_outer_classname = "IsaConfigProto";
+option java_outer_classname = "IsaProto";
 
 message Isa {
   string name = 1;
@@ -11,5 +11,4 @@ message Isa {
   uint32 ilen = 3;
   uint32 num_arch_regs = 4;
   bool is_big_endian = 5;
-  string bubble = 6;
 }
