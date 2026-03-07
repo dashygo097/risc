@@ -20,6 +20,14 @@ object ConfigDump {
           isBigEndian = p(IsBigEndian),
         )
       ),
+      cpu = Some(
+        CpuConfig(
+          numPhyRegs = p(NumPhyRegs),
+          ibufferSize = p(IBufferSize),
+          robSize = p(ROBSize),
+          regfileUseBypass = p(IsRegfileUseBypass),
+        )
+      ),
       l1I = Some(
         CacheConfig(
           sets = p(L1ICacheSets),
@@ -34,14 +42,6 @@ object ConfigDump {
           ways = p(L1DCacheWays),
           lineSize = p(L1DCacheLineSize),
           replPolicy = toProtoRepl(p(L1DCacheReplPolicy)),
-        )
-      ),
-      cpu = Some(
-        CpuConfig(
-          numPhyRegs = p(NumPhyRegs),
-          ibufferSize = p(IBufferSize),
-          robSize = p(ROBSize),
-          regfileUseBypass = p(IsRegfileUseBypass),
         )
       ),
       bus = Some(

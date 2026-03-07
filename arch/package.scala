@@ -13,7 +13,7 @@ package object configs {
   object ISA     extends Field[String]("rv32i")
   object IsDebug extends Field[Boolean](true)
 
-  // Core Parameters
+  // CPU Parameters
   object IBufferSize        extends Field[Int](4)
   object IsRegfileUseBypass extends Field[Boolean](true)
   object NumPhyRegs         extends Field[Int](64)
@@ -84,6 +84,4 @@ package object configs {
     // Instructions
     Bubble -> Bubble(),
   )
-
-  ConfigDump.dump(p, "build/config.json")
 }

@@ -13,8 +13,8 @@ option java_outer_classname = "RiscConfigProto";
 message RiscConfig {
   bool is_debug = 1;
   Isa isa = 2;
-  CacheConfig l1i = 3;
-  CacheConfig l1d = 4;
-  CpuConfig cpu = 5;
+  CpuConfig cpu = 3;
+  CacheConfig l1i = 4;
+  CacheConfig l1d = 5;
   BusConfig bus = 6;
 }

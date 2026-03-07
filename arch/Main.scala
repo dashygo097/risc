@@ -14,6 +14,19 @@ import core.csr._
 import configs._
 import vopts.utils._
 
+object MainCore extends App {
+  DecoderInit
+  BruInit
+  RegfileInit
+  AluInit
+  LsuInit
+  ImmInit
+  CsrInit
+
+  VerilogEmitter.parse(new RiscCore, s"${p(ISA)}_cpu.sv", lowering = true)
+  ConfigDump.dump(p, "build/config.json")
+}
+
 object MainSystem extends App {
   DecoderInit
   BruInit
@@ -27,16 +40,5 @@ object MainSystem extends App {
   BusCrossbarInit
 
   VerilogEmitter.parse(new RiscSystem, s"${p(ISA)}_system.sv", lowering = true)
-}
-
-object MainCore extends App {
-  DecoderInit
-  BruInit
-  RegfileInit
-  AluInit
-  LsuInit
-  ImmInit
-  CsrInit
-
-  VerilogEmitter.parse(new RiscCore, s"${p(ISA)}_cpu.sv", lowering = true)
+  ConfigDump.dump(p, "build/config.json")
 }
