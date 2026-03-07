@@ -21,10 +21,6 @@ class View[T](pname: Parameters => T) {
   def apply(p: Parameters): T = pname(p)
 }
 
-trait ConfigField {
-  def section: String
-}
-
 object ConfigDump {
 
   sealed trait JsonNode
@@ -74,17 +70,6 @@ object ConfigDump {
     }
   }
 
-  private def sectionOf(field: Any): List[String] = field match {
-    case f: ConfigField => f.section.split("\\.").toList
-    case _              => Nil
-  }
-
-  private def fieldSimpleName(field: Any): String =
-    field.getClass.getName
-      .stripSuffix("$")
-      .split("\\$")
-      .last
-
   private def insertIntoObj(
     obj: JsonObj,
     path: List[String],
@@ -105,8 +90,9 @@ object ConfigDump {
     var root: JsonObj = JsonObj(ListMap.empty)
 
     p.site.foreach { case (field, value) =>
-      val name    = fieldSimpleName(field)
-      val section = sectionOf(name)
+      val f       = field.asInstanceOf[Field[_]]
+      val section = f.section.map(_.split("\\.").toList).getOrElse(List("misc"))
+      val name    = field.getClass.getName.stripSuffix("$").split("\\$").last
       val node    = toJsonNode(value)
       root = insertIntoObj(root, section, name, node)
     }
