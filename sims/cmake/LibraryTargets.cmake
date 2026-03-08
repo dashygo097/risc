@@ -52,7 +52,6 @@ set_target_properties(demu PROPERTIES
 )
 
 target_link_libraries(demu PUBLIC spdlog::spdlog)
-target_link_libraries(demu PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(demu PUBLIC
   protobuf::libprotobuf
   absl::log

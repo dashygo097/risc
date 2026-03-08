@@ -76,7 +76,3 @@ add_custom_target(gen_proto DEPENDS
 )
 
 set(PROTO_GENERATED_SOURCES "${PROTO_GENERATED_SOURCES}" CACHE INTERNAL "")
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/third-party/json)
-
-

@@ -12,18 +12,6 @@
 namespace demu {
 using namespace isa;
 
-struct MemRegion {
-  std::string device;
-  std::string type;
-  addr_t base{0};
-  addr_t size{0};
-
-  [[nodiscard]] addr_t end() const noexcept { return base + size; }
-  [[nodiscard]] bool contains(addr_t a) const noexcept {
-    return a >= base && a < end();
-  }
-};
-
 class RiscConfig {
 public:
   RiscConfig() { load(get_config_path()); }
@@ -42,10 +30,10 @@ public:
     return proto_.bus();
   }
 
-  [[nodiscard]] const MemRegion *imem() const noexcept {
+  [[nodiscard]] const risc::DeviceDescriptor *imem() const noexcept {
     return find_region("imem");
   }
-  [[nodiscard]] const MemRegion *dmem() const noexcept {
+  [[nodiscard]] const risc::DeviceDescriptor *dmem() const noexcept {
     return find_region("dmem");
   }
 
@@ -86,9 +74,9 @@ public:
     std::string line;
     while (std::getline(ss, line))
       DEMU_TRACE("  {}", line);
-    for (const auto &r : regions_)
-      DEMU_INFO("    {:6s} base=0x{:08x} size=0x{:x}", r.device, r.base,
-                r.size);
+    for (const auto &r : proto_.bus().address_map())
+      DEMU_INFO("    {:6s} base=0x{:08x} size=0x{:x}", r.device(), r.base(),
+                r.size());
     DEMU_INFO("==================");
   }
 
@@ -96,7 +84,6 @@ private:
   risc::RiscConfig proto_;
   std::string config_path_;
   bool valid_{false};
-  std::vector<MemRegion> regions_;
 
   static std::string get_config_path() {
 #ifdef RTL_CONFIG_FILE
@@ -131,19 +118,14 @@ private:
       }
     }
 
-    for (const auto &r : proto_.bus().address_map()) {
-      regions_.push_back({r.device(), r.type(), static_cast<addr_t>(r.base()),
-                          static_cast<addr_t>(r.size())});
-    }
-
     valid_ = true;
     DEMU_INFO("Config loaded: {}", path);
   }
 
-  [[nodiscard]] const MemRegion *
+  [[nodiscard]] const risc::DeviceDescriptor *
   find_region(const std::string &dev) const noexcept {
-    for (const auto &r : regions_)
-      if (r.device == dev)
+    for (const auto &r : proto_.bus().address_map())
+      if (r.device() == dev)
         return &r;
     return nullptr;
   }

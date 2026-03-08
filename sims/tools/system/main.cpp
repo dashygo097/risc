@@ -17,9 +17,9 @@ protected:
     const auto *dmem_r = config_->dmem();
 
     imem_ = device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
-        0, "imem", imem_r->size, imem_r->base);
+        0, "imem", imem_r->size(), imem_r->base());
     dmem_ = device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
-        1, "dmem", dmem_r->size, dmem_r->base);
+        1, "dmem", dmem_r->size(), dmem_r->base());
 
     device_manager_->register_handler(
         0, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
