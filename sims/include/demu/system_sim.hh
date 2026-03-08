@@ -3,7 +3,6 @@
 #ifdef ENABLE_SYSTEM
 #include "./config.hh"
 #include "./hal/hal.hh"
-#include "./trace.hh"
 #include "Vrv32i_system.h"
 #include "verilated.h"
 #include <cstdint>

@@ -6,4 +6,3 @@
 #include "./demu/isa/isa.hh"
 #include "./demu/logger.hh"
 #include "./demu/system_sim.hh"
-#include "./demu/trace.hh"

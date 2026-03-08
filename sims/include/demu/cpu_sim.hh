@@ -3,7 +3,6 @@
 #include "./config.hh"
 #include "./hal/hal.hh"
 #include "./logger.hh"
-#include "./trace.hh"
 #include "Vrv32i_cpu.h"
 #include "verilated.h"
 #include <cstdint>
@@ -109,14 +108,12 @@ public:
   // Debug output
   void dump_registers() const;
   void dump_memory(addr_t start, size_t size) const;
-  void save_trace(const std::string &filename);
 
 protected:
   // components
   std::unique_ptr<cpu_t> dut_;
   std::unique_ptr<hal::MemoryAllocator> imem_;
   std::unique_ptr<hal::MemoryAllocator> dmem_;
-  std::unique_ptr<ExecutionTrace> trace_;
   std::unique_ptr<RiscConfig> config_;
 
 #ifdef ENABLE_TRACE

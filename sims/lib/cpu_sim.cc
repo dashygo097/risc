@@ -10,8 +10,6 @@ using namespace isa;
 CPUSimulator::CPUSimulator(bool enable_trace) : trace_enabled_(enable_trace) {
   dut_ = std::make_unique<cpu_t>();
 
-  trace_ = std::make_unique<ExecutionTrace>();
-
   config_ = std::make_unique<RiscConfig>();
   config_->dump();
   config_->validate();
@@ -83,7 +81,6 @@ void CPUSimulator::reset() {
   _instr_count = 0;
   terminate_ = false;
   _register_values.clear();
-  trace_->clear();
 
   _imem_pending = 0;
   _dmem_pending = 0;
@@ -223,18 +220,6 @@ void CPUSimulator::clock_tick() {
       _register_values[dut_->debug_reg_addr] = reg_data;
       DEMU_REG_WRITE(dut_->debug_reg_addr, reg_data);
     }
-    if (trace_enabled_) {
-      TraceEntry entry;
-      entry.cycle = cycle_count();
-      entry.pc = static_cast<addr_t>(dut_->debug_pc);
-      entry.inst = static_cast<instr_t>(dut_->debug_instr);
-      entry.rd = dut_->debug_reg_addr;
-      entry.rd_val = static_cast<word_t>(dut_->debug_reg_data);
-      entry.regwrite = dut_->debug_reg_we;
-      Instruction inst(entry.inst);
-      entry.disasm = inst.to_string();
-      trace_->add_entry(entry);
-    }
   }
 
   if (show_pipeline_) {
@@ -339,11 +324,6 @@ void CPUSimulator::dump_memory(addr_t start, size_t size) const {
     }
     DEMU_INFO("{}", line.str());
   }
-}
-
-void CPUSimulator::save_trace(const std::string &filename) {
-  trace_->save(filename);
-  DEMU_INFO("Trace saved to trace.log")
 }
 
 void CPUSimulator::check_termination() {

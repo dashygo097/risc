@@ -149,9 +149,5 @@ int main(int argc, char **argv) {
     sim.dump_memory(dump_mem_addr, dump_mem_size);
   }
 
-  if (enable_trace) {
-    sim.save_trace("trace.log");
-  }
-
   return 0;
 }
