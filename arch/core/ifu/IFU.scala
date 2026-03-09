@@ -1,16 +1,13 @@
 package arch.core.ifu
 
 import chisel3._
+import vopts.mem.cache._
 import arch.configs._
 
 class IFU(implicit p: Parameters) extends Module {
-  val icache_req_valid = IO(Output(Bool()))
-  val icache_req_ready = IO(Input(Bool()))
-  val icache_req_addr  = IO(Output(UInt(p(XLen).W)))
+  override def desiredName: String = s"${p(ISA)}_ifu"
 
-  val icache_resp_valid = IO(Input(Bool()))
-  val icache_resp_ready = IO(Output(Bool()))
-  val icache_resp_data  = IO(Input(UInt(p(XLen).W)))
+  val mem = IO(new CacheReadOnlyIO(UInt(p(XLen).W), p(XLen)))
 
   val bru_taken       = IO(Input(Bool()))
   val bru_target      = IO(Input(UInt(p(XLen).W)))
@@ -37,12 +34,12 @@ class IFU(implicit p: Parameters) extends Module {
   val imem_pc      = RegInit(0.U(p(XLen).W))
   val imem_valid   = RegInit(false.B)
 
-  icache_req_valid  := !imem_pending && !ibuffer.full
-  icache_req_addr   := pc
-  icache_resp_ready := true.B
+  mem.req.valid     := !imem_pending && !ibuffer.full
+  mem.req.bits.addr := pc
+  mem.resp.ready    := true.B
 
-  val icache_req_fire  = icache_req_valid && icache_req_ready
-  val icache_resp_fire = icache_resp_valid && icache_resp_ready
+  val icache_req_fire  = mem.req.valid && mem.req.ready
+  val icache_resp_fire = mem.resp.valid && mem.resp.ready
 
   when(icache_req_fire) {
     imem_pending := true.B
@@ -55,7 +52,7 @@ class IFU(implicit p: Parameters) extends Module {
   }
 
   when(icache_resp_fire) {
-    imem_data    := icache_resp_data
+    imem_data    := mem.resp.bits.data
     imem_pending := false.B
   }
 
@@ -71,7 +68,7 @@ class IFU(implicit p: Parameters) extends Module {
 
   ibuffer.enq.valid      := icache_resp_fire && imem_valid && !ibuffer.full
   ibuffer.enq.bits.pc    := imem_pc
-  ibuffer.enq.bits.instr := icache_resp_data
+  ibuffer.enq.bits.instr := mem.resp.bits.data
 
   val stall_cond = id_ex_stall || load_use_hazard
   val flush_cond = (bru_taken || !imem_valid || reset_ibuffer_reg) && !lsu_busy
