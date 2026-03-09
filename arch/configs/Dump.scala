@@ -82,6 +82,8 @@ object RiscDump {
 
   private def toProtoRepl(p: ReplacementPolicy): ReplPolicy = p match {
     case Random    => ReplPolicy.REPL_POLICY_RANDOM
+    case FIFO      => ReplPolicy.REPL_POLICY_FIFO
+    case LFU       => ReplPolicy.REPL_POLICY_LFU
     case LRU       => ReplPolicy.REPL_POLICY_LRU
     case PseudoLRU => ReplPolicy.REPL_POLICY_PSEUDO_LRU
     case _         => ReplPolicy.REPL_POLICY_UNKNOWN

@@ -8,8 +8,10 @@ option java_outer_classname = "CacheConfigProto";
 enum ReplPolicy {
   REPL_POLICY_UNKNOWN = 0;
   REPL_POLICY_RANDOM = 1;
-  REPL_POLICY_LRU = 2;
-  REPL_POLICY_PSEUDO_LRU = 3;
+  REPL_POLICY_FIFO = 2;
+  REPL_POLICY_LFU = 3;
+  REPL_POLICY_LRU = 4;
+  REPL_POLICY_PSEUDO_LRU = 5;
 }
 
 message CacheConfig {
