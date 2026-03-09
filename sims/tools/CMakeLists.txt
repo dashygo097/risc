@@ -12,7 +12,7 @@ endif()
 
 # Configuration 
 print_info("Configuration: \n" "92" "0")
-print_info("  ISA: ${ISA}\n" "92" "1")
+print_info("  ISA: ${ISA_TARGET}\n" "92" "1")
 print_info("  Build Type: ${CMAKE_BUILD_TYPE}\n" "92" "1")
 print_info("  C++ Compiler: ${CMAKE_CXX_COMPILER}\n" "92" "1")
 print_info("  Verilator: ${VERILATOR_ROOT}\n" "92" "1")

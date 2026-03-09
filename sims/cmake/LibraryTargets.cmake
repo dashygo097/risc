@@ -17,9 +17,9 @@ verilate(demu
     -Wno-UNOPTFLAT
     -Wno-DECLFILENAME
     -Wno-PINCONNECTEMPTY
-    --top-module ${ISA}_cpu
+    --top-module ${ISA_TARGET}_cpu
     -CFLAGS "-Wno-unused-variable -Wno-bool-operation -Wno-parentheses-equality"
-  PREFIX V${ISA}_cpu
+  PREFIX V${ISA_TARGET}_cpu
   TRACE_THREADS 2
 )
 
@@ -33,9 +33,9 @@ if(ENABLE_SYSTEM)
       -Wno-UNOPTFLAT
       -Wno-DECLFILENAME
       -Wno-PINCONNECTEMPTY
-      --top-module ${ISA}_system
+      --top-module ${ISA_TARGET}_system
       -CFLAGS "-Wno-unused-variable -Wno-bool-operation -Wno-parentheses-equality"
-    PREFIX V${ISA}_system
+    PREFIX V${ISA_TARGET}_system
     TRACE_THREADS 2
   )
 endif()
