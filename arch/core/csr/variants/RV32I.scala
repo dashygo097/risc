@@ -66,10 +66,7 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
     override def addrWidth: Int             = SZ_CSR
     override def immWidth: Int              = 5
     override def isImm(cmd: UInt): Bool     = cmd(2)
-    override def genImm(imm: UInt): UInt    = Cat(
-      Fill(27, 0.U),
-      imm(4, 0)
-    )
+    override def genImm(imm: UInt): UInt    = Cat(Fill(27, 0.U), imm(4, 0))
     override def getAddr(instr: UInt): UInt = instr(31, 20)
 
     override def fn(cmd: UInt, csr_data: UInt, src_data: UInt): UInt =
@@ -84,37 +81,43 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
           (cmd === C_RCI) -> (csr_data & ~src_data)
         )
       )
-    override def table: Seq[Register]                                = Seq(
-      // U-mode CSRs
-      Register("cycle", CSR_CYCLE.value, 0x0L, writable = false),
-      Register("time", CSR_TIME.value, 0x0L, writable = false),
-      Register("instret", CSR_INSTRET.value, 0x0L, writable = false),
 
-      // S-mode CSRs
-      Register("sstatus", CSR_SSTATUS.value, 0x0L),
-      Register("sie", CSR_SIE.value, 0x0L),
-      Register("stvec", CSR_STVEC.value, 0x0L),
-      Register("sscratch", CSR_SSCRATCH.value, 0x0L),
-      Register("sepc", CSR_SEPC.value, 0x0L),
-      Register("scause", CSR_SCAUSE.value, 0x0L),
-      Register("sip", CSR_SIP.value, 0x0L),
-      Register("satp", CSR_SATP.value, 0x0L),
+    override def extraInputs: Seq[(String, Int)] = Seq(
+      "cycle"   -> 64,
+      "instret" -> 64
+    )
 
-      // M-mode CSRs
-      Register("mstatus", CSR_MSTATUS.value, 0x0L),
-      Register("misa", CSR_MISA.value, 0x40000100L, writable = false),
-      Register("mie", CSR_MIE.value, 0x0L),
-      Register("mtvec", CSR_MTVEC.value, 0x0L),
-      Register("mscratch", CSR_MSCRATCH.value, 0x0L),
-      Register("mepc", CSR_MEPC.value, 0x0L),
-      Register("mcause", CSR_MCAUSE.value, 0x0L),
-      Register("mip", CSR_MIP.value, 0x0L),
-      Register("mcycle", CSR_MCYCLE.value, 0x0L, writable = false),
-      Register("minstret", CSR_MINSTRET.value, 0x0L, writable = false),
-      Register("mvendorid", CSR_MVENDERID.value, 0x0L, writable = false),
-      Register("marchid", CSR_MARCHID.value, 0x0L, writable = false),
-      Register("mimpid", CSR_MIMPID.value, 0x0L, writable = false),
-      Register("mhartid", CSR_MHARTID.value, 0x0L, writable = false)
+    override def table: Seq[(Register, CsrUpdateBehavior)] = Seq(
+      // U-mode
+      (Register("cycle", CSR_CYCLE.value, 0x0L, writable = false), AlwaysUpdate(params => params("cycle")(31, 0))),
+      (Register("time", CSR_TIME.value, 0x0L, writable = false), NormalUpdate),
+      (Register("instret", CSR_INSTRET.value, 0x0L, writable = false), AlwaysUpdate(params => params("instret")(31, 0))),
+
+      // S-mode
+      (Register("sstatus", CSR_SSTATUS.value, 0x0L), NormalUpdate),
+      (Register("sie", CSR_SIE.value, 0x0L), NormalUpdate),
+      (Register("stvec", CSR_STVEC.value, 0x0L), NormalUpdate),
+      (Register("sscratch", CSR_SSCRATCH.value, 0x0L), NormalUpdate),
+      (Register("sepc", CSR_SEPC.value, 0x0L), NormalUpdate),
+      (Register("scause", CSR_SCAUSE.value, 0x0L), NormalUpdate),
+      (Register("sip", CSR_SIP.value, 0x0L), NormalUpdate),
+      (Register("satp", CSR_SATP.value, 0x0L), NormalUpdate),
+
+      // M-mode
+      (Register("mstatus", CSR_MSTATUS.value, 0x0L), NormalUpdate),
+      (Register("misa", CSR_MISA.value, 0x40000100L, writable = false), NormalUpdate),
+      (Register("mie", CSR_MIE.value, 0x0L), NormalUpdate),
+      (Register("mtvec", CSR_MTVEC.value, 0x0L), NormalUpdate),
+      (Register("mscratch", CSR_MSCRATCH.value, 0x0L, writable = false), NormalUpdate),
+      (Register("mepc", CSR_MEPC.value, 0x0L), NormalUpdate),
+      (Register("mcause", CSR_MCAUSE.value, 0x0L), NormalUpdate),
+      (Register("mip", CSR_MIP.value, 0x0L), NormalUpdate),
+      (Register("mcycle", CSR_MCYCLE.value, 0x0L, writable = false), AlwaysUpdate(params => params("cycle")(31, 0))),
+      (Register("minstret", CSR_MINSTRET.value, 0x0L, writable = false), AlwaysUpdate(params => params("instret")(31, 0))),
+      (Register("mvendorid", CSR_MVENDERID.value, 0x0L, writable = false), NormalUpdate),
+      (Register("marchid", CSR_MARCHID.value, 0x0L, writable = false), NormalUpdate),
+      (Register("mimpid", CSR_MIMPID.value, 0x0L, writable = false), NormalUpdate),
+      (Register("mhartid", CSR_MHARTID.value, 0x0L, writable = false), NormalUpdate),
     )
   }
 
