@@ -4,49 +4,47 @@ import chisel3._
 import arch.configs._
 
 class IFU(implicit p: Parameters) extends Module {
-  val io = IO(new Bundle {
-    val icache_req_valid = Output(Bool())
-    val icache_req_ready = Input(Bool())
-    val icache_req_addr  = Output(UInt(p(XLen).W))
+  val icache_req_valid = IO(Output(Bool()))
+  val icache_req_ready = IO(Input(Bool()))
+  val icache_req_addr  = IO(Output(UInt(p(XLen).W)))
 
-    val icache_resp_valid = Input(Bool())
-    val icache_resp_ready = Output(Bool())
-    val icache_resp_data  = Input(UInt(p(XLen).W))
+  val icache_resp_valid = IO(Input(Bool()))
+  val icache_resp_ready = IO(Output(Bool()))
+  val icache_resp_data  = IO(Input(UInt(p(XLen).W)))
 
-    val bru_taken       = Input(Bool())
-    val bru_target      = Input(UInt(p(XLen).W))
-    val id_ex_stall     = Input(Bool())
-    val load_use_hazard = Input(Bool())
-    val lsu_busy        = Input(Bool())
+  val bru_taken       = IO(Input(Bool()))
+  val bru_target      = IO(Input(UInt(p(XLen).W)))
+  val id_ex_stall     = IO(Input(Bool()))
+  val load_use_hazard = IO(Input(Bool()))
+  val lsu_busy        = IO(Input(Bool()))
 
-    val if_id_stall = Output(Bool())
-    val if_id_flush = Output(Bool())
-    val if_instr    = Output(UInt(p(ILen).W))
-    val if_pc       = Output(UInt(p(XLen).W))
+  val if_id_stall = IO(Output(Bool()))
+  val if_id_flush = IO(Output(Bool()))
+  val if_instr    = IO(Output(UInt(p(ILen).W)))
+  val if_pc       = IO(Output(UInt(p(XLen).W)))
 
-    val ibuffer_deq_fire = Output(Bool())
-    val reset_ibuffer    = Output(Bool())
-  })
+  val ibuffer_deq_fire = IO(Output(Bool()))
+  val reset_ibuffer    = IO(Output(Bool()))
 
   val ibuffer = Module(new IBuffer)
 
   val pc = RegInit(0.U(p(XLen).W))
 
-  val reset_ibuffer = RegInit(false.B)
-  val ibuffer_empty = ibuffer.io.count === 0.U
-  val ibuffer_full  = ibuffer.io.count === p(IBufferSize).U
+  val reset_ibuffer_reg = RegInit(false.B)
+  val ibuffer_empty     = ibuffer.count === 0.U
+  val ibuffer_full      = ibuffer.count === p(IBufferSize).U
 
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(p(Bubble).value.U(p(ILen).W))
   val imem_pc      = RegInit(0.U(p(XLen).W))
   val imem_valid   = RegInit(false.B)
 
-  io.icache_req_valid  := !imem_pending && !ibuffer_full
-  io.icache_req_addr   := pc
-  io.icache_resp_ready := true.B
+  icache_req_valid  := !imem_pending && !ibuffer_full
+  icache_req_addr   := pc
+  icache_resp_ready := true.B
 
-  val icache_req_fire  = io.icache_req_valid && io.icache_req_ready
-  val icache_resp_fire = io.icache_resp_valid && io.icache_resp_ready
+  val icache_req_fire  = icache_req_valid && icache_req_ready
+  val icache_resp_fire = icache_resp_valid && icache_resp_ready
 
   when(icache_req_fire) {
     imem_pending := true.B
@@ -54,45 +52,45 @@ class IFU(implicit p: Parameters) extends Module {
     imem_valid   := true.B
   }
 
-  when(io.bru_taken) {
+  when(bru_taken) {
     imem_valid := false.B
   }
 
   when(icache_resp_fire) {
-    imem_data    := io.icache_resp_data
+    imem_data    := icache_resp_data
     imem_pending := false.B
   }
 
-  when(reset_ibuffer) {
+  when(reset_ibuffer_reg) {
     imem_valid := false.B
   }
-  when(io.bru_taken) {
-    reset_ibuffer := true.B
+  when(bru_taken) {
+    reset_ibuffer_reg := true.B
   }
   when(ibuffer_empty && !imem_pending) {
-    reset_ibuffer := false.B
+    reset_ibuffer_reg := false.B
   }
 
-  ibuffer.io.enq.valid      := icache_resp_fire && imem_valid && !ibuffer_full
-  ibuffer.io.enq.bits.pc    := imem_pc
-  ibuffer.io.enq.bits.instr := io.icache_resp_data
+  ibuffer.enq.valid      := icache_resp_fire && imem_valid && !ibuffer_full
+  ibuffer.enq.bits.pc    := imem_pc
+  ibuffer.enq.bits.instr := icache_resp_data
 
-  val stall_cond = io.id_ex_stall || io.load_use_hazard
-  val flush_cond = (io.bru_taken || !imem_valid || reset_ibuffer) && !io.lsu_busy
+  val stall_cond = id_ex_stall || load_use_hazard
+  val flush_cond = (bru_taken || !imem_valid || reset_ibuffer_reg) && !lsu_busy
 
-  ibuffer.io.deq.ready := (!ibuffer_empty && !stall_cond && !flush_cond) || reset_ibuffer
+  ibuffer.deq.ready := (!ibuffer_empty && !stall_cond && !flush_cond) || reset_ibuffer_reg
 
-  io.if_id_stall := stall_cond
-  io.if_id_flush := flush_cond
-  io.if_instr    := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.instr, p(Bubble).value.U(p(ILen).W))
-  io.if_pc       := Mux(ibuffer.io.deq.fire, ibuffer.io.deq.bits.pc, p(Bubble).value.U(p(XLen).W))
+  if_id_stall := stall_cond
+  if_id_flush := flush_cond
+  if_instr    := Mux(ibuffer.deq.fire, ibuffer.deq.bits.instr, p(Bubble).value.U(p(ILen).W))
+  if_pc       := Mux(ibuffer.deq.fire, ibuffer.deq.bits.pc, p(Bubble).value.U(p(XLen).W))
 
-  io.ibuffer_deq_fire := ibuffer.io.deq.fire
-  io.reset_ibuffer    := reset_ibuffer
+  ibuffer_deq_fire := ibuffer.deq.fire
+  reset_ibuffer    := reset_ibuffer_reg
 
-  when(io.bru_taken && !io.lsu_busy) {
-    pc := io.bru_target
-  }.elsewhen(ibuffer.io.enq.fire) {
+  when(bru_taken && !lsu_busy) {
+    pc := bru_target
+  }.elsewhen(ibuffer.enq.fire) {
     pc := pc + 4.U(p(XLen).W)
   }
 }

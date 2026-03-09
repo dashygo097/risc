@@ -10,15 +10,13 @@ class IBufferEntry(implicit p: Parameters) extends Bundle {
 }
 
 class IBuffer(implicit p: Parameters) extends Module {
-  val io = IO(new Bundle {
-    val enq   = Flipped(Decoupled(new IBufferEntry))
-    val deq   = Decoupled(new IBufferEntry)
-    val count = Output(UInt(log2Ceil(p(IBufferSize) + 1).W))
-  })
+  val enq   = IO(Flipped(Decoupled(new IBufferEntry)))
+  val deq   = IO(Decoupled(new IBufferEntry))
+  val count = IO(Output(UInt(log2Ceil(p(IBufferSize) + 1).W)))
 
   val q = Module(new Queue(new IBufferEntry, p(IBufferSize)))
 
-  q.io.enq <> io.enq
-  io.deq <> q.io.deq
-  io.count := q.io.count
+  q.io.enq <> enq
+  deq <> q.io.deq
+  count := q.io.count
 }

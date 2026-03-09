@@ -53,25 +53,25 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // IF Stage
   imem <> l1_icache.lower
 
-  l1_icache.upper.req.valid     := ifu.io.icache_req_valid
-  l1_icache.upper.req.bits.addr := ifu.io.icache_req_addr
-  ifu.io.icache_req_ready       := l1_icache.upper.req.ready
+  l1_icache.upper.req.valid     := ifu.icache_req_valid
+  l1_icache.upper.req.bits.addr := ifu.icache_req_addr
+  ifu.icache_req_ready          := l1_icache.upper.req.ready
 
-  ifu.io.icache_resp_valid   := l1_icache.upper.resp.valid
-  ifu.io.icache_resp_data    := l1_icache.upper.resp.bits.data
-  l1_icache.upper.resp.ready := ifu.io.icache_resp_ready
+  ifu.icache_resp_valid      := l1_icache.upper.resp.valid
+  ifu.icache_resp_data       := l1_icache.upper.resp.bits.data
+  l1_icache.upper.resp.ready := ifu.icache_resp_ready
 
-  ifu.io.bru_taken       := bru.taken
-  ifu.io.bru_target      := bru.target
-  ifu.io.id_ex_stall     := id_ex.STALL
-  ifu.io.load_use_hazard := load_use_hazard
-  ifu.io.lsu_busy        := lsu.busy
+  ifu.bru_taken       := bru.taken
+  ifu.bru_target      := bru.target
+  ifu.id_ex_stall     := id_ex.STALL
+  ifu.load_use_hazard := load_use_hazard
+  ifu.lsu_busy        := lsu.busy
 
   // IF/ID Pipeline
-  if_id.STALL    := ifu.io.if_id_stall
-  if_id.FLUSH    := ifu.io.if_id_flush
-  if_id.IF_INSTR := ifu.io.if_instr
-  if_id.IF.pc    := ifu.io.if_pc
+  if_id.STALL    := ifu.if_id_stall
+  if_id.FLUSH    := ifu.if_id_flush
+  if_id.IF_INSTR := ifu.if_instr
+  if_id.IF.pc    := ifu.if_pc
 
   // ID Stage
   decoder.instr := if_id.ID_INSTR
@@ -288,7 +288,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_branch_target := bru.target
 
     // Pipelines Debugging
-    debug_if_instr  := Mux(ifu.io.ibuffer_deq_fire && !ifu.io.reset_ibuffer, ifu.io.if_instr, p(Bubble).value.U(p(ILen).W))
+    debug_if_instr  := Mux(ifu.ibuffer_deq_fire && !ifu.reset_ibuffer, ifu.if_instr, p(Bubble).value.U(p(ILen).W))
     debug_id_instr  := if_id.ID_INSTR
     debug_ex_instr  := id_ex.EX_INSTR
     debug_mem_instr := ex_mem.MEM_INSTR
