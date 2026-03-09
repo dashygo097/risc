@@ -16,22 +16,24 @@ class CsrFile(implicit p: Parameters) extends Module {
   val src  = IO(Input(UInt(p(XLen).W)))
   val rd   = IO(Output(UInt(p(XLen).W)))
 
-  val csrTable     = utils.table
+  val extraInputIO: Map[String, UInt] = utils.extraInputs.map { case (name, width) =>
+    val port = IO(Input(UInt(width.W)))
+    port.suggestName(s"extra_$name")
+    name -> port
+  }.toMap
+
+  val csrTable     = utils.table.map(_._1)
   val addr_map     = csrTable.map(_.addr.U)
   val writable_vec = VecInit(csrTable.map(_.writable.B))
 
-  val csrRegs = csrTable.zipWithIndex.map { case (reg, i) =>
-    val regInst = RegInit(reg.initValue.U(p(XLen).W))
-    regInst.suggestName(reg.name)
-    regInst
+  val csrRegs = csrTable.zipWithIndex.map { case (reg, _) =>
+    val r = RegInit(reg.initValue.U(p(XLen).W))
+    r.suggestName(reg.name)
+    r
   }
 
-  val addr_match           = Wire(Bool())
-  val write_access_allowed = Wire(Bool())
-
-  addr_match := addr_map.map(_ === addr).reduce(_ || _)
-
-  write_access_allowed := addr_match &&
+  val addr_match           = addr_map.map(_ === addr).reduce(_ || _)
+  val write_access_allowed = addr_match &&
     MuxCase(
       false.B,
       csrTable.zipWithIndex.map { case (reg, i) =>
@@ -40,27 +42,36 @@ class CsrFile(implicit p: Parameters) extends Module {
     )
 
   val src_data = Mux(utils.isImm(cmd), utils.genImm(imm), src)
-  when(en && write_access_allowed) {
-    for (i <- 0 until csrTable.length)
-      when(addr === addr_map(i)) {
-        when(writable_vec(i)) {
-          val csr_rdata = csrRegs(i)
-          val csr_wdata = utils.fn(cmd, csr_rdata, src_data)
-          csrRegs(i) := csr_wdata
+
+  utils.table.zipWithIndex.foreach { case ((reg, behavior), i) =>
+    behavior match {
+      case AlwaysUpdate(fn) =>
+        csrRegs(i) := fn(extraInputIO)
+
+      case ConditionalUpdate(fn) =>
+        csrRegs(i) := fn(extraInputIO)
+        when(en && write_access_allowed && addr === addr_map(i) && writable_vec(i)) {
+          val wdata = utils.fn(cmd, csrRegs(i), src_data)
+          csrRegs(i) := wdata
         }
-      }
+
+      case NormalUpdate =>
+        when(en && write_access_allowed) {
+          when(addr === addr_map(i) && writable_vec(i)) {
+            csrRegs(i) := utils.fn(cmd, csrRegs(i), src_data)
+          }
+        }
+    }
   }
 
-  when(en) {
-    rd := MuxCase(
+  rd := Mux(
+    en,
+    MuxCase(
       0.U(p(XLen).W),
-      csrTable.zipWithIndex.map { case (reg, i) =>
+      csrTable.zipWithIndex.map { case (_, i) =>
         (addr === addr_map(i)) -> csrRegs(i)
       }
-    )
-  }.otherwise {
-    rd := 0.U(p(XLen).W)
-  }
-
-  // TODO: Special handling for some CSRs
+    ),
+    0.U(p(XLen).W)
+  )
 }

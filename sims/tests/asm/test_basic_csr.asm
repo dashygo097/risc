@@ -9,4 +9,6 @@ _start:
     csrwi 0x300, 0x01   # Write immediate to mstatus
     csrr x3, 0x300      # Read from mstatus
 
+    csrr x4, 0xB00      # Read from mcycle
+
     ebreak

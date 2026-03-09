@@ -50,6 +50,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // Control Signals
   val load_use_hazard = Wire(Bool())
 
+  // Performance Counters
+  val cycle_count   = RegInit(0.U(64.W))
+  val instret_count = RegInit(0.U(64.W))
+
   // IF Stage
   imem <> l1_icache.lower
   ifu.mem <> l1_icache.upper
@@ -240,15 +244,25 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_data := mem_wb.WB.wb_data
   regfile.write_en   := mem_wb.WB.regwrite
 
+  // Extra Information
+  cycle_count   := cycle_count + 1.U
+  instret_count := instret_count + Mux(
+    mem_wb.WB.regwrite || mem_wb.WB_INSTR =/= p(Bubble).value.U(p(ILen).W),
+    1.U,
+    0.U
+  )
+
+  csrfile.extraInputIO("cycle")   := cycle_count
+  csrfile.extraInputIO("instret") := instret_count
+
   // Debug
   if (p(IsDebug)) {
     val debug_cycle_count = IO(Output(UInt(64.W)))
-
-    val debug_pc       = IO(Output(UInt(p(XLen).W)))
-    val debug_instr    = IO(Output(UInt(p(ILen).W)))
-    val debug_reg_we   = IO(Output(Bool()))
-    val debug_reg_addr = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
-    val debug_reg_data = IO(Output(UInt(p(XLen).W)))
+    val debug_pc          = IO(Output(UInt(p(XLen).W)))
+    val debug_instr       = IO(Output(UInt(p(ILen).W)))
+    val debug_reg_we      = IO(Output(Bool()))
+    val debug_reg_addr    = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
+    val debug_reg_data    = IO(Output(UInt(p(XLen).W)))
 
     val debug_branch_taken  = IO(Output(Bool()))
     val debug_branch_source = IO(Output(UInt(p(XLen).W)))
@@ -265,15 +279,12 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     val debug_l1_dcache_access = IO(Output(Bool()))
     val debug_l1_dcache_miss   = IO(Output(Bool()))
 
-    val cycle_count = RegInit(0.U(64.W))
-    cycle_count       := cycle_count + 1.U
     debug_cycle_count := cycle_count
-
-    debug_pc       := mem_wb.WB.pc
-    debug_instr    := mem_wb.WB_INSTR
-    debug_reg_addr := regfile.write_preg
-    debug_reg_we   := regfile.write_en
-    debug_reg_data := regfile.write_data
+    debug_pc          := mem_wb.WB.pc
+    debug_instr       := mem_wb.WB_INSTR
+    debug_reg_addr    := regfile.write_preg
+    debug_reg_we      := regfile.write_en
+    debug_reg_data    := regfile.write_data
 
     // Branch Debugging
     debug_branch_taken  := bru.taken
