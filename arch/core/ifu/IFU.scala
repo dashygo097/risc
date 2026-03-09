@@ -31,15 +31,13 @@ class IFU(implicit p: Parameters) extends Module {
   val pc = RegInit(0.U(p(XLen).W))
 
   val reset_ibuffer_reg = RegInit(false.B)
-  val ibuffer_empty     = ibuffer.count === 0.U
-  val ibuffer_full      = ibuffer.count === p(IBufferSize).U
 
   val imem_pending = RegInit(false.B)
   val imem_data    = RegInit(p(Bubble).value.U(p(ILen).W))
   val imem_pc      = RegInit(0.U(p(XLen).W))
   val imem_valid   = RegInit(false.B)
 
-  icache_req_valid  := !imem_pending && !ibuffer_full
+  icache_req_valid  := !imem_pending && !ibuffer.full
   icache_req_addr   := pc
   icache_resp_ready := true.B
 
@@ -67,18 +65,18 @@ class IFU(implicit p: Parameters) extends Module {
   when(bru_taken) {
     reset_ibuffer_reg := true.B
   }
-  when(ibuffer_empty && !imem_pending) {
+  when(ibuffer.empty && !imem_pending) {
     reset_ibuffer_reg := false.B
   }
 
-  ibuffer.enq.valid      := icache_resp_fire && imem_valid && !ibuffer_full
+  ibuffer.enq.valid      := icache_resp_fire && imem_valid && !ibuffer.full
   ibuffer.enq.bits.pc    := imem_pc
   ibuffer.enq.bits.instr := icache_resp_data
 
   val stall_cond = id_ex_stall || load_use_hazard
   val flush_cond = (bru_taken || !imem_valid || reset_ibuffer_reg) && !lsu_busy
 
-  ibuffer.deq.ready := (!ibuffer_empty && !stall_cond && !flush_cond) || reset_ibuffer_reg
+  ibuffer.deq.ready := (!ibuffer.empty && !stall_cond && !flush_cond) || reset_ibuffer_reg
 
   if_id_stall := stall_cond
   if_id_flush := flush_cond
