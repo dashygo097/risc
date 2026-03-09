@@ -52,14 +52,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // IF Stage
   imem <> l1_icache.lower
-
-  l1_icache.upper.req.valid     := ifu.icache_req_valid
-  l1_icache.upper.req.bits.addr := ifu.icache_req_addr
-  ifu.icache_req_ready          := l1_icache.upper.req.ready
-
-  ifu.icache_resp_valid      := l1_icache.upper.resp.valid
-  ifu.icache_resp_data       := l1_icache.upper.resp.bits.data
-  l1_icache.upper.resp.ready := ifu.icache_resp_ready
+  ifu.mem <> l1_icache.upper
 
   ifu.bru_taken       := bru.taken
   ifu.bru_target      := bru.target

@@ -10,6 +10,8 @@ class IBufferEntry(implicit p: Parameters) extends Bundle {
 }
 
 class IBuffer(implicit p: Parameters) extends Module {
+  override def desiredName: String = s"${p(ISA)}_ibuffer"
+
   val enq   = IO(Flipped(Decoupled(new IBufferEntry)))
   val deq   = IO(Decoupled(new IBufferEntry))
   val empty = IO(Output(Bool()))
