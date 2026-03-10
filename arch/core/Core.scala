@@ -27,7 +27,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val dmem = IO(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen)))
 
   // Modules
-  val ifu     = Module(new IFU)
+  val ifu     = Module(new Ifu)
   val decoder = Module(new Decoder)
   val bru     = Module(new Bru)
   val regfile = Module(new Regfile)
