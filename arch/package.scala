@@ -21,6 +21,11 @@ package object configs {
   object NumPhyRegs         extends Field[Int](64)
   object ROBSize            extends Field[Int](16)
 
+  // Branch Prediction
+  object BTBNumSets    extends Field[Int](16)
+  object BTBNumWays    extends Field[Int](4)
+  object BTBReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
+
   // Cache Parameters
   object L1ICacheWays       extends Field[Int](2)
   object L1ICacheSets       extends Field[Int](8)

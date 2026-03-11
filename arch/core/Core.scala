@@ -1,5 +1,6 @@
 package arch.core
 
+// import bpu._
 import ifu._
 import decoder._
 import imm._
@@ -27,6 +28,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val dmem = IO(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen)))
 
   // Modules
+  // val bpu     = Module(new Bpu)
   val ifu     = Module(new Ifu)
   val decoder = Module(new Decoder)
   val bru     = Module(new Bru)

@@ -30,15 +30,11 @@ class BpuUpdate(implicit p: Parameters) extends Bundle {
   val taken  = Bool()
 }
 
-class BTB(
-  numSets: Int,
-  numWays: Int,
-  replPolicy: ReplacementPolicy
-)(implicit p: Parameters)
-    extends Module {
+class Btb(implicit p: Parameters) extends Module {
+  override def desiredName: String = s"${p(ISA)}_btb"
 
-  private val iAlignWidth = log2Ceil(p(IAlign) / 8)
-  private val indexWidth  = log2Ceil(numSets)
+  private val iAlignWidth = log2Ceil(p(IAlign))
+  private val indexWidth  = log2Ceil(p(BTBNumSets))
   private val tagWidth    = p(XLen) - indexWidth - iAlignWidth
 
   val query_pc  = Input(UInt(p(XLen).W))
@@ -48,9 +44,9 @@ class BTB(
 
   val entries = RegInit(
     VecInit(
-      Seq.fill(numSets)(
+      Seq.fill(p(BTBNumSets))(
         VecInit(
-          Seq.fill(numWays)(
+          Seq.fill(p(BTBNumWays))(
             0.U.asTypeOf(new BtbEntry(tagWidth))
           )
         )
@@ -58,7 +54,7 @@ class BTB(
     )
   )
 
-  val replStates = Seq.fill(numSets)(new PseudoLRUState(numWays))
+  val replStates = Seq.fill(p(BTBNumSets))(new PseudoLRUState(p(BTBNumWays)))
 
   def getIndex(pc: UInt): UInt = pc(indexWidth + 1, iAlignWidth)
   def getTag(pc: UInt): UInt   = pc(p(XLen) - 1, indexWidth + iAlignWidth)
@@ -67,7 +63,7 @@ class BTB(
   val qTag   = getTag(query_pc)
   val qSet   = entries(qIndex)
 
-  val hitBits: Seq[Bool] = (0 until numWays).map { w =>
+  val hitBits: Seq[Bool] = (0 until p(BTBNumWays)).map { w =>
     qSet(w).valid && (qSet(w).tag === qTag)
   }
   val anyHit             = hitBits.reduce(_ || _)
@@ -81,15 +77,15 @@ class BTB(
     val uTag   = getTag(update.pc)
     val uSet   = entries(uIndex)
 
-    val uHitBits: Seq[Bool] = (0 until numWays).map { w =>
+    val uHitBits: Seq[Bool] = (0 until p(BTBNumWays)).map { w =>
       uSet(w).valid && (uSet(w).tag === uTag)
     }
     val uAnyHit             = uHitBits.reduce(_ || _)
     val uHitWay             = PriorityEncoder(VecInit(uHitBits))
 
-    val victimWay = Wire(UInt(log2Ceil(numWays).W))
+    val victimWay = Wire(UInt(log2Ceil(p(BTBNumWays)).W))
     victimWay := 0.U
-    for (s <- 0 until numSets)
+    for (s <- 0 until p(BTBNumSets))
       when(s.U === uIndex)(victimWay := replStates(s).getVictim())
 
     val writeWay = Mux(uAnyHit, uHitWay, victimWay)
@@ -104,7 +100,7 @@ class BTB(
 
     entries(uIndex)(writeWay) := newEntry
 
-    for (s <- 0 until numSets)
+    for (s <- 0 until p(BTBNumSets))
       when(s.U === uIndex)(replStates(s).update(writeWay, uAnyHit))
   }
 }
