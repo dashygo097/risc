@@ -49,6 +49,7 @@ package object configs {
   // Derived Parameters
   object XLen        extends Field[Int](IsaFactory.xlen(ISA()))
   object ILen        extends Field[Int](IsaFactory.ilen(ISA()))
+  object IAlign      extends Field[Int](IsaFactory.iAlign(ISA()))
   object NumArchRegs extends Field[Int](IsaFactory.numArchRegs(ISA()))
   object IsBigEndian extends Field[Boolean](IsaFactory.isBigEndian(ISA()))
   object Bubble      extends Field[BitPat](IsaFactory.bubble(ISA()))
@@ -58,6 +59,7 @@ package object configs {
     ISA         -> ISA(),
     XLen        -> XLen(),
     ILen        -> ILen(),
+    IAlign      -> IAlign(),
     NumArchRegs -> NumArchRegs(),
     IsBigEndian -> IsBigEndian(),
     Bubble      -> Bubble(),

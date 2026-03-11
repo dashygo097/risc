@@ -8,6 +8,7 @@ object RV32I extends IsaWrapper {
     name = "rv32i",
     xlen = 32,
     ilen = 32,
+    iAlign = 4,
     numArchRegs = 32,
     isBigEndian = false,
     instrSet = Some(
