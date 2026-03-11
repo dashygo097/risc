@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package risc;
+
+import "cache_config.proto";
+
+option java_package = "arch.configs.proto";
+option java_outer_classname = "BpuConfigProto";
+
+message BtbConfig {
+  uint32 sets = 1;
+  uint32 ways = 2;
+  ReplPolicy repl_policy = 3;
+}
+
+message BpuConfig { BtbConfig btb = 1; }

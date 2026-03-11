@@ -27,6 +27,17 @@ object RiscDump {
           replPolicy = toProtoRepl(p(L1DCacheReplPolicy)),
         )
       ),
+      bpu = Some(
+        BpuConfig(
+          btb = Some(
+            BtbConfig(
+              sets = p(BTBSets),
+              ways = p(BTBWays),
+              replPolicy = toProtoRepl(p(BTBReplPolicy)),
+            )
+          )
+        )
+      ),
       cpu = Some(
         CpuConfig(
           numPhyRegs = p(NumPhyRegs),

@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package risc;
 
-import "isa.proto";
 import "cache_config.proto";
+import "bpu_config.proto";
 import "cpu_config.proto";
 import "bus_config.proto";
 
@@ -13,7 +13,8 @@ option java_outer_classname = "RiscConfigProto";
 message RiscConfig {
   bool is_debug = 1;
   CpuConfig cpu = 2;
-  CacheConfig l1i = 3;
-  CacheConfig l1d = 4;
-  BusConfig bus = 5;
+  BpuConfig bpu = 3;
+  CacheConfig l1i = 4;
+  CacheConfig l1d = 5;
+  BusConfig bus = 6;
 }
