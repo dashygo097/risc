@@ -1,6 +1,5 @@
 package arch.core
 
-// import bpu._
 import ifu._
 import decoder._
 import imm._
@@ -9,6 +8,7 @@ import alu._
 import regfile._
 import lsu._
 import csr._
+import bpu._
 import arch.configs._
 import vopts.mem.cache._
 import chisel3._
@@ -17,10 +17,7 @@ import chisel3.util._
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
-  val decoder_utils = DecoderUtilitiesFactory.getOrThrow(p(ISA))
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA))
-  val bru_utils     = BruUtilitiesFactory.getOrThrow(p(ISA))
-  val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA))
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
   val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
@@ -28,7 +25,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val dmem = IO(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen)))
 
   // Modules
-  // val bpu     = Module(new Bpu)
+  val bpu     = Module(new Bpu)
   val ifu     = Module(new Ifu)
   val decoder = Module(new Decoder)
   val bru     = Module(new Bru)
@@ -60,6 +57,28 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   imem <> l1_icache.lower
   ifu.mem <> l1_icache.upper
 
+  bpu.query_pc := ifu.fetch_pc
+
+  ifu.bpu_taken_in  := bpu.taken
+  ifu.bpu_target_in := bpu.target
+
+  val bpu_correct_taken = if_id.ID.bpu_pred_taken &&
+    (bru.target === if_id.ID.bpu_pred_target)
+
+  val bru_mispredict_taken = bru.taken && !bpu_correct_taken
+
+  val bru_mispredict_not_taken = bru.en && !bru.taken && if_id.ID.bpu_pred_taken
+
+  ifu.bru_taken     := bru_mispredict_taken
+  ifu.bru_target    := bru.target
+  ifu.bru_not_taken := bru_mispredict_not_taken
+  ifu.bru_branch_pc := if_id.ID.pc
+
+  bpu.update.valid  := bru.en
+  bpu.update.pc     := if_id.ID.pc
+  bpu.update.target := bru.target
+  bpu.update.taken  := bru.taken
+
   ifu.bru_taken       := bru.taken
   ifu.bru_target      := bru.target
   ifu.id_ex_stall     := id_ex.STALL
@@ -67,10 +86,12 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ifu.lsu_busy        := lsu.busy
 
   // IF/ID Pipeline
-  if_id.STALL    := ifu.if_id_stall
-  if_id.FLUSH    := ifu.if_id_flush
-  if_id.IF_INSTR := ifu.if_instr
-  if_id.IF.pc    := ifu.if_pc
+  if_id.STALL              := ifu.if_id_stall
+  if_id.FLUSH              := ifu.if_id_flush
+  if_id.IF_INSTR           := ifu.if_instr
+  if_id.IF.pc              := ifu.if_pc
+  if_id.IF.bpu_pred_taken  := ifu.if_bpu_pred_taken
+  if_id.IF.bpu_pred_target := ifu.if_bpu_pred_target
 
   // ID Stage
   decoder.instr := if_id.ID_INSTR
@@ -129,7 +150,9 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   // ID/EX Pipeline
   id_ex.STALL             := ex_mem.STALL
-  id_ex.FLUSH             := (load_use_hazard || (bru.taken && !bru.jump)) && !lsu.busy
+  id_ex.FLUSH             := (load_use_hazard ||
+    ((bru_mispredict_taken || bru_mispredict_not_taken) && !bru.jump)) &&
+    !lsu.busy
   id_ex.ID_INSTR          := if_id.ID_INSTR
   id_ex.ID.decoded_output := decoder.decoded
   id_ex.ID.pc             := if_id.ID.pc
@@ -301,7 +324,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     debug_wb_instr  := mem_wb.WB_INSTR
 
     // Cache Debugging
-    // NOTE: Align the access signal timing if needed
     debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
     debug_l1_icache_miss   := !l1_icache.upper.resp.bits.hit
     debug_l1_dcache_access := RegNext(l1_dcache.upper.req.fire)

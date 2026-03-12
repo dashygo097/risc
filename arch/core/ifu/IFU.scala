@@ -15,40 +15,56 @@ class Ifu(implicit p: Parameters) extends Module {
   val load_use_hazard = IO(Input(Bool()))
   val lsu_busy        = IO(Input(Bool()))
 
-  val if_id_stall = IO(Output(Bool()))
-  val if_id_flush = IO(Output(Bool()))
-  val if_instr    = IO(Output(UInt(p(ILen).W)))
-  val if_pc       = IO(Output(UInt(p(XLen).W)))
+  val bpu_taken_in  = IO(Input(Bool()))
+  val bpu_target_in = IO(Input(UInt(p(XLen).W)))
+
+  val bru_not_taken = IO(Input(Bool()))
+  val bru_branch_pc = IO(Input(UInt(p(XLen).W)))
+
+  val fetch_pc = IO(Output(UInt(p(XLen).W)))
+
+  val if_id_stall        = IO(Output(Bool()))
+  val if_id_flush        = IO(Output(Bool()))
+  val if_instr           = IO(Output(UInt(p(ILen).W)))
+  val if_pc              = IO(Output(UInt(p(XLen).W)))
+  val if_bpu_pred_taken  = IO(Output(Bool()))
+  val if_bpu_pred_target = IO(Output(UInt(p(XLen).W)))
 
   val ibuffer_deq_fire = IO(Output(Bool()))
   val reset_ibuffer    = IO(Output(Bool()))
 
   val ibuffer = Module(new IBuffer)
-
-  val pc = RegInit(0.U(p(XLen).W))
+  val pc      = RegInit(0.U(p(XLen).W))
 
   val reset_ibuffer_reg = RegInit(false.B)
+  val imem_pending      = RegInit(false.B)
+  val imem_data         = RegInit(p(Bubble).value.U(p(ILen).W))
+  val imem_pc           = RegInit(0.U(p(XLen).W))
+  val imem_valid        = RegInit(false.B)
 
-  val imem_pending = RegInit(false.B)
-  val imem_data    = RegInit(p(Bubble).value.U(p(ILen).W))
-  val imem_pc      = RegInit(0.U(p(XLen).W))
-  val imem_valid   = RegInit(false.B)
+  val bpu_pred_taken  = RegInit(false.B)
+  val bpu_pred_target = RegInit(0.U(p(XLen).W))
 
   mem.req.valid     := !imem_pending && !ibuffer.full
   mem.req.bits.addr := pc
   mem.resp.ready    := true.B
 
+  fetch_pc := pc
+
   val icache_req_fire  = mem.req.valid && mem.req.ready
   val icache_resp_fire = mem.resp.valid && mem.resp.ready
 
   when(icache_req_fire) {
-    imem_pending := true.B
-    imem_pc      := pc
-    imem_valid   := true.B
+    imem_pending    := true.B
+    imem_pc         := pc
+    imem_valid      := true.B
+    bpu_pred_taken  := bpu_taken_in
+    bpu_pred_target := bpu_target_in
   }
 
-  when(bru_taken) {
-    imem_valid := false.B
+  when(bru_taken || bru_not_taken) {
+    imem_valid     := false.B
+    bpu_pred_taken := false.B
   }
 
   when(icache_resp_fire) {
@@ -59,33 +75,40 @@ class Ifu(implicit p: Parameters) extends Module {
   when(reset_ibuffer_reg) {
     imem_valid := false.B
   }
-  when(bru_taken) {
+
+  when(bru_taken || bru_not_taken) {
     reset_ibuffer_reg := true.B
   }
   when(ibuffer.empty && !imem_pending) {
     reset_ibuffer_reg := false.B
   }
 
-  ibuffer.enq.valid      := icache_resp_fire && imem_valid && !ibuffer.full
-  ibuffer.enq.bits.pc    := imem_pc
-  ibuffer.enq.bits.instr := mem.resp.bits.data
+  ibuffer.enq.valid                := icache_resp_fire && imem_valid && !ibuffer.full
+  ibuffer.enq.bits.pc              := imem_pc
+  ibuffer.enq.bits.instr           := mem.resp.bits.data
+  ibuffer.enq.bits.bpu_pred_taken  := bpu_pred_taken
+  ibuffer.enq.bits.bpu_pred_target := bpu_pred_target
 
   val stall_cond = id_ex_stall || load_use_hazard
-  val flush_cond = (bru_taken || !imem_valid || reset_ibuffer_reg) && !lsu_busy
+  val flush_cond = (bru_taken || bru_not_taken || !imem_valid || reset_ibuffer_reg) && !lsu_busy
 
   ibuffer.deq.ready := (!ibuffer.empty && !stall_cond && !flush_cond) || reset_ibuffer_reg
 
-  if_id_stall := stall_cond
-  if_id_flush := flush_cond
-  if_instr    := Mux(ibuffer.deq.fire, ibuffer.deq.bits.instr, p(Bubble).value.U(p(ILen).W))
-  if_pc       := Mux(ibuffer.deq.fire, ibuffer.deq.bits.pc, p(Bubble).value.U(p(XLen).W))
+  if_id_stall        := stall_cond
+  if_id_flush        := flush_cond
+  if_instr           := Mux(ibuffer.deq.fire, ibuffer.deq.bits.instr, p(Bubble).value.U(p(ILen).W))
+  if_pc              := Mux(ibuffer.deq.fire, ibuffer.deq.bits.pc, p(Bubble).value.U(p(XLen).W))
+  if_bpu_pred_taken  := Mux(ibuffer.deq.fire, ibuffer.deq.bits.bpu_pred_taken, false.B)
+  if_bpu_pred_target := Mux(ibuffer.deq.fire, ibuffer.deq.bits.bpu_pred_target, 0.U(p(XLen).W))
 
   ibuffer_deq_fire := ibuffer.deq.fire
   reset_ibuffer    := reset_ibuffer_reg
 
   when(bru_taken && !lsu_busy) {
     pc := bru_target
+  }.elsewhen(bru_not_taken && !lsu_busy) {
+    pc := bru_branch_pc + 4.U
   }.elsewhen(ibuffer.enq.fire) {
-    pc := pc + 4.U(p(XLen).W)
+    pc := Mux(bpu_pred_taken, bpu_pred_target, pc + 4.U(p(XLen).W))
   }
 }

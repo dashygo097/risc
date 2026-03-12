@@ -9,7 +9,9 @@ import chisel3._
 import chisel3.util._
 
 class InstructionFetchBundle(implicit p: Parameters) extends Bundle {
-  val pc = UInt(p(XLen).W)
+  val pc              = UInt(p(XLen).W)
+  val bpu_pred_taken  = Bool()
+  val bpu_pred_target = UInt(p(XLen).W)
 }
 
 class InstructionDecodeBundle(implicit p: Parameters) extends Bundle {

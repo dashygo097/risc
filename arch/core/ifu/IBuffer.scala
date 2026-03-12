@@ -5,8 +5,10 @@ import chisel3._
 import chisel3.util._
 
 class IBufferEntry(implicit p: Parameters) extends Bundle {
-  val pc    = UInt(p(XLen).W)
-  val instr = UInt(p(ILen).W)
+  val pc              = UInt(p(XLen).W)
+  val instr           = UInt(p(ILen).W)
+  val bpu_pred_taken  = Bool()
+  val bpu_pred_target = UInt(p(XLen).W)
 }
 
 class IBuffer(implicit p: Parameters) extends Module {

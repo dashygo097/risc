@@ -4,6 +4,8 @@ import system._
 import system.bridge._
 import system.crossbar._
 import core._
+import core.bpu._
+import core.ifu._
 import core.decoder._
 import core.bru._
 import core.regfile._
@@ -15,6 +17,8 @@ import configs._
 import vopts.utils._
 
 object MainCore extends App {
+  BpuInit
+  IfuInit
   DecoderInit
   BruInit
   RegfileInit
@@ -34,6 +38,8 @@ object MainCore extends App {
 }
 
 object MainSystem extends App {
+  BpuInit
+  IfuInit
   DecoderInit
   BruInit
   RegfileInit

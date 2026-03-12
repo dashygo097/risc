@@ -37,10 +37,10 @@ class Btb(implicit p: Parameters) extends Module {
   private val indexWidth  = log2Ceil(p(BTBSets))
   private val tagWidth    = p(XLen) - indexWidth - iAlignWidth
 
-  val query_pc  = Input(UInt(p(XLen).W))
-  val hit       = Output(Bool())
-  val entry_out = Output(new BtbEntry(tagWidth))
-  val update    = Input(new BpuUpdate)
+  val query_pc  = IO(Input(UInt(p(XLen).W)))
+  val hit       = IO(Output(Bool()))
+  val entry_out = IO(Output(new BtbEntry(tagWidth)))
+  val update    = IO(Input(new BpuUpdate))
 
   val entries = RegInit(
     VecInit(
