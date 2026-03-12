@@ -18,8 +18,8 @@ class Bpu(implicit p: Parameters) extends Module {
   btb.query_pc := query_pc
 
   val btbHit     = btb.hit
-  val ctr        = btb.entry_out.ctr
-  val predTaken  = btbHit && ctr(1)
+  val ctrl       = btb.entry_out.ctrl
+  val predTaken  = btbHit && ctrl(1)
   val predTarget = btb.entry_out.target
 
   taken  := predTaken
