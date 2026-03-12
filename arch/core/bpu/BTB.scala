@@ -9,7 +9,7 @@ class BtbEntry(tagWidth: Int)(implicit p: Parameters) extends Bundle with BHTSta
   val valid  = Bool()
   val tag    = UInt(tagWidth.W)
   val target = UInt(p(XLen).W)
-  val ctr    = UInt(SZ_BHT.W)
+  val ctrl   = UInt(SZ_BHT.W)
 }
 
 object BtbEntry extends BHTState {
@@ -18,7 +18,7 @@ object BtbEntry extends BHTState {
     e.valid  := false.B
     e.tag    := 0.U
     e.target := 0.U
-    e.ctr    := BHT_WT.value.U(SZ_BHT.W)
+    e.ctrl   := BHT_WT.value.U(SZ_BHT.W)
     e
   }
 }
@@ -95,8 +95,8 @@ class Btb(implicit p: Parameters) extends Module {
     newEntry.tag    := uTag
     newEntry.target := update.target
 
-    val oldCtr = uSet(writeWay).ctr
-    newEntry.ctr := Mux(update.taken, Mux(oldCtr === 3.U, 3.U, oldCtr + 1.U), Mux(oldCtr === 0.U, 0.U, oldCtr - 1.U))
+    val oldCtrl = uSet(writeWay).ctrl
+    newEntry.ctrl := Mux(update.taken, Mux(oldCtrl === 3.U, 3.U, oldCtrl + 1.U), Mux(oldCtrl === 0.U, 0.U, oldCtrl - 1.U))
 
     entries(uIndex)(writeWay) := newEntry
 

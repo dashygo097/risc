@@ -22,8 +22,8 @@ package object configs {
   object ROBSize            extends Field[Int](16)
 
   // Branch Prediction
-  object BTBSets       extends Field[Int](16)
   object BTBWays       extends Field[Int](4)
+  object BTBSets       extends Field[Int](16)
   object BTBReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
 
   // Cache Parameters
