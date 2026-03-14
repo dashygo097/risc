@@ -78,7 +78,14 @@ void CPUSimulator::reset() {
   dut_->reset = 0;
   dut_->eval();
 
+  _time_count = 0;
   _instr_count = 0;
+
+  _l1_icache_accesses = 0;
+  _l1_icache_misses = 0;
+  _l1_dcache_accesses = 0;
+  _l1_dcache_misses = 0;
+
   terminate_ = false;
   _register_values.clear();
 
