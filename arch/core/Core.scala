@@ -268,7 +268,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // Extra Information
   cycle_count   := cycle_count + 1.U
   instret_count := instret_count + Mux(
-    mem_wb.WB.regwrite || mem_wb.WB_INSTR =/= p(Bubble).value.U(p(ILen).W),
+    mem_wb.WB_INSTR =/= p(Bubble).value.U(p(ILen).W),
     1.U,
     0.U
   )
