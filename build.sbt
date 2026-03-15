@@ -33,7 +33,7 @@ lazy val arch = (project in file("arch"))
       "org.chipsalliance" % "chisel-plugin" % chiselVersion cross CrossVersion.full
     ),
     // protobuf
-    Compile / PB.protoSources := Seq(baseDirectory.value / ".." / "protos"),
+    Compile / PB.protoSources := Seq(baseDirectory.value / ".." / "protos" / "isa", baseDirectory.value / ".." / "protos" / "configs"),
     Compile / PB.targets      := Seq(
       scalapb.gen(flatPackage = true) -> (Compile / sourceManaged).value / "scalapb"
     ),

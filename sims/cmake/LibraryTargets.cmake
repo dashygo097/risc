@@ -44,6 +44,8 @@ target_include_directories(demu PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   "${PROTO_OUT}"
+  "${PROTO_OUT}/configs"
+  "${PROTO_OUT}/isa"
 )
 
 set_target_properties(demu PROPERTIES

@@ -11,6 +11,33 @@ object RiscDump {
   def buildConfig(p: Parameters): RiscConfig =
     RiscConfig(
       isDebug = p(IsDebug),
+      ifu = Some(
+        IfuConfig(
+          ibufferSize = p(IBufferSize),
+        )
+      ),
+      bpu = Some(
+        BpuConfig(
+          btb = Some(
+            BtbConfig(
+              sets = p(BTBSets),
+              ways = p(BTBWays),
+              replPolicy = toProtoRepl(p(BTBReplPolicy)),
+            )
+          )
+        )
+      ),
+      regfile = Some(
+        RegfileConfig(
+          numPhyRegs = p(NumPhyRegs),
+          useBypass = p(IsRegfileUseBypass),
+        )
+      ),
+      rob = Some(
+        RobConfig(
+          size = p(ROBSize),
+        )
+      ),
       l1I = Some(
         CacheConfig(
           sets = p(L1ICacheSets),
@@ -25,25 +52,6 @@ object RiscDump {
           ways = p(L1DCacheWays),
           lineSize = p(L1DCacheLineSize),
           replPolicy = toProtoRepl(p(L1DCacheReplPolicy)),
-        )
-      ),
-      bpu = Some(
-        BpuConfig(
-          btb = Some(
-            BtbConfig(
-              sets = p(BTBSets),
-              ways = p(BTBWays),
-              replPolicy = toProtoRepl(p(BTBReplPolicy)),
-            )
-          )
-        )
-      ),
-      cpu = Some(
-        CpuConfig(
-          numPhyRegs = p(NumPhyRegs),
-          ibufferSize = p(IBufferSize),
-          robSize = p(ROBSize),
-          regfileUseBypass = p(IsRegfileUseBypass),
         )
       ),
       bus = Some(

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package risc;
 
-import "cache_config.proto";
+import "configs/cache.proto";
 
 option java_package = "arch.configs.proto";
 option java_outer_classname = "BpuConfigProto";

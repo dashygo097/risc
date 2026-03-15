@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package risc;
+
+option java_package = "arch.configs.proto";
+option java_outer_classname = "IfuConfigProto";
+
+message IfuConfig { uint32 ibuffer_size = 1; }

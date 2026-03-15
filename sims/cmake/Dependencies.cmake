@@ -45,19 +45,28 @@ get_filename_component(PROTO_ROOT
 set(PROTO_OUT "${CMAKE_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${PROTO_OUT}")
 
-file(GLOB PROTO_FILES "${PROTO_ROOT}/*.proto")
+file(GLOB PROTO_FILES
+  CONFIGURE_DEPENDS
+  "${PROTO_ROOT}/isa/*.proto"
+  "${PROTO_ROOT}/configs/*.proto"
+)
 
 if(NOT PROTO_FILES)
   message(FATAL_ERROR "[proto] No .proto files found in ${PROTO_ROOT}")
 endif()
 
+file(MAKE_DIRECTORY "${PROTO_OUT}/configs")
+file(MAKE_DIRECTORY "${PROTO_OUT}/isa")
+
 set(PROTO_GENERATED_HEADERS "")
 set(PROTO_GENERATED_SOURCES "")
 
 foreach(PROTO_FILE ${PROTO_FILES})
-  get_filename_component(PROTO_NAME "${PROTO_FILE}" NAME_WE)
-  list(APPEND PROTO_GENERATED_HEADERS "${PROTO_OUT}/${PROTO_NAME}.pb.h")
-  list(APPEND PROTO_GENERATED_SOURCES "${PROTO_OUT}/${PROTO_NAME}.pb.cc")
+  file(RELATIVE_PATH PROTO_REL "${PROTO_ROOT}" "${PROTO_FILE}")
+  get_filename_component(PROTO_REL_DIR  "${PROTO_REL}" DIRECTORY)
+  get_filename_component(PROTO_NAME     "${PROTO_FILE}" NAME_WE)
+  list(APPEND PROTO_GENERATED_HEADERS "${PROTO_OUT}/${PROTO_REL_DIR}/${PROTO_NAME}.pb.h")
+  list(APPEND PROTO_GENERATED_SOURCES "${PROTO_OUT}/${PROTO_REL_DIR}/${PROTO_NAME}.pb.cc")
 endforeach()
 
 add_custom_command(
