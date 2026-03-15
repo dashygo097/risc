@@ -1,6 +1,5 @@
 package arch.core.decoder
 
-import arch.core.common.Consts
 import arch.core.imm.RV32IImmConsts
 import arch.core.alu.RV32IAluConsts
 import arch.core.lsu.RV32ILsuConsts
@@ -11,9 +10,7 @@ import arch.isa._
 import chisel3._
 import chisel3.util._
 
-trait RV32IDecodeConsts extends Consts with RV32IAluConsts with RV32ILsuConsts with RV32IImmConsts with RV32IBranchConsts with RV32ICsrConsts
-
-object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with RV32IDecodeConsts {
+object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with RV32IAluConsts with RV32ILsuConsts with RV32IImmConsts with RV32IBranchConsts with RV32ICsrConsts {
 
   private val allEncodings =
     RV32I.isa.instrSet

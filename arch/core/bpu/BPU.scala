@@ -6,8 +6,6 @@ import chisel3._
 class Bpu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_bpu"
 
-  val utils = BpuUtilitiesFactory.getOrThrow(p(ISA))
-
   val query_pc = IO(Input(UInt(p(XLen).W)))
   val taken    = IO(Output(Bool()))
   val target   = IO(Output(UInt(p(XLen).W)))
