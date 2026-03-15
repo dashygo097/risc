@@ -8,6 +8,7 @@ import chisel3.util._
 trait RV32IImmConsts extends Consts {
   def IMM_X  = BitPat("b???")
   def SZ_IMM = IMM_X.getWidth
+
   def IMM_I  = BitPat("b000")
   def IMM_S  = BitPat("b001")
   def IMM_B  = BitPat("b010")

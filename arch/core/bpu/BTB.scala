@@ -5,14 +5,14 @@ import vopts.mem.cache._
 import chisel3._
 import chisel3.util._
 
-class BtbEntry(tagWidth: Int)(implicit p: Parameters) extends Bundle with BHTState {
+class BtbEntry(tagWidth: Int)(implicit p: Parameters) extends Bundle with BHTConsts {
   val valid  = Bool()
   val tag    = UInt(tagWidth.W)
   val target = UInt(p(XLen).W)
   val ctrl   = UInt(SZ_BHT.W)
 }
 
-object BtbEntry extends BHTState {
+object BtbEntry extends BHTConsts {
   def default(tagWidth: Int)(implicit p: Parameters): BtbEntry = {
     val e = Wire(new BtbEntry(tagWidth))
     e.valid  := false.B
