@@ -50,16 +50,19 @@ protected:
 void print_usage(const char *prog) {
   std::cout << "Usage: " << prog << " [options] <program_file>\n\n";
   std::cout << "Options:\n";
-  std::cout << "  -h, --help           Show this help message\n";
-  std::cout << "  -t, --trace          Enable VCD trace\n";
-  std::cout << "  -c, --cycles <n>     Run for n cycles (0=unlimited)\n";
-  std::cout << "  -b, --base <addr>    Binary load base address (hex)\n";
+  std::cout << "  -h, --help                    Show this help message\n";
+  std::cout << "  -t, --trace                   Enable VCD trace\n";
+  std::cout
+      << "  -c, --cycles <n>              Run for n cycles (0=unlimited)\n";
+  std::cout
+      << "  -b, --base <addr>             Binary load base address (hex)\n";
   std::cout << "  -m, --dump-mem <addr> <size>  Dump memory region\n";
-  std::cout << "  -L12345,             Set log level (5=error, 4=warn, "
-               "3=info, 2=debug, 1=trace)\n";
+  std::cout
+      << "  -L12345,                      Set log level (5=error, 4=warn, "
+         "3=info, 2=debug, 1=trace)\n";
   std::cout << "\nSupported file formats:\n";
-  std::cout << "  .bin                 Raw binary\n";
-  std::cout << "  .elf                 ELF executable\n";
+  std::cout << "  .bin      Raw binary\n";
+  std::cout << "  .elf      ELF executable\n";
   std::cout << std::endl;
 }
 

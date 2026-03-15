@@ -12,10 +12,7 @@ public:
   CPUSimulatorTop(bool enabled_trace = false) : CPUSimulator(enabled_trace) {}
 
 protected:
-  void on_init() override {
-    imem_delay(1);
-    dmem_delay(1);
-  };
+  void on_init() override {};
   void on_clock_tick() override {};
   void on_exit() override {};
   void on_reset() override {};
@@ -24,18 +21,23 @@ protected:
 void print_usage(const char *prog) {
   std::cout << "Usage: " << prog << " [options] <program_file>\n\n";
   std::cout << "Options:\n";
-  std::cout << "  -h, --help           Show this help message\n";
-  std::cout << "  -t, --trace          Enable VCD trace\n";
-  std::cout << "  -c, --cycles <n>     Run for n cycles (0=unlimited)\n";
-  std::cout << "  -b, --base <addr>    Binary load base address (hex)\n";
-  std::cout << "  -d, --dump-regs      Dump registers after execution\n";
+  std::cout << "  -h, --help                    Show this help message\n";
+  std::cout << "  -t, --trace                   Enable VCD trace\n";
+  std::cout
+      << "  -c, --cycles <n>              Run for n cycles (0=unlimited)\n";
+  std::cout
+      << "  -b, --base <addr>             Binary load base address (hex)\n";
+  std::cout
+      << "  -d, --dump-regs               Dump registers after execution\n";
   std::cout << "  -m, --dump-mem <addr> <size>  Dump memory region\n";
-  std::cout << "  -p, --show-pipeline   Show pipeline state each cycle\n";
-  std::cout << "  -L12345,             Set log level (5=error, 4=warn, "
-               "3=info, 2=debug, 1=trace)\n";
+  std::cout
+      << "  -p, --show-pipeline           Show pipeline state each cycle\n";
+  std::cout
+      << "  -L12345,                      Set log level (5=error, 4=warn, "
+         "3=info, 2=debug, 1=trace)\n";
   std::cout << "\nSupported file formats:\n";
-  std::cout << "  .bin                 Raw binary\n";
-  std::cout << "  .elf                 ELF executable\n";
+  std::cout << "  .bin      Raw binary\n";
+  std::cout << "  .elf      ELF executable\n";
   std::cout << std::endl;
 }
 
@@ -82,6 +84,18 @@ int main(int argc, char **argv) {
       }
     } else if (arg == "-p" || arg == "--show-pipeline") {
       show_pipeline = true;
+    } else if (arg == "--imem-delay") {
+      if (i + 1 < argc) {
+        uint8_t delay = static_cast<uint8_t>(std::stoul(argv[++i]));
+        CPUSimulatorTop sim(enable_trace);
+        sim.imem_delay(delay);
+      }
+    } else if (arg == "--dmem-delay") {
+      if (i + 1 < argc) {
+        uint8_t delay = static_cast<uint8_t>(std::stoul(argv[++i]));
+        CPUSimulatorTop sim(enable_trace);
+        sim.dmem_delay(delay);
+      }
     } else if (arg[0] == '-' && arg[1] == 'L') {
       int log_level = std::stoi(arg.substr(2));
       switch (log_level) {
