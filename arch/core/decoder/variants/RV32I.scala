@@ -88,7 +88,7 @@ object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with 
       enc("LBU")    -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_LBU, N, C_X),
       enc("LHU")    -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_LHU, N, C_X),
       // I-Type: Jump
-      enc("JALR")   -> List(Y, Y, IMM_I, Y, BR_JALR, Y, A1_PC, A2_FOUR, N, AFN_ADD, N, M_X, N, C_X),
+      enc("JALR")   -> List(Y, Y, IMM_I, Y, BR_JALR, Y, A1_PC, A2_PCSTEP, N, AFN_ADD, N, M_X, N, C_X),
       // I-Type: CSR
       enc("CSRRW")  -> List(Y, Y, IMM_I, N, BR_X, N, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RW),
       enc("CSRRS")  -> List(Y, Y, IMM_I, N, BR_X, N, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RS),
@@ -111,7 +111,7 @@ object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with 
       enc("LUI")    -> List(Y, Y, IMM_U, N, BR_X, Y, A1_ZERO, A2_IMM, N, AFN_ADD, N, M_X, N, C_X),
       enc("AUIPC")  -> List(Y, Y, IMM_U, N, BR_X, Y, A1_PC, A2_IMM, N, AFN_ADD, N, M_X, N, C_X),
       // J-Type
-      enc("JAL")    -> List(Y, Y, IMM_J, Y, BR_JAL, Y, A1_PC, A2_FOUR, N, AFN_ADD, N, M_X, N, C_X),
+      enc("JAL")    -> List(Y, Y, IMM_J, Y, BR_JAL, Y, A1_PC, A2_PCSTEP, N, AFN_ADD, N, M_X, N, C_X),
     )
   }
 

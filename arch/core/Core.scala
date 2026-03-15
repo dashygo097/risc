@@ -196,10 +196,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   val alu_rs2_data = MuxLookup(id_ex.EX.decoded_output.alu_sel2, 0.U(p(XLen).W))(
     Seq(
-      A2_ZERO.value.U(SZ_A2.W) -> 0.U(p(XLen).W),
-      A2_RS2.value.U(SZ_A2.W)  -> ex_rs2_data,
-      A2_IMM.value.U(SZ_A2.W)  -> id_ex.EX.imm,
-      A2_FOUR.value.U(SZ_A2.W) -> 4.U(p(XLen).W)
+      A2_ZERO.value.U(SZ_A2.W)   -> 0.U(p(XLen).W),
+      A2_RS2.value.U(SZ_A2.W)    -> ex_rs2_data,
+      A2_IMM.value.U(SZ_A2.W)    -> id_ex.EX.imm,
+      A2_PCSTEP.value.U(SZ_A2.W) -> p(IAlign).U(p(XLen).W)
     )
   )
 
