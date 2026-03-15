@@ -2,7 +2,7 @@
 
 #include "./isa/isa.hh"
 #include "./logger.hh"
-#include "risc_config.pb.h"
+#include "risc.pb.h"
 #include <filesystem>
 #include <fstream>
 #include <google/protobuf/util/json_util.h>
@@ -17,14 +17,23 @@ public:
   RiscConfig() { load(get_config_path()); }
   explicit RiscConfig(const std::string &p) { load(p); }
 
+  [[nodiscard]] const risc::IfuConfig &ifu() const noexcept {
+    return proto_.ifu();
+  }
+  [[nodiscard]] const risc::BpuConfig &bpu() const noexcept {
+    return proto_.bpu();
+  }
+  [[nodiscard]] const risc::RegfileConfig &regfile() const noexcept {
+    return proto_.regfile();
+  }
+  [[nodiscard]] const risc::RobConfig &rob() const noexcept {
+    return proto_.rob();
+  }
   [[nodiscard]] const risc::CacheConfig &l1i() const noexcept {
     return proto_.l1i();
   }
   [[nodiscard]] const risc::CacheConfig &l1d() const noexcept {
     return proto_.l1d();
-  }
-  [[nodiscard]] const risc::CpuConfig &cpu() const noexcept {
-    return proto_.cpu();
   }
   [[nodiscard]] const risc::BusConfig &bus() const noexcept {
     return proto_.bus();
