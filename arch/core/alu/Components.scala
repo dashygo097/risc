@@ -1,11 +1,10 @@
 package arch.core.alu
 
-import arch.core.common.Consts
 import arch.configs._
 import chisel3._
 import chisel3.util.BitPat
 
-trait AluConsts extends Consts {
+trait AluConsts {
   def A1_X    = BitPat("b??")
   def SZ_A1   = A1_X.getWidth
   def A1_ZERO = BitPat("b00")

@@ -1,13 +1,12 @@
 package arch.core
 
-import common.Consts
 import arch.configs._
 import chisel3._
 import chisel3.util._
 
-trait ForwardingConsts extends Consts {
-  def FWD_X    = BitPat("b??")
-  def SZ_FWD   = FWD_X.getWidth
+trait ForwardingConsts {
+  def FWD_X  = BitPat("b??")
+  def SZ_FWD = FWD_X.getWidth
 
   def FWD_SAFE = BitPat("b00")
   def FWD_EX   = BitPat("b01")
