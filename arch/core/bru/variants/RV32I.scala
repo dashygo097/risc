@@ -1,11 +1,10 @@
 package arch.core.bru
 
-import arch.core.common.Consts
 import arch.configs._
 import chisel3._
 import chisel3.util._
 
-trait RV32IBranchConsts extends Consts {
+trait RV32IBranchConsts {
   def BR_X    = BitPat("b???")
   def SZ_BR   = BR_X.getWidth
   def BR_EQ   = BitPat("b000")
@@ -29,9 +28,9 @@ object RV32IBruUtilities extends RegisteredUtilities[BruUtilities] with RV32IBra
     override def isJump(brType: UInt): Bool = brType(2, 1) === "b11".U
 
     override def fn(src1: UInt, src2: UInt, brType: UInt): Bool = {
-      val eq  = src1 === src2
-      val lt  = src1.asSInt < src2.asSInt
-      val ltu = src1 < src2
+      val eq: Bool  = src1 === src2
+      val lt: Bool  = src1.asSInt < src2.asSInt
+      val ltu: Bool = src1 < src2
 
       MuxCase(
         false.B,

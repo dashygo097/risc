@@ -1,11 +1,10 @@
 package arch.core.imm
 
-import arch.core.common.Consts
 import arch.configs._
 import chisel3._
 import chisel3.util._
 
-trait RV32IImmConsts extends Consts {
+trait RV32IImmConsts {
   def IMM_X  = BitPat("b???")
   def SZ_IMM = IMM_X.getWidth
   def IMM_I  = BitPat("b000")

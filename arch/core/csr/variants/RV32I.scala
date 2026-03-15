@@ -1,12 +1,11 @@
 package arch.core.csr
 
-import arch.core.common.Consts
 import arch.configs._
 import vopts.utils.Register
 import chisel3._
 import chisel3.util._
 
-trait RV32ICsrConsts extends Consts {
+trait RV32ICsrConsts {
   def C_X   = BitPat("b???")
   def SZ_C  = C_X.getWidth
   def C_RW  = BitPat("b000")
@@ -17,7 +16,7 @@ trait RV32ICsrConsts extends Consts {
   def C_RCI = BitPat("b110")
 }
 
-trait RV32ICsrMap extends Consts {
+trait RV32ICsrMap {
   def CSR_U  = BitPat("b??00_????_????")
   def CSR_S  = BitPat("b??01_????_????")
   def CSR_H  = BitPat("b??10_????_????")

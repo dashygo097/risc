@@ -1,11 +1,10 @@
 package arch.core.lsu
 
-import arch.core.common.Consts
 import arch.configs._
 import chisel3._
 import chisel3.util._
 
-trait RV32ILsuConsts extends Consts {
+trait RV32ILsuConsts {
   def M_X   = BitPat("b????")
   def SZ_M  = M_X.getWidth
   def M_SB  = BitPat("b0000")

@@ -22,10 +22,10 @@ class Bru(implicit p: Parameters) extends Module {
   taken := en && utils.fn(src1, src2, brType)
 
   if (utils.hasJalr) {
-    val is_jalr     = utils.isJalr(brType)
-    val base        = Mux(is_jalr, src1, pc)
-    val raw_target  = base + imm
-    val jalr_target = raw_target & ~1.U(p(XLen).W)
+    val is_jalr: Bool     = utils.isJalr(brType)
+    val base: UInt        = Mux(is_jalr, src1, pc)
+    val raw_target: UInt  = base + imm
+    val jalr_target: UInt = raw_target & ~1.U(p(XLen).W)
     target := Mux(is_jalr, jalr_target, raw_target)
   } else {
     target := pc + imm

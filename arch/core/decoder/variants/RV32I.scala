@@ -10,7 +10,13 @@ import arch.isa._
 import chisel3._
 import chisel3.util._
 
-object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with RV32IAluConsts with RV32ILsuConsts with RV32IImmConsts with RV32IBranchConsts with RV32ICsrConsts {
+trait RV32IDecoderConsts extends RV32IImmConsts with RV32IAluConsts with RV32ILsuConsts with RV32IBranchConsts with RV32ICsrConsts {
+  def X = BitPat("b?")
+  def N = BitPat("b0")
+  def Y = BitPat("b1")
+}
+
+object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with RV32IDecoderConsts {
 
   private val allEncodings =
     RV32I.isa.instrSet
