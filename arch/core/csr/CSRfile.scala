@@ -1,7 +1,7 @@
 package arch.core.csr
 
 import arch.configs._
-import vopts.utils.CombTree
+import vopts.utils._
 import chisel3._
 
 class CsrFile(implicit p: Parameters) extends Module {
@@ -22,8 +22,8 @@ class CsrFile(implicit p: Parameters) extends Module {
     name -> port
   }.toMap
 
-  val csrTable = utils.table.map(_._1)
-  val addrMap  = csrTable.map(_.addr.U(utils.addrWidth.W))
+  val csrTable: Seq[Register] = utils.table.map(_._1)
+  val addrMap: Seq[UInt]      = csrTable.map(_.addr.U(utils.addrWidth.W))
 
   val csrRegs: Seq[UInt] = csrTable.zipWithIndex.map { case (reg, _) =>
     val r = RegInit(reg.initValue.U(p(XLen).W))

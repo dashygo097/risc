@@ -8,12 +8,10 @@ object CsrUpdateBehavior {
   type CsrUpdateFn = Map[String, UInt] => UInt
 }
 
-import CsrUpdateBehavior.CsrUpdateFn
-
 sealed trait CsrUpdateBehavior
-case object NormalUpdate                      extends CsrUpdateBehavior
-case class AlwaysUpdate(fn: CsrUpdateFn)      extends CsrUpdateBehavior
-case class ConditionalUpdate(fn: CsrUpdateFn) extends CsrUpdateBehavior
+case object NormalUpdate                                        extends CsrUpdateBehavior
+case class AlwaysUpdate(fn: CsrUpdateBehavior.CsrUpdateFn)      extends CsrUpdateBehavior
+case class ConditionalUpdate(fn: CsrUpdateBehavior.CsrUpdateFn) extends CsrUpdateBehavior
 
 trait CsrUtilities extends Utilities {
   def cmdWidth: Int
@@ -25,7 +23,7 @@ trait CsrUtilities extends Utilities {
 
   def fn(cmd: UInt, csr_data: UInt, src_data: UInt): UInt
   def table: Seq[(Register, CsrUpdateBehavior)]
-  def extraInputs: Seq[(String, Int)] = Seq.empty
+  def extraInputs: Seq[(String, Int)]
 }
 
 object CsrUtilitiesFactory extends UtilitiesFactory[CsrUtilities]("CSR")

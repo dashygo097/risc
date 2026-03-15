@@ -6,7 +6,7 @@ import chisel3.util._
 
 trait RV32IAluConsts extends AluConsts {
   def AFN_X    = BitPat("b???")
-  val SZ_AFN   = AFN_X.getWidth
+  def SZ_AFN   = AFN_X.getWidth
   def AFN_ADD  = BitPat("b000")
   def AFN_SLL  = BitPat("b001")
   def AFN_SLT  = BitPat("b010")

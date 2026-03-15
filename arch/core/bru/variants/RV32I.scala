@@ -7,7 +7,7 @@ import chisel3.util._
 
 trait RV32IBranchConsts extends Consts {
   def BR_X    = BitPat("b???")
-  val SZ_BR   = BR_X.getWidth
+  def SZ_BR   = BR_X.getWidth
   def BR_EQ   = BitPat("b000")
   def BR_NE   = BitPat("b001")
   def BR_LT   = BitPat("b010")

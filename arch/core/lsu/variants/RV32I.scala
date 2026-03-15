@@ -6,12 +6,11 @@ import chisel3._
 import chisel3.util._
 
 trait RV32ILsuConsts extends Consts {
-  def M_X  = BitPat("b????")
-  val SZ_M = M_X.getWidth
-  def M_SB = BitPat("b0000")
-  def M_SH = BitPat("b0001")
-  def M_SW = BitPat("b0010")
-
+  def M_X   = BitPat("b????")
+  def SZ_M  = M_X.getWidth
+  def M_SB  = BitPat("b0000")
+  def M_SH  = BitPat("b0001")
+  def M_SW  = BitPat("b0010")
   def M_LB  = BitPat("b1000")
   def M_LH  = BitPat("b1001")
   def M_LW  = BitPat("b1010")
