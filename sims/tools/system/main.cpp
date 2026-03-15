@@ -36,12 +36,7 @@ protected:
         }));
   };
 
-  void on_init() override {
-    imem_->read_delay(1);
-    imem_->write_delay(1);
-    dmem_->read_delay(10);
-    dmem_->write_delay(10);
-  };
+  void on_init() override {};
   void on_clock_tick() override {};
   void on_exit() override {};
   void on_reset() override {};
