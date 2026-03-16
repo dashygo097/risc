@@ -56,13 +56,6 @@ public:
   void read_delay(size_t cycles) { read_delay_ = cycles; };
   void write_delay(size_t cycles) { write_delay_ = cycles; };
 
-  [[nodiscard]] byte_t *get_ptr(addr_t offset = 0) {
-    return memory_allocator_->get_ptr(offset);
-  }
-  [[nodiscard]] const byte_t *get_ptr(addr_t offset = 0) const {
-    return memory_allocator_->get_ptr(offset);
-  };
-
   [[nodiscard]] const char *name() const noexcept override {
     return "AXILite Memory";
   }
