@@ -21,10 +21,8 @@ protected:
         0, "imem", imem_r->base(), imem_r->size());
     device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
         1, "dmem", dmem_r->base(), dmem_r->size());
-    device_manager_
-        ->register_slave<demu::hal::axi::AXILiteUart>(2, "uart", uart_r->base(),
-                                                      uart_r->size())
-        ->set_echo_stdout(true);
+    device_manager_->register_slave<demu::hal::axi::AXILiteUart>(
+        2, "uart", uart_r->base(), uart_r->size());
 
     device_manager_->register_handler(
         0, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
