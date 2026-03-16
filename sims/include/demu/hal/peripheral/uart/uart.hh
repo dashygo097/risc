@@ -42,6 +42,11 @@ public:
   UARTDevice &operator=(const UARTDevice &) = delete;
   UARTDevice(UARTDevice &&) = default;
 
+  [[nodiscard]] MemoryAllocator *memory() noexcept { return regs_.get(); }
+  [[nodiscard]] const MemoryAllocator *memory() const noexcept {
+    return regs_.get();
+  }
+
   [[nodiscard]] addr_t base_address() const noexcept override {
     return regs_->base_address();
   }

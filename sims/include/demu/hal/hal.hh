@@ -6,9 +6,6 @@
 #include "./port_handler.hh"
 
 // Peripherals
-// GPIO
-#include "./peripheral/gpio/gpio.hh"
-#include "./peripheral/gpio/port_handler.hh"
 
 // Bus
 // AXI4-Lite
