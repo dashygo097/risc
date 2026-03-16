@@ -10,7 +10,7 @@ using namespace isa;
 
 class MemoryAllocator final {
 public:
-  MemoryAllocator(size_t size, addr_t base_addr = 0x0);
+  MemoryAllocator(addr_t base_addr, size_t size);
   ~MemoryAllocator() = default;
 
   template <typename T> [[nodiscard]] T read(addr_t addr) const noexcept {

@@ -2,6 +2,7 @@ package arch
 
 package object configs {
   import proto._
+  import proto.DeviceType._
   import isa._
   import vopts.mem.cache._
   import chisel3.util.BitPat
@@ -44,8 +45,9 @@ package object configs {
   object BusAddressMap
       extends Field[Seq[DeviceDescriptor]](
         Seq(
-          DeviceDescriptor(device = "imem", `type` = "memory", base = 0x00000000L, size = 0x1000L),
-          DeviceDescriptor(device = "dmem", `type` = "memory", base = 0x80000000L, size = 0x4000L),
+          DeviceDescriptor(device = "imem", `type` = DEVICE_TYPE_MEMORY, base = 0x00000000L, size = 0x1000L),
+          DeviceDescriptor(device = "dmem", `type` = DEVICE_TYPE_MEMORY, base = 0x80000000L, size = 0x4000L),
+          DeviceDescriptor(device = "uart", `type` = DEVICE_TYPE_UART, base = 0x10000000L, size = 0x100L),
         )
       )
   // --------------------------------------------

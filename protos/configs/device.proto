@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package risc;
+
+option java_package = "arch.configs.proto";
+option java_outer_classname = "DeviceProto";
+
+enum DeviceType {
+  DEVICE_TYPE_UNSPECIFIED = 0;
+  DEVICE_TYPE_MEMORY = 1;
+  DEVICE_TYPE_UART = 2;
+}
+
+message DeviceDescriptor {
+  string device = 1;
+  DeviceType type = 2;
+  uint64 base = 3;
+  uint64 size = 4;
+}

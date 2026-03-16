@@ -6,7 +6,7 @@
 
 namespace demu::hal {
 
-MemoryAllocator::MemoryAllocator(size_t size, addr_t base_addr)
+MemoryAllocator::MemoryAllocator(addr_t base_addr, size_t size)
     : memory_(size, 0), base_addr_(base_addr) {
   HAL_INFO("MemoryAllocator initialized: Size={} bytes, BaseAddr=0x{:08x}",
            size, base_addr);

@@ -11,8 +11,8 @@ namespace demu::hal::axi {
 
 class AXILiteMemory final : public AXILiteSlave {
 public:
-  explicit AXILiteMemory(size_t size, addr_t base_addr = 0x0,
-                         size_t read_delay = 1, size_t write_delay = 1);
+  explicit AXILiteMemory(addr_t base_addr, size_t size, size_t read_delay = 1,
+                         size_t write_delay = 1);
 
   ~AXILiteMemory() override = default;
 

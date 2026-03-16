@@ -14,13 +14,13 @@ CPUSimulator::CPUSimulator(bool enable_trace) : trace_enabled_(enable_trace) {
   config_->dump();
   config_->validate();
 
-  const auto *imem_r = config_->imem();
-  const auto *dmem_r = config_->dmem();
+  const auto *imem_r = config_->find_region("imem");
+  const auto *dmem_r = config_->find_region("dmem");
 
   imem_ =
-      std::make_unique<hal::MemoryAllocator>(imem_r->size(), imem_r->base());
+      std::make_unique<hal::MemoryAllocator>(imem_r->base(), imem_r->size());
   dmem_ =
-      std::make_unique<hal::MemoryAllocator>(dmem_r->size(), dmem_r->base());
+      std::make_unique<hal::MemoryAllocator>(dmem_r->base(), dmem_r->size());
 
   l1_icache_line_size_ = config_->l1i_line_words();
   l1_dcache_line_size_ = config_->l1d_line_words();

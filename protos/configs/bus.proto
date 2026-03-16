@@ -2,15 +2,10 @@ syntax = "proto3";
 
 package risc;
 
+import "configs/device.proto";
+
 option java_package = "arch.configs.proto";
 option java_outer_classname = "BusConfigProto";
-
-message DeviceDescriptor {
-  string device = 1;
-  string type = 2;
-  uint64 base = 3;
-  uint64 size = 4;
-}
 
 enum BusType {
   BUS_TYPE_UNKNOWN = 0;

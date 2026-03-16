@@ -39,13 +39,6 @@ public:
     return proto_.bus();
   }
 
-  [[nodiscard]] const risc::DeviceDescriptor *imem() const noexcept {
-    return find_region("imem");
-  }
-  [[nodiscard]] const risc::DeviceDescriptor *dmem() const noexcept {
-    return find_region("dmem");
-  }
-
   [[nodiscard]] bool is_valid() const noexcept { return valid_; }
 
   [[nodiscard]] uint32_t
@@ -59,11 +52,11 @@ public:
 
   bool validate() const {
     bool ok = true;
-    if (!imem()) {
+    if (!find_region("imem")) {
       DEMU_ERROR("RiscConfig: imem not found");
       ok = false;
     }
-    if (!dmem()) {
+    if (!find_region("dmem")) {
       DEMU_ERROR("RiscConfig: dmem not found");
       ok = false;
     }
@@ -87,6 +80,14 @@ public:
       DEMU_INFO("    {:6s} base=0x{:08x} size=0x{:x}", r.device(), r.base(),
                 r.size());
     DEMU_INFO("==================");
+  }
+
+  [[nodiscard]] const risc::DeviceDescriptor *
+  find_region(const std::string &dev) const noexcept {
+    for (const auto &r : proto_.bus().address_map())
+      if (r.device() == dev)
+        return &r;
+    return nullptr;
   }
 
 private:
@@ -129,14 +130,6 @@ private:
 
     valid_ = true;
     DEMU_INFO("Config loaded: {}", path);
-  }
-
-  [[nodiscard]] const risc::DeviceDescriptor *
-  find_region(const std::string &dev) const noexcept {
-    for (const auto &r : proto_.bus().address_map())
-      if (r.device() == dev)
-        return &r;
-    return nullptr;
   }
 };
 
