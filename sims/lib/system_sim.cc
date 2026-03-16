@@ -41,7 +41,8 @@ void SystemSimulator::init() {
 }
 
 bool SystemSimulator::load_bin(const std::string &filename, addr_t base_addr) {
-  if (imem_->load_binary(filename, base_addr)) {
+  if (device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("imem")
+          ->load_binary(filename, base_addr)) {
     return true;
   }
   DEMU_ERROR("System failed to load binary: {}", filename);

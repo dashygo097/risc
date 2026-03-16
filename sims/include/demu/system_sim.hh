@@ -43,8 +43,6 @@ public:
   [[nodiscard]] hal::DeviceManager &deviceManager() noexcept {
     return *device_manager_;
   }
-  [[nodiscard]] hal::axi::AXILiteMemory &dmem() noexcept { return *dmem_; }
-  [[nodiscard]] hal::axi::AXILiteMemory &imem() noexcept { return *imem_; }
 
 protected:
   // DUT
@@ -57,8 +55,6 @@ protected:
 
   // Devices
   std::unique_ptr<hal::DeviceManager> device_manager_;
-  hal::axi::AXILiteMemory *dmem_;
-  hal::axi::AXILiteMemory *imem_;
 
   // Simulator state
   uint64_t _time_count{0};
@@ -74,10 +70,14 @@ protected:
   virtual void register_devices() {};
   virtual void on_clock_tick() {};
   virtual void on_init() {
-    imem_->read_delay(1);
-    imem_->write_delay(1);
-    dmem_->read_delay(1);
-    dmem_->write_delay(1);
+    device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("imem")
+        ->read_delay(1);
+    device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("imem")
+        ->write_delay(1);
+    device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("dmem")
+        ->read_delay(1);
+    device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("dmem")
+        ->write_delay(1);
   };
   virtual void on_exit() {};
   virtual void on_reset() {};

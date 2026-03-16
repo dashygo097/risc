@@ -2,7 +2,6 @@
 
 #include "../../allocator.hh"
 #include "../../hardware.hh"
-
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -13,7 +12,7 @@ namespace demu::hal::uart {
 using namespace isa;
 
 // Register map
-inline constexpr size_t UART_ADDR_RANGE = 0x10u; // 16 bytes total
+inline constexpr size_t UART_ADDR_RANGE = 0x10u; //< 16 bytes total
 inline constexpr addr_t UART_REG_DATA = 0x00u;   //< TX write / RX read
 inline constexpr addr_t UART_REG_STATUS = 0x04u; //< Read-only status flags
 inline constexpr addr_t UART_REG_CTRL = 0x08u;   //< Control / IRQ-enable
@@ -41,11 +40,6 @@ public:
   UARTDevice(const UARTDevice &) = delete;
   UARTDevice &operator=(const UARTDevice &) = delete;
   UARTDevice(UARTDevice &&) = default;
-
-  [[nodiscard]] MemoryAllocator *memory() noexcept { return regs_.get(); }
-  [[nodiscard]] const MemoryAllocator *memory() const noexcept {
-    return regs_.get();
-  }
 
   [[nodiscard]] addr_t base_address() const noexcept override {
     return regs_->base_address();

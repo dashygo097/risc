@@ -16,9 +16,9 @@ protected:
     const auto *imem_r = config_->find_region("imem");
     const auto *dmem_r = config_->find_region("dmem");
 
-    imem_ = device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
+    device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
         0, "imem", imem_r->base(), imem_r->size());
-    dmem_ = device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
+    device_manager_->register_slave<demu::hal::axi::AXILiteMemory>(
         1, "dmem", dmem_r->base(), dmem_r->size());
 
     device_manager_->register_handler(
