@@ -28,22 +28,22 @@ namespace demu::hal::axi {
 using namespace isa;
 
 struct AXILiteSignals {
-  uint32_t *awaddr;
+  addr_t *awaddr;
   uint8_t *awprot;
   uint8_t *awvalid;
   uint8_t *awready;
-  uint32_t *wdata;
+  word_t *wdata;
   uint8_t *wstrb;
   uint8_t *wvalid;
   uint8_t *wready;
   uint8_t *bresp;
   uint8_t *bvalid;
   uint8_t *bready;
-  uint32_t *araddr;
+  addr_t *araddr;
   uint8_t *arprot;
   uint8_t *arvalid;
   uint8_t *arready;
-  uint32_t *rdata;
+  addr_t *rdata;
   uint8_t *rresp;
   uint8_t *rvalid;
   uint8_t *rready;
