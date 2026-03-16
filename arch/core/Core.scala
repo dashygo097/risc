@@ -10,6 +10,7 @@ import lsu._
 import csr._
 import bpu._
 import pipeline._
+import forwarding._
 import arch.configs._
 import vopts.mem.cache._
 import chisel3._
@@ -48,10 +49,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     new PipelineStage(
       "if_id",
       Seq(
-        ("instr", p(ILen), p(Bubble).value.toLong),
-        ("pc", p(XLen), 0L),
-        ("bpu_pred_taken", 1, 0L),
-        ("bpu_pred_target", p(XLen), 0L),
+        PipelineField("instr", p(ILen), p(Bubble).value.toLong),
+        PipelineField("pc", p(XLen)),
+        PipelineField("bpu_pred_taken", 1),
+        PipelineField("bpu_pred_target", p(XLen)),
       )
     )
   )
@@ -60,28 +61,28 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     new PipelineStage(
       "id_ex",
       Seq(
-        ("instr", p(ILen), p(Bubble).value.toLong),
-        ("pc", p(XLen), 0L),
-        ("rd", log2Ceil(p(NumArchRegs)), 0L),
-        ("rs1", log2Ceil(p(NumArchRegs)), 0L),
-        ("rs1_data", p(XLen), 0L),
-        ("rs2", log2Ceil(p(NumArchRegs)), 0L),
-        ("rs2_data", p(XLen), 0L),
-        ("imm", p(XLen), 0L),
-        ("csr_addr", csr_utils.addrWidth, 0L),
-        ("csr_imm", p(XLen), 0L),
-        ("regwrite", 1, 0L),
-        ("branch", 1, 0L),
-        ("br_type", bru_utils.branchTypeWidth, 0L),
-        ("alu", 1, 0L),
-        ("alu_sel1", alu_utils.sel1Width, 0L),
-        ("alu_sel2", alu_utils.sel2Width, 0L),
-        ("alu_fn", alu_utils.fnTypeWidth, 0L),
-        ("alu_mode", 1, 0L),
-        ("lsu", 1, 0L),
-        ("lsu_cmd", lsu_utils.cmdWidth, 0L),
-        ("csr", 1, 0L),
-        ("csr_cmd", csr_utils.cmdWidth, 0L),
+        PipelineField("instr", p(ILen), p(Bubble).value.toLong),
+        PipelineField("pc", p(XLen)),
+        PipelineField("rd", log2Ceil(p(NumArchRegs))),
+        PipelineField("rs1", log2Ceil(p(NumArchRegs))),
+        PipelineField("rs1_data", p(XLen)),
+        PipelineField("rs2", log2Ceil(p(NumArchRegs))),
+        PipelineField("rs2_data", p(XLen)),
+        PipelineField("imm", p(XLen)),
+        PipelineField("csr_addr", csr_utils.addrWidth),
+        PipelineField("csr_imm", p(XLen)),
+        PipelineField("regwrite", 1),
+        PipelineField("branch", 1),
+        PipelineField("br_type", bru_utils.branchTypeWidth),
+        PipelineField("alu", 1),
+        PipelineField("alu_sel1", alu_utils.sel1Width),
+        PipelineField("alu_sel2", alu_utils.sel2Width),
+        PipelineField("alu_fn", alu_utils.fnTypeWidth),
+        PipelineField("alu_mode", 1),
+        PipelineField("lsu", 1),
+        PipelineField("lsu_cmd", lsu_utils.cmdWidth),
+        PipelineField("csr", 1),
+        PipelineField("csr_cmd", csr_utils.cmdWidth),
       )
     )
   )
@@ -90,16 +91,16 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     new PipelineStage(
       "ex_mem",
       Seq(
-        ("instr", p(ILen), p(Bubble).value.toLong),
-        ("pc", p(XLen), 0L),
-        ("rd", log2Ceil(p(NumArchRegs)), 0L),
-        ("alu_result", p(XLen), 0L),
-        ("rs2_data", p(XLen), 0L),
-        ("regwrite", 1, 0L),
-        ("lsu", 1, 0L),
-        ("lsu_cmd", lsu_utils.cmdWidth, 0L),
-        ("csr", 1, 0L),
-        ("csr_rdata", p(XLen), 0L),
+        PipelineField("instr", p(ILen), p(Bubble).value.toLong),
+        PipelineField("pc", p(XLen)),
+        PipelineField("rd", log2Ceil(p(NumArchRegs))),
+        PipelineField("alu_result", p(XLen)),
+        PipelineField("rs2_data", p(XLen)),
+        PipelineField("regwrite", 1),
+        PipelineField("lsu", 1),
+        PipelineField("lsu_cmd", lsu_utils.cmdWidth),
+        PipelineField("csr", 1),
+        PipelineField("csr_rdata", p(XLen)),
       )
     )
   )
@@ -108,11 +109,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     new PipelineStage(
       "mem_wb",
       Seq(
-        ("instr", p(ILen), p(Bubble).value.toLong),
-        ("pc", p(XLen), 0L),
-        ("rd", log2Ceil(p(NumArchRegs)), 0L),
-        ("regwrite", 1, 0L),
-        ("wb_data", p(XLen), 0L),
+        PipelineField("instr", p(ILen), p(Bubble).value.toLong),
+        PipelineField("pc", p(XLen), 0L),
+        PipelineField("rd", log2Ceil(p(NumArchRegs)), 0L),
+        PipelineField("regwrite", 1, 0L),
+        PipelineField("wb_data", p(XLen), 0L),
       )
     )
   )
@@ -133,43 +134,43 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ifu.bpu_taken_in  := bpu.taken
   ifu.bpu_target_in := bpu.target
 
-  val bpu_correct_taken = if_id.sout("bpu_pred_taken").asBool &&
-    (bru.target === if_id.sout("bpu_pred_target"))
+  val bpu_correct_taken = if_id("bpu_pred_taken").asBool &&
+    (bru.target === if_id("bpu_pred_target"))
 
   val bru_mispredict_taken     = bru.taken && !bpu_correct_taken
-  val bru_mispredict_not_taken = bru.en && !bru.taken && if_id.sout("bpu_pred_taken").asBool
+  val bru_mispredict_not_taken = bru.en && !bru.taken && if_id("bpu_pred_taken").asBool
 
   ifu.bru_taken       := bru_mispredict_taken
   ifu.bru_target      := bru.target
   ifu.bru_not_taken   := bru_mispredict_not_taken
-  ifu.bru_branch_pc   := if_id.sout("pc")
+  ifu.bru_branch_pc   := if_id("pc")
   ifu.id_ex_stall     := id_ex.stall
   ifu.load_use_hazard := load_use_hazard
   ifu.lsu_busy        := lsu.busy
 
   bpu.update.valid  := bru.en
-  bpu.update.pc     := if_id.sout("pc")
+  bpu.update.pc     := if_id("pc")
   bpu.update.target := bru.target
   bpu.update.taken  := bru.taken
 
   // IF/ID Pipeline
-  if_id.stall                  := ifu.if_id_stall
-  if_id.flush                  := ifu.if_id_flush
-  if_id.sin("instr")           := ifu.if_instr
-  if_id.sin("pc")              := ifu.if_pc
-  if_id.sin("bpu_pred_taken")  := ifu.if_bpu_pred_taken
-  if_id.sin("bpu_pred_target") := ifu.if_bpu_pred_target
+  if_id.stall := ifu.if_id_stall
+  if_id.flush := ifu.if_id_flush
+  if_id.drive("instr", ifu.if_instr)
+  if_id.drive("pc", ifu.if_pc)
+  if_id.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
+  if_id.drive("bpu_pred_target", ifu.if_bpu_pred_target)
 
   // ID Stage
-  decoder.instr := if_id.sout("instr")
+  decoder.instr := if_id("instr")
 
-  imm_gen.instr   := if_id.sout("instr")
+  imm_gen.instr   := if_id("instr")
   imm_gen.immType := decoder.decoded.imm_type
 
-  val rs1      = regfile_utils.getRs1(if_id.sout("instr"))
-  val rs2      = regfile_utils.getRs2(if_id.sout("instr"))
-  val rd       = regfile_utils.getRd(if_id.sout("instr"))
-  val csr_addr = csr_utils.getAddr(if_id.sout("instr"))
+  val rs1      = regfile_utils.getRs1(if_id("instr"))
+  val rs2      = regfile_utils.getRs2(if_id("instr"))
+  val rd       = regfile_utils.getRd(if_id("instr"))
+  val csr_addr = csr_utils.getAddr(if_id("instr"))
 
   regfile.rs1_preg := rs1
   regfile.rs2_preg := rs2
@@ -177,19 +178,19 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // ID Forwarding
   id_fwd.id_rs1       := rs1
   id_fwd.id_rs2       := rs2
-  id_fwd.ex_rd        := id_ex.sout("rd")
-  id_fwd.ex_regwrite  := id_ex.sout("regwrite").asBool
-  id_fwd.mem_rd       := ex_mem.sout("rd")
-  id_fwd.mem_regwrite := ex_mem.sout("regwrite").asBool
-  id_fwd.wb_rd        := mem_wb.sout("rd")
-  id_fwd.wb_regwrite  := mem_wb.sout("regwrite").asBool
+  id_fwd.ex_rd        := id_ex("rd")
+  id_fwd.ex_regwrite  := id_ex("regwrite").asBool
+  id_fwd.mem_rd       := ex_mem("rd")
+  id_fwd.mem_regwrite := ex_mem("regwrite").asBool
+  id_fwd.wb_rd        := mem_wb("rd")
+  id_fwd.wb_regwrite  := mem_wb("regwrite").asBool
 
   val id_rs1_data = MuxLookup(id_fwd.forward_rs1, 0.U(p(XLen).W))(
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs1_data,
       FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
-      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem.sout("alu_result")),
-      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.sout("wb_data")
+      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem("alu_result")),
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb("wb_data")
     )
   )
 
@@ -197,125 +198,125 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     Seq(
       FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs2_data,
       FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
-      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem.sout("alu_result")),
-      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.sout("wb_data")
+      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem("alu_result")),
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb("wb_data")
     )
   )
 
   // BRU
   bru.en     := decoder.decoded.branch && !load_use_hazard
-  bru.pc     := if_id.sout("pc")
+  bru.pc     := if_id("pc")
   bru.src1   := id_rs1_data
   bru.src2   := id_rs2_data
   bru.imm    := imm_gen.imm
   bru.brType := decoder.decoded.br_type
 
   // Load-Use Hazard
-  load_use_hazard := lsu_utils.isMemRead(id_ex.sout("lsu").asBool, id_ex.sout("lsu_cmd")) &&
-    ((id_ex.sout("rd") === rs1) || (id_ex.sout("rd") === rs2)) &&
-    id_ex.sout("rd") =/= 0.U
+  load_use_hazard := lsu_utils.isMemRead(id_ex("lsu").asBool, id_ex("lsu_cmd")) &&
+    ((id_ex("rd") === rs1) || (id_ex("rd") === rs2)) &&
+    id_ex("rd") =/= 0.U
 
   // ID/EX Pipeline
-  id_ex.stall           := ex_mem.stall
-  id_ex.flush           := (load_use_hazard ||
+  id_ex.stall := ex_mem.stall
+  id_ex.flush := (load_use_hazard ||
     ((bru_mispredict_taken || bru_mispredict_not_taken) && !bru.jump)) &&
     !lsu.busy
-  id_ex.sin("instr")    := if_id.sout("instr")
-  id_ex.sin("pc")       := if_id.sout("pc")
-  id_ex.sin("rd")       := rd
-  id_ex.sin("rs1")      := rs1
-  id_ex.sin("rs1_data") := id_rs1_data
-  id_ex.sin("rs2")      := rs2
-  id_ex.sin("rs2_data") := id_rs2_data
-  id_ex.sin("imm")      := imm_gen.imm
-  id_ex.sin("csr_addr") := csr_addr
-  id_ex.sin("csr_imm")  := imm_gen.csr_imm
-  id_ex.sin("regwrite") := decoder.decoded.regwrite
-  id_ex.sin("branch")   := decoder.decoded.branch
-  id_ex.sin("br_type")  := decoder.decoded.br_type
-  id_ex.sin("alu")      := decoder.decoded.alu
-  id_ex.sin("alu_sel1") := decoder.decoded.alu_sel1
-  id_ex.sin("alu_sel2") := decoder.decoded.alu_sel2
-  id_ex.sin("alu_fn")   := decoder.decoded.alu_fn
-  id_ex.sin("alu_mode") := decoder.decoded.alu_mode
-  id_ex.sin("lsu")      := decoder.decoded.lsu
-  id_ex.sin("lsu_cmd")  := decoder.decoded.lsu_cmd
-  id_ex.sin("csr")      := decoder.decoded.csr
-  id_ex.sin("csr_cmd")  := decoder.decoded.csr_cmd
+  id_ex.drive("instr", if_id("instr"))
+  id_ex.drive("pc", if_id("pc"))
+  id_ex.drive("rd", rd)
+  id_ex.drive("rs1", rs1)
+  id_ex.drive("rs1_data", id_rs1_data)
+  id_ex.drive("rs2", rs2)
+  id_ex.drive("rs2_data", id_rs2_data)
+  id_ex.drive("imm", imm_gen.imm)
+  id_ex.drive("csr_addr", csr_addr)
+  id_ex.drive("csr_imm", imm_gen.csr_imm)
+  id_ex.drive("regwrite", decoder.decoded.regwrite)
+  id_ex.drive("branch", decoder.decoded.branch)
+  id_ex.drive("br_type", decoder.decoded.br_type)
+  id_ex.drive("alu", decoder.decoded.alu)
+  id_ex.drive("alu_sel1", decoder.decoded.alu_sel1)
+  id_ex.drive("alu_sel2", decoder.decoded.alu_sel2)
+  id_ex.drive("alu_fn", decoder.decoded.alu_fn)
+  id_ex.drive("alu_mode", decoder.decoded.alu_mode)
+  id_ex.drive("lsu", decoder.decoded.lsu)
+  id_ex.drive("lsu_cmd", decoder.decoded.lsu_cmd)
+  id_ex.drive("csr", decoder.decoded.csr)
+  id_ex.drive("csr_cmd", decoder.decoded.csr_cmd)
 
   // EX Stage
-  ex_fwd.ex_rs1       := id_ex.sout("rs1")
-  ex_fwd.ex_rs2       := id_ex.sout("rs2")
-  ex_fwd.mem_rd       := ex_mem.sout("rd")
-  ex_fwd.mem_regwrite := ex_mem.sout("regwrite").asBool
-  ex_fwd.wb_rd        := mem_wb.sout("rd")
-  ex_fwd.wb_regwrite  := mem_wb.sout("regwrite").asBool
+  ex_fwd.ex_rs1       := id_ex("rs1")
+  ex_fwd.ex_rs2       := id_ex("rs2")
+  ex_fwd.mem_rd       := ex_mem("rd")
+  ex_fwd.mem_regwrite := ex_mem("regwrite").asBool
+  ex_fwd.wb_rd        := mem_wb("rd")
+  ex_fwd.wb_regwrite  := mem_wb("regwrite").asBool
 
   val ex_rs1_data = MuxLookup(ex_fwd.forward_rs1, 0.U(p(XLen).W))(
     Seq(
-      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.sout("rs1_data"),
-      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem.sout("alu_result")),
-      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.sout("wb_data")
+      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex("rs1_data"),
+      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem("alu_result")),
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb("wb_data")
     )
   )
 
   val ex_rs2_data = MuxLookup(ex_fwd.forward_rs2, 0.U(p(XLen).W))(
     Seq(
-      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex.sout("rs2_data"),
-      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem.sout("alu_result")),
-      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb.sout("wb_data")
+      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex("rs2_data"),
+      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem("alu_result")),
+      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb("wb_data")
     )
   )
 
   // ALU
-  val alu_rs1_data = MuxLookup(id_ex.sout("alu_sel1"), 0.U(p(XLen).W))(
+  val alu_rs1_data = MuxLookup(id_ex("alu_sel1"), 0.U(p(XLen).W))(
     Seq(
       A1_ZERO.value.U(SZ_A1.W) -> 0.U(p(XLen).W),
       A1_RS1.value.U(SZ_A1.W)  -> ex_rs1_data,
-      A1_PC.value.U(SZ_A1.W)   -> id_ex.sout("pc")
+      A1_PC.value.U(SZ_A1.W)   -> id_ex("pc")
     )
   )
 
-  val alu_rs2_data = MuxLookup(id_ex.sout("alu_sel2"), 0.U(p(XLen).W))(
+  val alu_rs2_data = MuxLookup(id_ex("alu_sel2"), 0.U(p(XLen).W))(
     Seq(
       A2_ZERO.value.U(SZ_A2.W)   -> 0.U(p(XLen).W),
       A2_RS2.value.U(SZ_A2.W)    -> ex_rs2_data,
-      A2_IMM.value.U(SZ_A2.W)    -> id_ex.sout("imm"),
+      A2_IMM.value.U(SZ_A2.W)    -> id_ex("imm"),
       A2_PCSTEP.value.U(SZ_A2.W) -> p(IAlign).U(p(XLen).W)
     )
   )
 
-  alu.en     := id_ex.sout("alu").asBool
+  alu.en     := id_ex("alu").asBool
   alu.src1   := alu_rs1_data
   alu.src2   := alu_rs2_data
-  alu.fnType := id_ex.sout("alu_fn")
-  alu.mode   := id_ex.sout("alu_mode")
+  alu.fnType := id_ex("alu_fn")
+  alu.mode   := id_ex("alu_mode")
 
-  csrfile.en   := id_ex.sout("csr").asBool
-  csrfile.cmd  := id_ex.sout("csr_cmd")
-  csrfile.addr := id_ex.sout("csr_addr")
+  csrfile.en   := id_ex("csr").asBool
+  csrfile.cmd  := id_ex("csr_cmd")
+  csrfile.addr := id_ex("csr_addr")
   csrfile.src  := ex_rs1_data
-  csrfile.imm  := id_ex.sout("csr_imm")
+  csrfile.imm  := id_ex("csr_imm")
 
   // EX/MEM Pipeline
-  ex_mem.stall             := mem_wb.stall || lsu.busy
-  ex_mem.flush             := false.B
-  ex_mem.sin("instr")      := id_ex.sout("instr")
-  ex_mem.sin("pc")         := id_ex.sout("pc")
-  ex_mem.sin("rd")         := id_ex.sout("rd")
-  ex_mem.sin("alu_result") := alu.result
-  ex_mem.sin("rs2_data")   := ex_rs2_data
-  ex_mem.sin("regwrite")   := id_ex.sout("regwrite")
-  ex_mem.sin("lsu")        := id_ex.sout("lsu")
-  ex_mem.sin("lsu_cmd")    := id_ex.sout("lsu_cmd")
-  ex_mem.sin("csr")        := id_ex.sout("csr")
-  ex_mem.sin("csr_rdata")  := csrfile.rd
+  ex_mem.stall := mem_wb.stall || lsu.busy
+  ex_mem.flush := false.B
+  ex_mem.drive("instr", id_ex("instr"))
+  ex_mem.drive("pc", id_ex("pc"))
+  ex_mem.drive("rd", id_ex("rd"))
+  ex_mem.drive("alu_result", alu.result)
+  ex_mem.drive("rs2_data", ex_rs2_data)
+  ex_mem.drive("regwrite", id_ex("regwrite"))
+  ex_mem.drive("lsu", id_ex("lsu"))
+  ex_mem.drive("lsu_cmd", id_ex("lsu_cmd"))
+  ex_mem.drive("csr", id_ex("csr"))
+  ex_mem.drive("csr_rdata", csrfile.rd)
 
   // MEM Stage
-  lsu.en    := ex_mem.sout("lsu").asBool
-  lsu.cmd   := ex_mem.sout("lsu_cmd")
-  lsu.addr  := ex_mem.sout("alu_result")
-  lsu.wdata := ex_mem.sout("rs2_data")
+  lsu.en    := ex_mem("lsu").asBool
+  lsu.cmd   := ex_mem("lsu_cmd")
+  lsu.addr  := ex_mem("alu_result")
+  lsu.wdata := ex_mem("rs2_data")
 
   l1_dcache.upper <> lsu.mem
   dmem <> l1_dcache.lower
@@ -326,31 +327,31 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   }
 
   val mem_wb_data = MuxCase(
-    ex_mem.sout("alu_result"),
+    ex_mem("alu_result"),
     Seq(
-      lsu.mem_read              -> lsu.rdata,
-      ex_mem.sout("csr").asBool -> ex_mem.sout("csr_rdata")
+      lsu.mem_read         -> lsu.rdata,
+      ex_mem("csr").asBool -> ex_mem("csr_rdata")
     )
   )
 
   // MEM/WB Pipeline
-  mem_wb.stall           := false.B
-  mem_wb.flush           := lsu.busy
-  mem_wb.sin("instr")    := ex_mem.sout("instr")
-  mem_wb.sin("pc")       := ex_mem.sout("pc")
-  mem_wb.sin("rd")       := ex_mem.sout("rd")
-  mem_wb.sin("regwrite") := ex_mem.sout("regwrite")
-  mem_wb.sin("wb_data")  := mem_wb_data
+  mem_wb.stall := false.B
+  mem_wb.flush := lsu.busy
+  mem_wb.drive("instr", ex_mem("instr"))
+  mem_wb.drive("pc", ex_mem("pc"))
+  mem_wb.drive("rd", ex_mem("rd"))
+  mem_wb.drive("regwrite", ex_mem("regwrite"))
+  mem_wb.drive("wb_data", mem_wb_data)
 
   // WB Stage
-  regfile.write_preg := mem_wb.sout("rd")
-  regfile.write_data := mem_wb.sout("wb_data")
-  regfile.write_en   := mem_wb.sout("regwrite").asBool
+  regfile.write_preg := mem_wb("rd")
+  regfile.write_data := mem_wb("wb_data")
+  regfile.write_en   := mem_wb("regwrite").asBool
 
   // Extra Information
   cycle_count   := cycle_count + 1.U
   instret_count := instret_count + Mux(
-    mem_wb.sout("instr") =/= p(Bubble).value.U(p(ILen).W),
+    mem_wb("instr") =/= p(Bubble).value.U(p(ILen).W),
     1.U,
     0.U
   )
@@ -385,11 +386,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
     debug_cycle_count   := cycle_count
     debug_instret_count := instret_count
-    debug_pc            := mem_wb.sout("pc")
-    debug_instr         := mem_wb.sout("instr")
-    debug_reg_addr      := mem_wb.sout("rd")
-    debug_reg_we        := mem_wb.sout("regwrite").asBool
-    debug_reg_data      := mem_wb.sout("wb_data")
+    debug_pc            := mem_wb("pc")
+    debug_instr         := mem_wb("instr")
+    debug_reg_addr      := mem_wb("rd")
+    debug_reg_we        := mem_wb("regwrite").asBool
+    debug_reg_data      := mem_wb("wb_data")
 
     // Branch Debugging
     debug_branch_taken  := bru.taken
@@ -398,10 +399,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
     // Pipelines Debugging
     debug_if_instr  := Mux(ifu.ibuffer_deq_fire && !ifu.reset_ibuffer, ifu.if_instr, p(Bubble).value.U(p(ILen).W))
-    debug_id_instr  := if_id.sout("instr")
-    debug_ex_instr  := id_ex.sout("instr")
-    debug_mem_instr := ex_mem.sout("instr")
-    debug_wb_instr  := mem_wb.sout("instr")
+    debug_id_instr  := if_id("instr")
+    debug_ex_instr  := id_ex("instr")
+    debug_mem_instr := ex_mem("instr")
+    debug_wb_instr  := mem_wb("instr")
 
     // Cache Debugging
     debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
