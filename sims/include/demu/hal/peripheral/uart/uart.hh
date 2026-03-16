@@ -24,16 +24,16 @@ inline constexpr uint32_t UART_STATUS_RX_READY =
 inline constexpr uint32_t UART_STATUS_TX_READY = (1u << 1); //< TX FIFO not full
 inline constexpr uint32_t UART_STATUS_TX_EMPTY = (1u << 2); //< TX FIFO empty
 
-class UartDevice : public Hardware {
+class Uart : public Hardware {
 public:
-  explicit UartDevice(addr_t base_addr, size_t size, size_t tx_fifo_depth = 16,
-                      size_t rx_fifo_depth = 16);
+  explicit Uart(addr_t base_addr, size_t size, size_t tx_fifo_depth = 16,
+                size_t rx_fifo_depth = 16);
 
-  ~UartDevice() override = default;
+  ~Uart() override = default;
 
-  UartDevice(const UartDevice &) = delete;
-  UartDevice &operator=(const UartDevice &) = delete;
-  UartDevice(UartDevice &&) = default;
+  Uart(const Uart &) = delete;
+  Uart &operator=(const Uart &) = delete;
+  Uart(Uart &&) = default;
 
   [[nodiscard]] addr_t base_address() const noexcept override {
     return regs_->base_address();

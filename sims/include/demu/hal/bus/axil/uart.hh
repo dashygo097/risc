@@ -76,7 +76,7 @@ public:
 
 private:
   // components
-  std::unique_ptr<uart::UartDevice> uart_;
+  std::unique_ptr<uart::Uart> uart_;
 
   size_t read_delay_;
   size_t write_delay_;

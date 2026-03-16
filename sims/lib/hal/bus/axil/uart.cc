@@ -6,8 +6,8 @@ namespace demu::hal::axi {
 AXILiteUart::AXILiteUart(addr_t base_addr, size_t size, size_t tx_fifo_depth,
                          size_t rx_fifo_depth, size_t read_delay,
                          size_t write_delay)
-    : uart_(std::make_unique<uart::UartDevice>(base_addr, size, tx_fifo_depth,
-                                               rx_fifo_depth)),
+    : uart_(std::make_unique<uart::Uart>(base_addr, size, tx_fifo_depth,
+                                         rx_fifo_depth)),
       read_delay_(read_delay), write_delay_(write_delay) {}
 
 void AXILiteUart::reset() {

@@ -5,15 +5,15 @@
 
 namespace demu::hal::uart {
 
-UartDevice::UartDevice(addr_t base_addr, size_t size, size_t tx_fifo_depth,
-                       size_t rx_fifo_depth)
+Uart::Uart(addr_t base_addr, size_t size, size_t tx_fifo_depth,
+           size_t rx_fifo_depth)
     : regs_(std::make_unique<MemoryAllocator>(base_addr, size)),
       tx_fifo_depth_(tx_fifo_depth), rx_fifo_depth_(rx_fifo_depth) {
   regs_->clear();
   sync_status();
 }
 
-void UartDevice::reset() {
+void Uart::reset() {
   regs_->clear();
   tx_fifo_ = {};
   rx_fifo_ = {};
@@ -21,12 +21,12 @@ void UartDevice::reset() {
   HAL_DEBUG("UART @ 0x{:08X} reset.", static_cast<uint64_t>(base_address()));
 }
 
-void UartDevice::clock_tick() {
+void Uart::clock_tick() {
   drain_tx();
   sync_status();
 }
 
-word_t UartDevice::read_reg(addr_t offset) noexcept {
+word_t Uart::read_reg(addr_t offset) noexcept {
   switch (offset) {
   case UART_REG_DATA: {
     if (rx_fifo_.empty()) {
@@ -55,7 +55,7 @@ word_t UartDevice::read_reg(addr_t offset) noexcept {
   }
 }
 
-void UartDevice::write_reg(addr_t offset, word_t data, byte_t strb) noexcept {
+void Uart::write_reg(addr_t offset, word_t data, byte_t strb) noexcept {
   switch (offset) {
   case UART_REG_DATA: {
     if (!(strb & 0x1u))
@@ -89,7 +89,7 @@ void UartDevice::write_reg(addr_t offset, word_t data, byte_t strb) noexcept {
   }
 }
 
-bool UartDevice::rx_push(uint8_t byte) {
+bool Uart::rx_push(uint8_t byte) {
   if (rx_fifo_.size() >= rx_fifo_depth_) {
     HAL_WARN("UART RX FIFO overflow – byte 0x{:02X} dropped.", byte);
     return false;
@@ -99,8 +99,8 @@ bool UartDevice::rx_push(uint8_t byte) {
   return true;
 }
 
-void UartDevice::dump() const noexcept {
-  HAL_INFO("UartDevice @ 0x{:08X}:", static_cast<uint64_t>(base_address()));
+void Uart::dump() const noexcept {
+  HAL_INFO("Uart @ 0x{:08X}:", static_cast<uint64_t>(base_address()));
   HAL_INFO("  STATUS : 0x{:08X}", reg_read(UART_REG_STATUS));
   HAL_INFO("  CTRL   : 0x{:08X}", reg_read(UART_REG_CTRL));
   HAL_INFO("  BAUD   : 0x{:08X}", reg_read(UART_REG_BAUD));
@@ -110,7 +110,7 @@ void UartDevice::dump() const noexcept {
   regs_->dump(base_address(), UART_ADDR_RANGE);
 }
 
-uint32_t UartDevice::reg_read(addr_t offset) const noexcept {
+uint32_t Uart::reg_read(addr_t offset) const noexcept {
   const addr_t abs = base_address() + offset;
   uint32_t val = 0;
   for (int i = 0; i < 4; ++i) {
@@ -119,7 +119,7 @@ uint32_t UartDevice::reg_read(addr_t offset) const noexcept {
   return val;
 }
 
-void UartDevice::reg_write(addr_t offset, uint32_t val, byte_t strb) noexcept {
+void Uart::reg_write(addr_t offset, uint32_t val, byte_t strb) noexcept {
   const addr_t abs = base_address() + offset;
   for (int i = 0; i < 4; ++i) {
     if (strb & (1u << i)) {
@@ -128,7 +128,7 @@ void UartDevice::reg_write(addr_t offset, uint32_t val, byte_t strb) noexcept {
   }
 }
 
-void UartDevice::sync_status() noexcept {
+void Uart::sync_status() noexcept {
   uint32_t status = 0;
   if (!rx_fifo_.empty())
     status |= UART_STATUS_RX_READY;
@@ -140,7 +140,7 @@ void UartDevice::sync_status() noexcept {
   reg_write(UART_REG_STATUS, status, 0xF);
 }
 
-void UartDevice::drain_tx() {
+void Uart::drain_tx() {
   if (tx_fifo_.empty())
     return;
   const uint8_t ch = tx_fifo_.front();
