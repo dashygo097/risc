@@ -24,7 +24,7 @@ template <typename T> struct CacheResponse {
   uint8_t *valid;
   uint8_t *ready;
   T *data;
-  bool *hit;
+  uint8_t *hit;
 };
 
 template <typename T> struct CacheSignals {

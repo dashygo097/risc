@@ -8,6 +8,7 @@
 
 // Peripherals
 // SRAM
+#include "./peripheral/sram/port_handler.hh"
 #include "./peripheral/sram/signals.hh"
 #include "./peripheral/sram/sram.hh"
 

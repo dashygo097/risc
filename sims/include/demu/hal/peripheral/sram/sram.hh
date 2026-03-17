@@ -21,10 +21,10 @@ public:
 
   void clock_tick() override;
   void reset() override;
-
   void dump(addr_t start, size_t size) const noexcept override;
 
 private:
   std::unique_ptr<MemoryAllocator> memory_;
 };
+
 } // namespace demu::hal::sram

@@ -10,7 +10,7 @@ namespace demu::hal::axi {
 class AXILiteMemory final : public AXILiteSlave {
 public:
   explicit AXILiteMemory(const risc::DeviceDescriptor &desc)
-      : AXILiteSlave(desc), memory_allocator_(std::make_unique<MemoryAllocator>(
+      : AXILiteSlave(desc), memory_(std::make_unique<MemoryAllocator>(
                                 static_cast<addr_t>(desc.base()),
                                 static_cast<size_t>(desc.size()))) {}
 
@@ -41,11 +41,11 @@ public:
 
   // Bypass
   bool load_binary(const std::string &filename, addr_t offset = 0) {
-    return memory_allocator_->load_binary(filename, offset);
+    return memory_->load_binary(filename, offset);
   }
 
 private:
-  std::unique_ptr<MemoryAllocator> memory_allocator_;
+  std::unique_ptr<MemoryAllocator> memory_;
 
   struct WriteData {
     word_t data;

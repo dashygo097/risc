@@ -5,7 +5,7 @@
 namespace demu::hal::axi {
 
 void AXILiteMemory::reset() {
-  memory_allocator_->clear();
+  memory_->clear();
   _write_addr_queue = {};
   _write_data_queue = {};
   _write_resp_queue = {};
@@ -26,12 +26,12 @@ void AXILiteMemory::process_writes() {
   const WriteData wdata = _write_data_queue.front();
   _write_data_queue.pop();
 
-  const bool valid = memory_allocator_->is_valid_addr(addr) &&
-                     memory_allocator_->is_valid_addr(addr + 3);
+  const bool valid =
+      memory_->is_valid_addr(addr) && memory_->is_valid_addr(addr + 3);
   if (valid) {
     for (int i = 0; i < 4; ++i)
       if (wdata.strb & (1u << i))
-        memory_allocator_->write_byte(
+        memory_->write_byte(
             addr + i, static_cast<byte_t>((wdata.data >> (i * 8)) & 0xFF));
   }
 
@@ -43,9 +43,9 @@ void AXILiteMemory::process_reads() {
     return;
 
   ReadTransaction &rt = _read_queue.front();
-  const bool valid = memory_allocator_->is_valid_addr(rt.addr) &&
-                     memory_allocator_->is_valid_addr(rt.addr + 3);
-  rt.data = valid ? memory_allocator_->read_word(rt.addr) : 0u;
+  const bool valid =
+      memory_->is_valid_addr(rt.addr) && memory_->is_valid_addr(rt.addr + 3);
+  rt.data = valid ? memory_->read_word(rt.addr) : 0u;
   rt.processed = true;
 }
 
@@ -102,7 +102,7 @@ void AXILiteMemory::dump(addr_t start, size_t size) const noexcept {
   HAL_INFO("Memory dump [0x{:08X} - 0x{:08X}]:", static_cast<uint64_t>(start),
            static_cast<uint64_t>(start + clamped));
 
-  const byte_t *ptr = memory_allocator_->get_ptr(start);
+  const byte_t *ptr = memory_->get_ptr(start);
   if (!ptr)
     return;
 

@@ -43,7 +43,7 @@ struct AXILiteSignals {
   uint8_t *arprot;
   uint8_t *arvalid;
   uint8_t *arready;
-  addr_t *rdata;
+  word_t *rdata;
   uint8_t *rresp;
   uint8_t *rvalid;
   uint8_t *rready;

@@ -42,7 +42,7 @@ void SystemSimulator::init() {
 
 bool SystemSimulator::load_bin(const std::string &filename, addr_t base_addr) {
   if (device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("imem")
-          ->load_binary(filename, base_addr)) {
+          ->load_binary(filename, 0)) {
     return true;
   }
   DEMU_ERROR("System failed to load binary: {}", filename);
@@ -132,12 +132,10 @@ void SystemSimulator::run(uint64_t max_cycles) {
 
 void SystemSimulator::dump_memory(addr_t start, size_t size) const {
   const auto *slave = device_manager_->find_slave_for_address(start);
-
   if (!slave) {
     HAL_WARN("dump_memory: no device owns address 0x{:08X}", start);
     return;
   }
-
   slave->dump(start, size);
 }
 
