@@ -2,7 +2,7 @@ package arch.core.bru
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ BitPat, MuxCase }
 
 trait RV32IBranchConsts {
   def BR_X    = BitPat("b???")

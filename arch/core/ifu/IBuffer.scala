@@ -2,7 +2,7 @@ package arch.core.ifu
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ Decoupled, Queue }
 
 class IBufferEntry(implicit p: Parameters) extends Bundle {
   val pc              = UInt(p(XLen).W)

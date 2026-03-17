@@ -2,7 +2,7 @@ package arch.core.rename
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.log2Ceil
 
 class RenameMapTable(implicit p: Parameters) extends Module {
   // RS1, RS2

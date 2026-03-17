@@ -1,6 +1,6 @@
 package arch.core.forwarding
 
-import chisel3.util._
+import chisel3.util.BitPat
 
 trait ForwardingConsts {
   def FWD_X  = BitPat("b??")

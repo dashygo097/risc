@@ -3,7 +3,7 @@ package arch.core.csr
 import arch.configs._
 import vopts.utils.Register
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ BitPat, MuxCase, Cat, Fill }
 
 trait RV32ICsrConsts {
   def C_X   = BitPat("b???")

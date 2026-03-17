@@ -12,9 +12,9 @@ import bpu._
 import pipeline._
 import forwarding._
 import arch.configs._
-import vopts.mem.cache._
+import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ log2Ceil, MuxLookup, MuxCase }
 
 class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"

@@ -4,7 +4,7 @@ import arch.configs._
 import vopts.com.amba._
 import vopts.mem.cache._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ log2Ceil, Cat, Fill }
 
 object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
   override def utils: BusBridgeUtilities = new BusBridgeUtilities {

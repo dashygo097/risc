@@ -1,9 +1,9 @@
 package arch.core.lsu
 
 import arch.configs._
-import vopts.mem.cache._
+import vopts.mem.cache.{ CacheIO, CacheOp }
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ MuxCase, Cat, Fill }
 
 class Lsu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_lsu"

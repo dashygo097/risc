@@ -2,7 +2,7 @@ package arch.core.rename
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ log2Ceil, PriorityEncoder }
 
 class FreeList(implicit p: Parameters) extends Module {
   // Allocate physical register
