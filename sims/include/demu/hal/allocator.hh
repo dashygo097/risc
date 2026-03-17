@@ -16,7 +16,7 @@ public:
   template <typename T> [[nodiscard]] T read(addr_t addr) const noexcept {
     if (!is_valid_addr(addr)) {
       HAL_WARN("Invalid Read at 0x{:08x}", addr);
-      return 0;
+      return T{};
     }
     T val;
     std::memcpy(&val, memory_.data() + to_offset(addr), sizeof(T));

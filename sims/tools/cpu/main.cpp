@@ -1,3 +1,4 @@
+#include "demu/hal/peripheral/sram/signals.hh"
 #include <cstdlib>
 #include <cstring>
 #include <demu.hh>
@@ -12,6 +13,50 @@ public:
   CPUSimulatorTop(bool enabled_trace = false) : CPUSimulator(enabled_trace) {}
 
 protected:
+  void register_devices() override {
+    const auto *imem_r = config_->find_region("imem");
+    const auto *dmem_r = config_->find_region("dmem");
+
+    device_manager_->register_slave<demu::hal::sram::SRAM>(0, *imem_r);
+    device_manager_->register_slave<demu::hal::sram::SRAM>(1, *dmem_r);
+
+    using ImemPortHandler =
+        demu::hal::sram::SRAMReadOnlyPortHandler<std::array<word_t, 4>>;
+    using DmemPortHandler =
+        demu::hal::sram::SRAMPortHandler<std::array<word_t, 4>>;
+
+    device_manager_->register_handler(
+        0, std::make_unique<ImemPortHandler>([this]() {
+          demu::hal::sram::CacheReadOnlySignals<std::array<word_t, 4>> s;
+          s.req.valid = &dut_->imem_req_valid;
+          s.req.ready = &dut_->imem_req_ready;
+          s.req.addr = &dut_->imem_req_bits_addr;
+          s.resp.valid = &dut_->imem_resp_valid;
+          s.resp.ready = &dut_->imem_resp_ready;
+          s.resp.data = reinterpret_cast<std::array<word_t, 4> *>(
+              &dut_->imem_resp_bits_data_0);
+          s.resp.hit = &dut_->imem_resp_bits_hit;
+
+          return s;
+        }));
+
+    device_manager_->register_handler(
+        1, std::make_unique<DmemPortHandler>([this]() {
+          demu::hal::sram::CacheSignals<std::array<word_t, 4>> s;
+          s.req.valid = &dut_->dmem_req_valid;
+          s.req.ready = &dut_->dmem_req_ready;
+          s.req.op = &dut_->dmem_req_bits_op;
+          s.req.addr = &dut_->dmem_req_bits_addr;
+          s.req.data = reinterpret_cast<std::array<word_t, 4> *>(
+              &dut_->dmem_req_bits_data_0);
+          s.resp.valid = &dut_->dmem_resp_valid;
+          s.resp.ready = &dut_->dmem_resp_ready;
+          s.resp.data = reinterpret_cast<std::array<word_t, 4> *>(
+              &dut_->dmem_resp_bits_data_0);
+          s.resp.hit = &dut_->dmem_resp_bits_hit;
+          return s;
+        }));
+  };
   void on_init() override {};
   void on_clock_tick() override {};
   void on_exit() override {};
@@ -84,18 +129,6 @@ int main(int argc, char **argv) {
       }
     } else if (arg == "-p" || arg == "--show-pipeline") {
       show_pipeline = true;
-    } else if (arg == "--imem-delay") {
-      if (i + 1 < argc) {
-        uint8_t delay = static_cast<uint8_t>(std::stoul(argv[++i]));
-        CPUSimulatorTop sim(enable_trace);
-        sim.imem_delay(delay);
-      }
-    } else if (arg == "--dmem-delay") {
-      if (i + 1 < argc) {
-        uint8_t delay = static_cast<uint8_t>(std::stoul(argv[++i]));
-        CPUSimulatorTop sim(enable_trace);
-        sim.dmem_delay(delay);
-      }
     } else if (arg[0] == '-' && arg[1] == 'L') {
       int log_level = std::stoi(arg.substr(2));
       switch (log_level) {

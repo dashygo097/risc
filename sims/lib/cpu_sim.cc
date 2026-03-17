@@ -9,18 +9,11 @@ using namespace isa;
 
 CPUSimulator::CPUSimulator(bool enable_trace) : trace_enabled_(enable_trace) {
   dut_ = std::make_unique<cpu_t>();
+  device_manager_ = std::make_unique<hal::DeviceManager>();
 
   config_ = std::make_unique<RiscConfig>();
   config_->dump();
   config_->validate();
-
-  const auto *imem_r = config_->find_region("imem");
-  const auto *dmem_r = config_->find_region("dmem");
-
-  imem_ =
-      std::make_unique<hal::MemoryAllocator>(imem_r->base(), imem_r->size());
-  dmem_ =
-      std::make_unique<hal::MemoryAllocator>(dmem_r->base(), dmem_r->size());
 
   l1_icache_line_size_ = config_->l1i_line_words();
   l1_dcache_line_size_ = config_->l1d_line_words();
@@ -35,14 +28,23 @@ CPUSimulator::~CPUSimulator() {
 }
 
 bool CPUSimulator::load_bin(const std::string &filename, addr_t base_addr) {
-  return imem_->load_binary(filename, base_addr);
+  return device_manager_->get_slave_by_name<hal::sram::SRAM>("imem")
+      ->memory()
+      .load_binary(filename, 0);
 }
 
 bool CPUSimulator::load_elf(const std::string &filename) {
-  return ELFLoader::load(*imem_, filename);
+  return ELFLoader::load(
+      device_manager_->get_slave_by_name<hal::sram::SRAM>("imem")->memory(),
+      filename);
 }
 
 void CPUSimulator::init() {
+  DEMU_INFO("Initializing CPU Simulator...");
+
+  register_devices();
+  device_manager_->dump_device_map();
+
 #ifdef ENABLE_TRACE
   if (trace_enabled_) {
     Verilated::traceEverOn(true);
@@ -57,26 +59,13 @@ void CPUSimulator::reset() {
   DEMU_INFO("CPU Resetting...");
   dut_->reset = 1;
   dut_->clock = 0;
-
-  dut_->imem_req_ready = 1;
-  dut_->imem_resp_valid = 0;
-  IMEM_CLEAR_RESP_DATA(dut_, 4)
-
-  dut_->dmem_req_ready = 1;
-  dut_->dmem_resp_valid = 0;
-  DMEM_CLEAR_RESP_DATA(dut_, 4)
-
   dut_->eval();
-
-  for (int i = 0; i < 5; i++) {
-    dut_->clock = 1;
-    dut_->eval();
-    dut_->clock = 0;
-    dut_->eval();
-  }
-
+  dut_->clock = 1;
+  dut_->eval();
   dut_->reset = 0;
   dut_->eval();
+
+  device_manager_->reset();
 
   _time_count = 0;
 
@@ -87,11 +76,6 @@ void CPUSimulator::reset() {
 
   terminate_ = false;
   _register_values.clear();
-
-  _imem_pending = 0;
-  _dmem_pending = 0;
-
-  _dmem_pending_data.resize(4);
 
   on_reset();
   DEMU_INFO("CPU Reset Complete. PC: 0x{:08x}",
@@ -114,102 +98,11 @@ void CPUSimulator::handle_cache_profiling() {
   }
 }
 
-void CPUSimulator::handle_imem_interface() {
-  if (!_imem_pending) {
-    dut_->imem_resp_valid = 0;
-    IMEM_CLEAR_RESP_DATA(dut_, 4)
-
-    if (dut_->imem_req_valid && dut_->imem_req_ready) {
-      _imem_pending_addr = static_cast<addr_t>(dut_->imem_req_bits_addr);
-      _imem_pending_latency = imem_delay_;
-      _imem_pending = true;
-      DEMU_MEM_TRACE("IFETCH", _imem_pending_addr, 0);
-    }
-  } else {
-    _imem_pending_latency--;
-
-    if (_imem_pending_latency > 0) {
-      dut_->imem_resp_valid = 0;
-      IMEM_CLEAR_RESP_DATA(dut_, 4)
-    } else {
-      word_t data_ptr[4];
-      for (int i = 0; i < 4; i++) {
-        addr_t addr = _imem_pending_addr + (i * 4);
-        word_t data = imem_->read_word(addr);
-        data_ptr[i] = data;
-        DEMU_TRACE("[IMEM READ] addr=0x{:08x} data=0x{:08x}", addr, data);
-      }
-      IMEM_SET_RESP_DATA(dut_, data_ptr, 4)
-      dut_->imem_resp_valid = 1;
-
-      if (dut_->imem_resp_ready) {
-        _imem_pending = false;
-      }
-    }
-  }
-}
-
-void CPUSimulator::handle_dmem_interface() {
-  if (!_dmem_pending) {
-    dut_->dmem_resp_valid = 0;
-    DMEM_CLEAR_RESP_DATA(dut_, 4)
-
-    if (dut_->dmem_req_valid && dut_->dmem_req_ready) {
-      _dmem_pending_addr = static_cast<addr_t>(dut_->dmem_req_bits_addr);
-      _dmem_pending_op = dut_->dmem_req_bits_op;
-
-      word_t data_ptr[4];
-      DMEM_GET_REQ_DATA(dut_, data_ptr, 4)
-      for (int i = 0; i < 4; i++) {
-        _dmem_pending_data[i] = data_ptr[i];
-      }
-      _dmem_pending_latency = dmem_delay_;
-      _dmem_pending = true;
-
-      const char *op_name = _dmem_pending_op ? "WRITE" : "READ";
-      DEMU_MEM_TRACE(op_name, _dmem_pending_addr, _dmem_pending_data[0]);
-    }
-  } else {
-    _dmem_pending_latency--;
-
-    if (_dmem_pending_latency > 0) {
-      dut_->dmem_resp_valid = 0;
-      DMEM_CLEAR_RESP_DATA(dut_, 4)
-    } else {
-      if (_dmem_pending_op) {
-        for (int i = 0; i < (int)_dmem_pending_data.size(); i++) {
-          addr_t addr = _dmem_pending_addr + (i * 4);
-          dmem_->write_word(addr, _dmem_pending_data[i]);
-          DEMU_TRACE("[DMEM WRITE] addr=0x{:08x} data=0x{:08x}", addr,
-                     _dmem_pending_data[i]);
-        }
-        DMEM_CLEAR_RESP_DATA(dut_, 4)
-      } else {
-        word_t data_ptr[4];
-        for (int i = 0; i < 4; i++) {
-          addr_t addr = _dmem_pending_addr + (i * 4);
-          word_t data = dmem_->read_word(addr);
-          data_ptr[i] = data;
-          DEMU_TRACE("[DMEM READ] addr=0x{:08x} data=0x{:08x}", addr, data);
-        }
-        DMEM_SET_RESP_DATA(dut_, data_ptr, 4)
-      }
-
-      dut_->dmem_resp_valid = 1;
-
-      if (dut_->dmem_resp_ready) {
-        _dmem_pending = false;
-      }
-    }
-  }
-}
-
 void CPUSimulator::clock_tick() {
   DEMU_CPU_TICK(cycle_count());
 
   dut_->clock = 0;
-  handle_imem_interface();
-  handle_dmem_interface();
+  device_manager_->handle_ports();
   dut_->eval();
 
 #ifdef ENABLE_TRACE
@@ -289,21 +182,6 @@ void CPUSimulator::run(uint64_t max_cycles) {
   DEMU_INFO("  L1 Dcache Hit Rate: {:.2f} %", l1_dcache_hit_rate() * 100);
 }
 
-word_t CPUSimulator::read_mem(addr_t addr) const {
-  if (addr >= dmem_->base_address()) {
-    return dmem_->read_word(addr);
-  }
-  return imem_->read_word(addr);
-}
-
-void CPUSimulator::write_mem(addr_t addr, word_t data) {
-  if (addr >= dmem_->base_address()) {
-    dmem_->write_word(addr, data);
-  } else {
-    imem_->write_word(addr, data);
-  }
-}
-
 void CPUSimulator::dump_registers() const {
   DEMU_INFO("Register Dump:");
   for (int i = 0; i < NUM_GPRS; i += 4) {
@@ -314,21 +192,12 @@ void CPUSimulator::dump_registers() const {
 }
 
 void CPUSimulator::dump_memory(addr_t start, size_t size) const {
-  DEMU_INFO("Memory dump [0x{:08x} - 0x{:08x}]:", start, start + size);
-  for (addr_t addr = start; addr < start + size; addr += 16) {
-    std::ostringstream line;
-    line << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";
-    for (size_t i = 0; i < 16 && (addr + i) < (start + size); i += 4) {
-      word_t word = read_mem(addr + i);
-      for (int j = 0; j < 4 && (i + j) < 16; j++) {
-        line << std::hex << std::setw(2) << std::setfill('0')
-             << (int)((word >> (j * 8)) & 0xFF) << " ";
-      }
-      if (i == 4)
-        line << " ";
-    }
-    DEMU_INFO("{}", line.str());
+  const auto *slave = device_manager_->find_slave_for_address(start);
+  if (!slave) {
+    DEMU_ERROR("Invalid memory dump address: 0x{:08x}", start);
+    return;
   }
+  slave->dump(start, size);
 }
 
 void CPUSimulator::check_termination() {
