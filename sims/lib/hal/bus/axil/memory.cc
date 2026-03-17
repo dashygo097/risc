@@ -4,11 +4,6 @@
 
 namespace demu::hal::axi {
 
-AXILiteMemory::AXILiteMemory(addr_t base_addr, size_t size, size_t read_delay,
-                             size_t write_delay)
-    : memory_allocator_(std::make_unique<MemoryAllocator>(base_addr, size)),
-      read_delay_(read_delay), write_delay_(write_delay) {}
-
 void AXILiteMemory::reset() {
   memory_allocator_->clear();
 

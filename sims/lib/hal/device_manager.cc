@@ -4,27 +4,27 @@
 namespace demu::hal {
 
 // Slave Retrieval — by port
-Hardware *DeviceManager::get_slave(port_id_t port) noexcept {
+Device *DeviceManager::get_slave(port_id_t port) noexcept {
   if (port >= slots_.size())
     return nullptr;
   return slots_[port].device.get();
 }
 
-const Hardware *DeviceManager::get_slave(port_id_t port) const noexcept {
+const Device *DeviceManager::get_slave(port_id_t port) const noexcept {
   if (port >= slots_.size())
     return nullptr;
   return slots_[port].device.get();
 }
 
 // Slave Retrieval — by name
-Hardware *DeviceManager::get_slave_by_name(std::string_view name) noexcept {
+Device *DeviceManager::get_slave_by_name(std::string_view name) noexcept {
   auto it = name_indices_.find(std::string(name));
   if (it == name_indices_.end())
     return nullptr;
   return get_slave(it->second);
 }
 
-const Hardware *
+const Device *
 DeviceManager::get_slave_by_name(std::string_view name) const noexcept {
   auto it = name_indices_.find(std::string(name));
   if (it == name_indices_.end())
@@ -33,7 +33,7 @@ DeviceManager::get_slave_by_name(std::string_view name) const noexcept {
 }
 
 // Slave Retrieval — by address
-Hardware *DeviceManager::find_slave_for_address(addr_t addr) noexcept {
+Device *DeviceManager::find_slave_for_address(addr_t addr) noexcept {
   if (addr_indices_.empty())
     return nullptr;
 
@@ -53,7 +53,7 @@ Hardware *DeviceManager::find_slave_for_address(addr_t addr) noexcept {
   return nullptr;
 }
 
-const Hardware *
+const Device *
 DeviceManager::find_slave_for_address(addr_t addr) const noexcept {
   if (addr_indices_.empty())
     return nullptr;
