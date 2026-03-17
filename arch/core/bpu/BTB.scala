@@ -3,7 +3,7 @@ package arch.core.bpu
 import arch.configs._
 import vopts.mem.cache._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ log2Ceil, PriorityEncoder }
 
 class BtbEntry(tagWidth: Int)(implicit p: Parameters) extends Bundle with BHTConsts {
   val valid  = Bool()

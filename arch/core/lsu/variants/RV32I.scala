@@ -2,7 +2,7 @@ package arch.core.lsu
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ BitPat, MuxLookup }
 
 trait RV32ILsuConsts {
   def M_X   = BitPat("b????")

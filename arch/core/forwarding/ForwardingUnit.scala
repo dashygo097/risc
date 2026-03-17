@@ -2,7 +2,7 @@ package arch.core.forwarding
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ MuxCase, log2Ceil }
 
 class IDForwardingUnit(implicit p: Parameters) extends Module with ForwardingConsts {
   override def desiredName: String = s"${p(ISA)}_id_forwarding_unit"

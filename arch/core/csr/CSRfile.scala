@@ -1,7 +1,7 @@
 package arch.core.csr
 
 import arch.configs._
-import vopts.utils._
+import vopts.utils.{ CombTree, Register }
 import chisel3._
 
 class CsrFile(implicit p: Parameters) extends Module {

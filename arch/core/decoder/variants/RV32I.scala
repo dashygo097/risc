@@ -8,7 +8,7 @@ import arch.core.csr.RV32ICsrConsts
 import arch.configs._
 import arch.isa._
 import chisel3._
-import chisel3.util._
+import chisel3.util.BitPat
 
 trait RV32IDecoderConsts extends RV32IImmConsts with RV32IAluConsts with RV32ILsuConsts with RV32IBranchConsts with RV32ICsrConsts {
   def X = BitPat("b?")

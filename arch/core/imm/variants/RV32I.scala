@@ -2,7 +2,7 @@ package arch.core.imm
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ BitPat, MuxLookup, Cat, Fill }
 
 trait RV32IImmConsts {
   def IMM_X  = BitPat("b???")

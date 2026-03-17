@@ -2,7 +2,7 @@ package arch.core.alu
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ BitPat, MuxLookup }
 
 trait RV32IAluConsts extends AluConsts {
   def AFN_X    = BitPat("b???")

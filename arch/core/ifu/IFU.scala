@@ -1,8 +1,8 @@
 package arch.core.ifu
 
-import chisel3._
-import vopts.mem.cache._
 import arch.configs._
+import vopts.mem.cache.CacheReadOnlyIO
+import chisel3._
 
 class Ifu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_ifu"
