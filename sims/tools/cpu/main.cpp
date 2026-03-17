@@ -20,21 +20,22 @@ protected:
     device_manager_->register_slave<demu::hal::sram::SRAM>(0, *imem_r);
     device_manager_->register_slave<demu::hal::sram::SRAM>(1, *dmem_r);
 
+    using iresp_data_t = std::array<word_t, 4>;
+    using dresp_data_t = std::array<word_t, 4>;
     using ImemPortHandler =
-        demu::hal::sram::CacheReadOnlyPortHandler<std::array<word_t, 4>>;
-    using DmemPortHandler =
-        demu::hal::sram::CachePortHandler<std::array<word_t, 4>>;
+        demu::hal::sram::CacheReadOnlyPortHandler<iresp_data_t>;
+    using DmemPortHandler = demu::hal::sram::CachePortHandler<dresp_data_t>;
 
     device_manager_->register_handler(
         0, std::make_unique<ImemPortHandler>([this]() {
-          demu::hal::sram::CacheReadOnlySignals<std::array<word_t, 4>> s;
+          demu::hal::sram::CacheReadOnlySignals<iresp_data_t> s;
           s.req.valid = &dut_->imem_req_valid;
           s.req.ready = &dut_->imem_req_ready;
           s.req.addr = &dut_->imem_req_bits_addr;
           s.resp.valid = &dut_->imem_resp_valid;
           s.resp.ready = &dut_->imem_resp_ready;
-          s.resp.data = reinterpret_cast<std::array<word_t, 4> *>(
-              &dut_->imem_resp_bits_data_0);
+          s.resp.data =
+              reinterpret_cast<iresp_data_t *>(&dut_->imem_resp_bits_data_0);
           s.resp.hit = &dut_->imem_resp_bits_hit;
 
           return s;
@@ -42,17 +43,17 @@ protected:
 
     device_manager_->register_handler(
         1, std::make_unique<DmemPortHandler>([this]() {
-          demu::hal::sram::CacheSignals<std::array<word_t, 4>> s;
+          demu::hal::sram::CacheSignals<iresp_data_t> s;
           s.req.valid = &dut_->dmem_req_valid;
           s.req.ready = &dut_->dmem_req_ready;
           s.req.op = &dut_->dmem_req_bits_op;
           s.req.addr = &dut_->dmem_req_bits_addr;
-          s.req.data = reinterpret_cast<std::array<word_t, 4> *>(
-              &dut_->dmem_req_bits_data_0);
+          s.req.data =
+              reinterpret_cast<dresp_data_t *>(&dut_->dmem_req_bits_data_0);
           s.resp.valid = &dut_->dmem_resp_valid;
           s.resp.ready = &dut_->dmem_resp_ready;
-          s.resp.data = reinterpret_cast<std::array<word_t, 4> *>(
-              &dut_->dmem_resp_bits_data_0);
+          s.resp.data =
+              reinterpret_cast<dresp_data_t *>(&dut_->dmem_resp_bits_data_0);
           s.resp.hit = &dut_->dmem_resp_bits_hit;
           return s;
         }));
