@@ -10,10 +10,6 @@ class AXILiteSlave : public Device {
 public:
   explicit AXILiteSlave(const risc::DeviceDescriptor &desc) : Device(desc) {}
 
-  AXILiteSlave(std::string name, risc::DeviceType type, addr_t base,
-               size_t size)
-      : Device(std::move(name), type, base, size) {}
-
   ~AXILiteSlave() override = default;
 
   // AW

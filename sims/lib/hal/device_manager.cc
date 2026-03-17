@@ -45,7 +45,7 @@ Device *DeviceManager::find_slave_for_address(addr_t addr) noexcept {
   auto *slave = get_slave(it->second);
   if (slave && slave->owns_address(addr)) {
     HAL_TRACE("Address 0x{:08X} mapped to slave '{}' (Port {})", addr,
-              slots_[it->second].name, it->second);
+              slots_[it->second].desc.device(), it->second);
     return slave;
   }
 
@@ -66,7 +66,7 @@ DeviceManager::find_slave_for_address(addr_t addr) const noexcept {
   const auto *slave = get_slave(it->second);
   if (slave && slave->owns_address(addr)) {
     HAL_TRACE("Address 0x{:08X} mapped to slave '{}' (Port {})", addr,
-              slots_[it->second].name, it->second);
+              slots_[it->second].desc.device(), it->second);
     return slave;
   }
   return nullptr;
@@ -113,7 +113,7 @@ std::optional<std::string_view>
 DeviceManager::get_slave_name(port_id_t port) const noexcept {
   if (!has_slave_at(port))
     return std::nullopt;
-  return std::string_view(slots_[port].name);
+  return std::string_view(slots_[port].desc.device());
 }
 
 void DeviceManager::dump_device_map() const {
@@ -126,8 +126,8 @@ void DeviceManager::dump_device_map() const {
     const addr_t end = base + range - 1;
 
     HAL_INFO("Port {:>2}: {:<20} [0x{:08X} - 0x{:08X}] ({:>8} bytes)", port,
-             slot.name, static_cast<uint32_t>(base), static_cast<uint32_t>(end),
-             static_cast<uint32_t>(range));
+             slot.desc.device(), static_cast<uint32_t>(base),
+             static_cast<uint32_t>(end), static_cast<uint32_t>(range));
   }
 }
 
@@ -142,7 +142,7 @@ void DeviceManager::rebuild_indices_for(port_id_t port) {
   if (!slot.device)
     return;
 
-  name_indices_[slot.name] = port;
+  name_indices_[slot.desc.device()] = port;
   addr_indices_[slot.device->base_address()] = port;
 }
 
@@ -151,7 +151,7 @@ void DeviceManager::remove_indices_for(port_id_t port) {
   if (!slot.device)
     return;
 
-  name_indices_.erase(slot.name);
+  name_indices_.erase(slot.desc.device());
   addr_indices_.erase(slot.device->base_address());
 }
 

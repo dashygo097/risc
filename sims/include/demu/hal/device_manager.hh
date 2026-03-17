@@ -29,7 +29,8 @@ public:
 
   // Slave Registration
   template <typename T, typename... Args>
-  T *register_slave(port_id_t port, std::string_view name, Args &&...args);
+  T *register_slave(port_id_t port, risc::DeviceDescriptor desc,
+                    Args &&...args);
 
   // Slave Retrieval — by port
   [[nodiscard]] Device *get_slave(port_id_t port) noexcept;
@@ -78,8 +79,8 @@ public:
 
 private:
   struct SlaveSlot {
+    risc::DeviceDescriptor desc;
     std::unique_ptr<Device> device;
-    std::string name;
     std::unique_ptr<PortHandler> handler;
   };
 
@@ -95,7 +96,7 @@ private:
 };
 
 template <typename T, typename... Args>
-T *DeviceManager::register_slave(port_id_t port, std::string_view name,
+T *DeviceManager::register_slave(port_id_t port, risc::DeviceDescriptor desc,
                                  Args &&...args) {
   static_assert(std::is_base_of_v<Device, T>, "T must derive from Device");
 
@@ -106,20 +107,20 @@ T *DeviceManager::register_slave(port_id_t port, std::string_view name,
   }
 
   try {
-    auto slave = std::make_unique<T>(std::forward<Args>(args)...);
+    auto slave = std::make_unique<T>(desc, std::forward<Args>(args)...);
     T *ptr = slave.get();
 
+    slots_[port].desc = desc;
     slots_[port].device = std::move(slave);
-    slots_[port].name = std::string(name);
 
     rebuild_indices_for(port);
 
-    HAL_INFO("Registered device '{}' on Port {} [Base: 0x{:08X}]", name, port,
-             static_cast<uint32_t>(ptr->base_address()));
+    HAL_INFO("Registered device '{}' on Port {} [Base: 0x{:08X}]",
+             desc.device(), port, static_cast<uint32_t>(ptr->base_address()));
 
     return ptr;
   } catch (const std::exception &e) {
-    HAL_ERROR("Failed to create slave '{}' on Port {}: {}", name, port,
+    HAL_ERROR("Failed to create slave '{}' on Port {}: {}", desc.device(), port,
               e.what());
     return nullptr;
   }

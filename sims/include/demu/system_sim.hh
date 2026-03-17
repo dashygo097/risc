@@ -69,16 +69,7 @@ protected:
   // Overridable hooks
   virtual void register_devices() {};
   virtual void on_clock_tick() {};
-  virtual void on_init() {
-    device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("imem")
-        ->read_delay(1);
-    device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("imem")
-        ->write_delay(1);
-    device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("dmem")
-        ->read_delay(1);
-    device_manager_->get_slave_by_name<hal::axi::AXILiteMemory>("dmem")
-        ->write_delay(1);
-  };
+  virtual void on_init() {};
   virtual void on_exit() {};
   virtual void on_reset() {};
 };

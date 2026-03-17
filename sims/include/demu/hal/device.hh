@@ -10,12 +10,13 @@ using namespace isa;
 class Device : public Hardware {
 public:
   explicit Device(const risc::DeviceDescriptor &desc) : desc_(desc) {}
+
   virtual ~Device() = default;
 
-  [[nodiscard]] addr_t base_address() const noexcept override {
+  [[nodiscard]] addr_t base_address() const noexcept {
     return static_cast<addr_t>(desc_.base());
   }
-  [[nodiscard]] size_t address_range() const noexcept override {
+  [[nodiscard]] size_t address_range() const noexcept {
     return static_cast<size_t>(desc_.size());
   }
   [[nodiscard]] const char *name() const noexcept override {
@@ -39,15 +40,7 @@ public:
     return addr - base_address();
   }
 
-  virtual void dump(addr_t start, size_t size) const noexcept override {}
-
-protected:
-  Device(std::string name, risc::DeviceType type, addr_t base, size_t size) {
-    desc_.set_device(std::move(name));
-    desc_.set_type(type);
-    desc_.set_base(base);
-    desc_.set_size(size);
-  }
+  virtual void dump(addr_t start, size_t size) const noexcept {}
 
 private:
   risc::DeviceDescriptor desc_;

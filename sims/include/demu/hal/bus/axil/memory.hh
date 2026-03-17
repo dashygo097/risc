@@ -9,24 +9,12 @@ namespace demu::hal::axi {
 
 class AXILiteMemory final : public AXILiteSlave {
 public:
-  explicit AXILiteMemory(addr_t base_addr, size_t size, size_t read_delay = 1,
-                         size_t write_delay = 1)
-      : AXILiteSlave("AXILite Memory", risc::DEVICE_TYPE_MEMORY, base_addr,
-                     size),
-        memory_allocator_(std::make_unique<MemoryAllocator>(base_addr, size)),
-        read_delay_(read_delay), write_delay_(write_delay) {}
+  explicit AXILiteMemory(const risc::DeviceDescriptor &desc)
+      : AXILiteSlave(desc), memory_allocator_(std::make_unique<MemoryAllocator>(
+                                static_cast<addr_t>(desc.base()),
+                                static_cast<size_t>(desc.size()))) {}
 
   ~AXILiteMemory() override = default;
-
-  [[nodiscard]] addr_t base_address() const noexcept override {
-    return memory_allocator_->base_address();
-  }
-  [[nodiscard]] size_t address_range() const noexcept override {
-    return memory_allocator_->size();
-  }
-  [[nodiscard]] const char *name() const noexcept override {
-    return "AXILite Memory";
-  }
 
   void reset() override;
   void clock_tick() override;
@@ -55,13 +43,9 @@ public:
   bool load_binary(const std::string &filename, addr_t offset = 0) {
     return memory_allocator_->load_binary(filename, offset);
   }
-  void read_delay(size_t cycles) noexcept { read_delay_ = cycles; }
-  void write_delay(size_t cycles) noexcept { write_delay_ = cycles; }
 
 private:
   std::unique_ptr<MemoryAllocator> memory_allocator_;
-  size_t read_delay_;
-  size_t write_delay_;
 
   struct WriteData {
     word_t data;
@@ -69,13 +53,11 @@ private:
   };
   struct WriteResponse {
     uint8_t resp;
-    size_t delay;
   };
   struct ReadTransaction {
     addr_t addr;
     word_t data;
     bool processed;
-    size_t delay;
   };
 
   std::queue<addr_t> _write_addr_queue;
@@ -85,7 +67,6 @@ private:
 
   void process_writes();
   void process_reads();
-  void update_delays();
 };
 
 } // namespace demu::hal::axi
