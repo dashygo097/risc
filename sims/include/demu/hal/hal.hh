@@ -7,6 +7,9 @@
 #include "./port_handler.hh"
 
 // Peripherals
+// SRAM
+#include "./peripheral/sram/signals.hh"
+#include "./peripheral/sram/sram.hh"
 
 // Bus
 // AXI4-Lite
