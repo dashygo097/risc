@@ -124,16 +124,11 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
           r_active   := false.B
         }
       }
-      // FIX 1 (read side): same — hold r_complete until the cache accepts resp
       when(r_complete && memory.resp.fire) {
         r_complete := false.B
       }
       axi.r.ready := r_active
 
-      // FIX 2: block new requests while a response is still pending.
-      // Previously req.ready went high as soon as all AXI state machines were
-      // idle, even if w_complete/r_complete had been set but not yet consumed.
-      // A new request arriving in that window would corrupt the in-flight resp.
       memory.req.ready :=
         !aw_active && !w_active && !b_active &&
           !ar_active && !r_active &&
@@ -194,13 +189,11 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
           r_active   := false.B
         }
       }
-      // FIX 1: hold r_complete until IFU/cache accepts resp
       when(r_complete && memory.resp.fire) {
         r_complete := false.B
       }
       axi.r.ready := r_active
 
-      // FIX 2: block new fetch requests while response is pending
       memory.req.ready      := !r_active && !r_complete
       memory.resp.valid     := r_complete
       memory.resp.bits.data := Cat(r_data_buffer.reverse).asTypeOf(memory.resp.bits.data)
