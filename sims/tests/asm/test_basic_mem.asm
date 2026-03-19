@@ -37,4 +37,10 @@ _start:
     lhu x12, 16(x10)       # x12 = 0x0000FFF0 (zero-extended)
     lbu x13, 20(x10)       # x13 = 0x000000F0 (zero-extended)
 
+    sw x1, 0x100(x10)
+    sw x2, 0x104(x10)
+
+    lw x14, 0x100(x10)      # x14 = 0x00000012
+    lw x15, 0x104(x10)      # x15 = 0x00000056
+
     ebreak
