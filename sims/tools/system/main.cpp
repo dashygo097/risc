@@ -15,9 +15,12 @@ protected:
   void register_devices() override {
     const auto *imem_r = config_->find_region("imem");
     const auto *dmem_r = config_->find_region("dmem");
+    const auto *uart_r = config_->find_region("uart");
 
     device_manager_->register_slave<demu::hal::axi::AXILiteSRAM>(0, *imem_r);
     device_manager_->register_slave<demu::hal::axi::AXILiteSRAM>(1, *dmem_r);
+    device_manager_->register_slave<demu::hal::axi::AXILiteSRAM>(
+        2, *uart_r); // NOTE: Using SRAM as a placeholder for UART
 
     device_manager_->register_handler(
         0, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
@@ -30,6 +33,13 @@ protected:
         1, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
           demu::hal::axi::AXILiteSignals s;
           MAP_AXIL_SIGNALS(dut_, s, 1);
+          return s;
+        }));
+
+    device_manager_->register_handler(
+        2, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
+          demu::hal::axi::AXILiteSignals s;
+          MAP_AXIL_SIGNALS(dut_, s, 2);
           return s;
         }));
   };
