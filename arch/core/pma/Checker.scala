@@ -12,7 +12,6 @@ class PmaChecker(implicit p: Parameters) extends Module {
   val readable  = IO(Output(Bool()))
   val writable  = IO(Output(Bool()))
   val cacheable = IO(Output(Bool()))
-  val is_mmio   = IO(Output(Bool()))
 
   val hits = p(BusAddressMap).map { d =>
     val hit = (addr >= d.base.U(p(XLen).W)) && (addr < (d.base + d.size).U(p(XLen).W))
@@ -26,13 +25,12 @@ class PmaChecker(implicit p: Parameters) extends Module {
   readable  := is_sram || is_uart
   writable  := is_sram || is_uart
   cacheable := is_sram
-  is_mmio   := is_uart
 }
 
 object PmaChecker {
-  def apply(addr: UInt)(implicit p: Parameters): (Bool, Bool, Bool, Bool, Bool) = {
+  def apply(addr: UInt)(implicit p: Parameters): (Bool, Bool, Bool, Bool) = {
     val pma = Module(new PmaChecker)
     pma.addr := addr
-    (pma.valid, pma.readable, pma.writable, pma.cacheable, pma.is_mmio)
+    (pma.valid, pma.readable, pma.writable, pma.cacheable)
   }
 }
