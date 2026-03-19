@@ -6,6 +6,7 @@ _start:
 
     # sw/lw 
     addi x1, x0, 0x12   # x1 = 0x12
+    nop
     sw x1, 0(x10)         # mem[0x80000000] = 0x00000012
     
     addi x2, x0, 0x56   # x2 = 0x56

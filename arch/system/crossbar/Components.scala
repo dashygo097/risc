@@ -8,13 +8,13 @@ trait BusCrossbarUtilities extends Utilities {
   def slaveType: Bundle
   def addressMap: Seq[(Long, Long)]
 
-  def createInterface(ibus: Bundle, dbus: Bundle): Vec[Bundle]
-  def connectMaster(ext: Bundle, inner: Bundle): Unit
+  def createInterface(ibus: Bundle, dbus: Bundle, mbus: Bundle): Vec[Bundle]
+  def connect(ext: Bundle, inner: Bundle): Unit
 }
 
 object BusCrossbarUtilitiesFactory extends UtilitiesFactory[BusCrossbarUtilities]("BusCrossbar")
 
 object BusCrossbarInit {
-  val axilite = AXILiteCrossbarUtilities
-  val axifull = AXIFullCrossbarUtilities
+  val axil = AXILiteCrossbarUtilities
+  val axif = AXIFullCrossbarUtilities
 }

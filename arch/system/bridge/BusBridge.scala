@@ -11,15 +11,20 @@ class BusBridge(implicit p: Parameters) extends Module {
 
   val imem = IO(Flipped(new CacheReadOnlyIO(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(ILen).W)), p(XLen))))
   val dmem = IO(Flipped(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen))))
+  val mmio = IO(Flipped(new CacheIO(UInt(p(XLen).W), p(XLen))))
 
   val ibus = IO(utils.busType)
   val dbus = IO(utils.busType)
+  val mbus = IO(utils.busType)
 
   dontTouch(imem)
   dontTouch(dmem)
+  dontTouch(mmio)
   dontTouch(ibus)
   dontTouch(dbus)
+  dontTouch(mbus)
 
   ibus <> utils.createBridgeReadOnly(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(ILen).W)), imem)
   dbus <> utils.createBridge(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), dmem)
+  mbus <> utils.createBridge(UInt(p(XLen).W), mmio)
 }

@@ -23,8 +23,12 @@ class RiscSystem(implicit p: Parameters) extends Module {
 
   cpu.imem <> bridge.imem
   cpu.dmem <> bridge.dmem
-  crossbar_utils.connectMaster(crossbar.ibus, bridge.ibus)
-  crossbar_utils.connectMaster(crossbar.dbus, bridge.dbus)
+  cpu.mmio <> bridge.mmio
+
+  crossbar_utils.connect(crossbar.ibus, bridge.ibus)
+  crossbar_utils.connect(crossbar.dbus, bridge.dbus)
+  crossbar_utils.connect(crossbar.mbus, bridge.mbus)
+
   for (i <- devices.indices)
     devices(i) <> crossbar.devices(i)
 }

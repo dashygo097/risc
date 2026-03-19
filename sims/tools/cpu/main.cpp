@@ -16,15 +16,20 @@ protected:
   void register_devices() override {
     const auto *imem_r = config_->find_region("imem");
     const auto *dmem_r = config_->find_region("dmem");
+    const auto *uart_r = config_->find_region("uart");
 
     device_manager_->register_slave<demu::hal::sram::SRAM>(0, *imem_r);
     device_manager_->register_slave<demu::hal::sram::SRAM>(1, *dmem_r);
+    device_manager_->register_slave<demu::hal::sram::SRAM>(
+        2, *uart_r); // NOTE: Using SRAM for UART for simplicity
 
     using iresp_data_t = std::array<word_t, 4>;
     using dresp_data_t = std::array<word_t, 4>;
+    using mresp_data_t = word_t;
     using ImemPortHandler =
         demu::hal::sram::CacheReadOnlyPortHandler<iresp_data_t>;
     using DmemPortHandler = demu::hal::sram::CachePortHandler<dresp_data_t>;
+    using MmioPortHandler = demu::hal::sram::CachePortHandler<mresp_data_t>;
 
     device_manager_->register_handler(
         0, std::make_unique<ImemPortHandler>([this]() {
@@ -55,6 +60,23 @@ protected:
           s.resp.data =
               reinterpret_cast<dresp_data_t *>(&dut_->dmem_resp_bits_data_0);
           s.resp.hit = &dut_->dmem_resp_bits_hit;
+          return s;
+        }));
+
+    device_manager_->register_handler(
+        2, std::make_unique<MmioPortHandler>([this]() {
+          demu::hal::sram::CacheSignals<mresp_data_t> s;
+          s.req.valid = &dut_->mmio_req_valid;
+          s.req.ready = &dut_->mmio_req_ready;
+          s.req.op = &dut_->mmio_req_bits_op;
+          s.req.addr = &dut_->mmio_req_bits_addr;
+          s.req.data =
+              reinterpret_cast<mresp_data_t *>(&dut_->mmio_req_bits_data);
+          s.resp.valid = &dut_->mmio_resp_valid;
+          s.resp.ready = &dut_->mmio_resp_ready;
+          s.resp.data =
+              reinterpret_cast<mresp_data_t *>(&dut_->mmio_resp_bits_data);
+          s.resp.hit = &dut_->mmio_resp_bits_hit;
           return s;
         }));
   };

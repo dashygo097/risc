@@ -13,6 +13,6 @@ trait BusBridgeUtilities extends Utilities {
 object BusBridgeUtilitiesFactory extends UtilitiesFactory[BusBridgeUtilities]("BusBridge")
 
 object BusBridgeInit {
-  val axilite = AXILiteBridgeUtilities
-  val axifull = AXIFullBridgeUtilities
+  val axil = AXILiteBridgeUtilities
+  val axif = AXIFullBridgeUtilities
 }

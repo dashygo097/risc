@@ -23,9 +23,9 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
 
       // Write path
-      val aw_word_count = RegInit(0.U(log2Ceil(wordsPerRequest).W))
+      val aw_word_count = RegInit(0.U(log2Ceil(wordsPerRequest + 1).W))
       val aw_active     = RegInit(false.B)
-      val w_word_count  = RegInit(0.U(log2Ceil(wordsPerRequest).W))
+      val w_word_count  = RegInit(0.U(log2Ceil(wordsPerRequest + 1).W))
       val w_active      = RegInit(false.B)
       val w_complete    = RegInit(false.B)
       val w_data_reg    = Reg(UInt(memory.req.bits.data.getWidth.W))
@@ -35,7 +35,6 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         w_data_reg((i + 1) * p(XLen) - 1, i * p(XLen))
       })
 
-      // Start write transaction
       when(memory.req.fire && isWrite) {
         aw_word_count := 0.U
         aw_active     := true.B
@@ -69,7 +68,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       axi.w.bits.strb := Fill(p(XLen) / 8, 1.U)
 
       // B channel
-      val b_count  = RegInit(0.U(log2Ceil(wordsPerRequest).W))
+      val b_count  = RegInit(0.U(log2Ceil(wordsPerRequest + 1).W))
       val b_active = RegInit(false.B)
 
       when(memory.req.fire && isWrite) {
@@ -81,21 +80,21 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
           b_active   := false.B
           w_complete := true.B
         }
-      }.elsewhen(w_complete) {
+      }
+      when(w_complete && memory.resp.fire) {
         w_complete := false.B
       }
       axi.b.ready := b_active
 
       // Read path
-      val ar_word_count = RegInit(0.U(log2Ceil(wordsPerRespond).W))
+      val ar_word_count = RegInit(0.U(log2Ceil(wordsPerRespond + 1).W))
       val ar_active     = RegInit(false.B)
       val ar_base_addr  = Reg(UInt(p(XLen).W))
-      val r_word_count  = RegInit(0.U(log2Ceil(wordsPerRespond).W))
+      val r_word_count  = RegInit(0.U(log2Ceil(wordsPerRespond + 1).W))
       val r_active      = RegInit(false.B)
       val r_complete    = RegInit(false.B)
       val r_data_buffer = Reg(Vec(wordsPerRespond, UInt(p(XLen).W)))
 
-      // Start read transaction
       when(memory.req.fire && isRead) {
         ar_word_count := 0.U
         ar_active     := true.B
@@ -124,13 +123,21 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
           r_complete := true.B
           r_active   := false.B
         }
-      }.elsewhen(r_complete) {
+      }
+      // FIX 1 (read side): same — hold r_complete until the cache accepts resp
+      when(r_complete && memory.resp.fire) {
         r_complete := false.B
       }
       axi.r.ready := r_active
 
-      // Memory interface
-      memory.req.ready := (!aw_active && !w_active && !b_active && !ar_active && !r_active)
+      // FIX 2: block new requests while a response is still pending.
+      // Previously req.ready went high as soon as all AXI state machines were
+      // idle, even if w_complete/r_complete had been set but not yet consumed.
+      // A new request arriving in that window would corrupt the in-flight resp.
+      memory.req.ready :=
+        !aw_active && !w_active && !b_active &&
+          !ar_active && !r_active &&
+          !w_complete && !r_complete
 
       memory.resp.valid     := w_complete || r_complete
       memory.resp.bits.data := Cat(r_data_buffer.reverse).asTypeOf(memory.resp.bits.data)
@@ -144,16 +151,14 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
 
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
 
-      // Read path
-      val ar_word_count = RegInit(0.U(log2Ceil(wordsPerRespond).W))
+      val ar_word_count = RegInit(0.U(log2Ceil(wordsPerRespond + 1).W))
       val ar_active     = RegInit(false.B)
       val ar_base_addr  = Reg(UInt(p(XLen).W))
-      val r_word_count  = RegInit(0.U(log2Ceil(wordsPerRespond).W))
+      val r_word_count  = RegInit(0.U(log2Ceil(wordsPerRespond + 1).W))
       val r_active      = RegInit(false.B)
       val r_complete    = RegInit(false.B)
       val r_data_buffer = Reg(Vec(wordsPerRespond, UInt(p(XLen).W)))
 
-      // Start read transaction
       when(memory.req.fire) {
         ar_word_count := 0.U
         ar_active     := true.B
@@ -163,20 +168,14 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         r_complete    := false.B
       }
 
-      // AW
       axi.aw.valid     := false.B
       axi.aw.bits.addr := 0.U
       axi.aw.bits.prot := 0.U
+      axi.w.valid      := false.B
+      axi.w.bits.data  := 0.U
+      axi.w.bits.strb  := 0.U
+      axi.b.ready      := false.B
 
-      // W
-      axi.w.valid     := false.B
-      axi.w.bits.data := 0.U
-      axi.w.bits.strb := 0.U
-
-      // B
-      axi.b.ready := false.B
-
-      // AR
       when(ar_active && axi.ar.fire) {
         ar_word_count := ar_word_count + 1.U
         when(ar_word_count === (wordsPerRespond - 1).U) {
@@ -187,7 +186,6 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       axi.ar.bits.addr := ar_base_addr + Cat(ar_word_count, 0.U(log2Ceil(p(XLen) / 8).W))
       axi.ar.bits.prot := 0.U
 
-      // R
       when(r_active && axi.r.fire) {
         r_data_buffer(r_word_count) := axi.r.bits.data
         r_word_count                := r_word_count + 1.U
@@ -195,14 +193,15 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
           r_complete := true.B
           r_active   := false.B
         }
-      }.elsewhen(r_complete) {
+      }
+      // FIX 1: hold r_complete until IFU/cache accepts resp
+      when(r_complete && memory.resp.fire) {
         r_complete := false.B
       }
       axi.r.ready := r_active
 
-      // Memory interface
-      memory.req.ready := !r_active
-
+      // FIX 2: block new fetch requests while response is pending
+      memory.req.ready      := !r_active && !r_complete
       memory.resp.valid     := r_complete
       memory.resp.bits.data := Cat(r_data_buffer.reverse).asTypeOf(memory.resp.bits.data)
       memory.resp.bits.hit  := true.B

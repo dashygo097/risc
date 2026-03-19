@@ -20,7 +20,7 @@ verilate(demu
     --top-module ${ISA_TARGET}_cpu
     -CFLAGS "-Wno-unused-variable -Wno-bool-operation -Wno-parentheses-equality"
   PREFIX V${ISA_TARGET}_cpu
-  TRACE_THREADS 4
+  TRACE_THREADS 2
 )
 
 if(ENABLE_SYSTEM)

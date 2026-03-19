@@ -9,6 +9,7 @@ import regfile._
 import lsu._
 import csr._
 import bpu._
+import pma._
 import pipeline._
 import forwarding._
 import arch.configs._
@@ -27,6 +28,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   val imem = IO(new CacheReadOnlyIO(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(ILen)))
   val dmem = IO(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen)))
+  val mmio = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
 
   // Modules
   val bpu     = Module(new Bpu)
@@ -318,7 +320,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   lsu.addr  := ex_mem("alu_result")
   lsu.wdata := ex_mem("rs2_data")
 
+  val (_, pma_readable, pma_writable, pma_cacheable) = PmaChecker(ex_mem("alu_result"))
+  lsu.pma_readable  := pma_readable
+  lsu.pma_writable  := pma_writable
+  lsu.pma_cacheable := pma_cacheable
+
   l1_dcache.upper <> lsu.mem
+  mmio <> lsu.mmio
   dmem <> l1_dcache.lower
 
   val l1_dcache_pending = RegInit(false.B)
