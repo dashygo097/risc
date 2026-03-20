@@ -83,8 +83,6 @@ protected:
   uint64_t timeout_{1000000};
   bool show_pipeline_{false};
   bool trace_enabled_{false};
-  uint32_t l1_icache_line_size_;
-  uint32_t l1_dcache_line_size_;
 
   // Simulator state
   uint64_t _time_count{0};

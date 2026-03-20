@@ -9,7 +9,7 @@ add_library(demu
 add_dependencies(demu gen_proto)
 
 verilate(demu
-  SOURCES ${SYSTEM_RTL_SOURCE}
+  SOURCES ${RTL_SOURCE}
   VERILATOR_ARGS
     -Wall
     -Wno-WIDTH

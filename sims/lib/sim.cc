@@ -11,9 +11,6 @@ DemuSimulator::DemuSimulator(bool enabled_trace)
   config_ = std::make_unique<RiscConfig>();
   config_->dump();
   config_->validate();
-
-  l1_icache_line_size_ = config_->l1i_line_words();
-  l1_dcache_line_size_ = config_->l1d_line_words();
 };
 
 DemuSimulator::~DemuSimulator() {
@@ -49,8 +46,8 @@ void DemuSimulator::init() {
     Verilated::traceEverOn(true);
     vcd_ = std::make_unique<VerilatedVcdC>();
     dut_->trace(vcd_.get(), 99);
-    vcd_->open((std::string(ISA_NAME) + "_system.vcd").c_str());
-    DEMU_DEBUG("VCD tracing enabled: {}_system.vcd", ISA_NAME);
+    vcd_->open(("demu_" + std::string(ISA_NAME) + "_trace.vcd").c_str());
+    DEMU_DEBUG("VCD tracing enabled: demu_{}_trace.vcd", ISA_NAME);
   }
 #endif
 }
