@@ -78,7 +78,7 @@ class Lsu(implicit p: Parameters) extends Module {
   mem.resp.ready    := pma_cacheable
 
   mmio.req.valid     := en && !req_fired && !pma_cacheable
-  mio.req.bits.op    := Mux(mem_write, CacheOp.WRITE, CacheOp.READ)
+  mmio.req.bits.op   := Mux(mem_write, CacheOp.WRITE, CacheOp.READ)
   mmio.req.bits.addr := addr
   mmio.req.bits.data := aligned_wdata
   mmio.resp.ready    := !pma_cacheable
