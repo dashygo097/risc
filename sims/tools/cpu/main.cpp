@@ -16,12 +16,11 @@ protected:
   void register_devices() override {
     const auto *imem_r = config_->find_region("imem");
     const auto *dmem_r = config_->find_region("dmem");
-    const auto *uart_r = config_->find_region("uart");
+    const auto *mmio_r = config_->find_region("uart");
 
     device_manager_->register_slave<demu::hal::sram::SRAM>(0, *imem_r);
     device_manager_->register_slave<demu::hal::sram::SRAM>(1, *dmem_r);
-    device_manager_->register_slave<demu::hal::sram::SRAM>(
-        2, *uart_r); // NOTE: Using SRAM for UART for simplicity
+    device_manager_->register_slave<demu::hal::sram::SRAM>(2, *mmio_r);
 
     using iresp_data_t = std::array<word_t, 4>;
     using dresp_data_t = std::array<word_t, 4>;
