@@ -5,10 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Apps
-add_subdirectory(cpu)
-if(ENABLE_SYSTEM)
-  add_subdirectory(system)
-endif()
+add_subdirectory(simulator)
+add_subdirectory(debugger)
 
 # Configuration 
 print_info("Configuration: \n" "92" "0")

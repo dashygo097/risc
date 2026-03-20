@@ -9,7 +9,7 @@ add_library(demu
 add_dependencies(demu gen_proto)
 
 verilate(demu
-  SOURCES ${CPU_RTL_SOURCE}
+  SOURCES ${SYSTEM_RTL_SOURCE}
   VERILATOR_ARGS
     -Wall
     -Wno-WIDTH
@@ -17,28 +17,11 @@ verilate(demu
     -Wno-UNOPTFLAT
     -Wno-DECLFILENAME
     -Wno-PINCONNECTEMPTY
-    --top-module ${ISA_TARGET}_cpu
+    --top-module ${ISA_TARGET}_system
     -CFLAGS "-Wno-unused-variable -Wno-bool-operation -Wno-parentheses-equality"
-  PREFIX V${ISA_TARGET}_cpu
+  PREFIX V${ISA_TARGET}_system
   TRACE_THREADS 2
 )
-
-if(ENABLE_SYSTEM)
-  verilate(demu
-    SOURCES ${SYSTEM_RTL_SOURCE}
-    VERILATOR_ARGS
-      -Wall
-      -Wno-WIDTH
-      -Wno-UNUSED
-      -Wno-UNOPTFLAT
-      -Wno-DECLFILENAME
-      -Wno-PINCONNECTEMPTY
-      --top-module ${ISA_TARGET}_system
-      -CFLAGS "-Wno-unused-variable -Wno-bool-operation -Wno-parentheses-equality"
-    PREFIX V${ISA_TARGET}_system
-    TRACE_THREADS 2
-  )
-endif()
 
 target_include_directories(demu PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

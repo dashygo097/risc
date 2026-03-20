@@ -2,11 +2,9 @@
 
 #include "./config.hh"
 #include "./hal/hal.hh"
-#include "./logger.hh"
-#include "Vrv32i_cpu.h"
+#include "Vrv32i_system.h"
 #include "verilated.h"
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <string>
 
@@ -17,13 +15,13 @@
 namespace demu {
 using namespace isa;
 
-class CPUSimulator {
+class SystemSimulator {
 public:
-  CPUSimulator(bool enable_trace = false);
-  ~CPUSimulator();
+  SystemSimulator(bool enabled_trace = false);
+  ~SystemSimulator();
 
   // Program loading
-  bool load_bin(const std::string &filename, addr_t base_addr = 0x0);
+  bool load_bin(const std::string &filename, addr_t offset = 0);
   bool load_elf(const std::string &filename);
 
   // Simulation control
@@ -40,6 +38,10 @@ public:
     auto it = _register_values.find(reg);
     return it != _register_values.end() ? it->second : 0;
   };
+
+  // Simulator configuration
+  void timeout(uint64_t timeout) noexcept { timeout_ = timeout; }
+  void show_pipeline(bool show) noexcept { show_pipeline_ = show; }
 
   // Simulator statistics
   [[nodiscard]] uint64_t cycle_count() const noexcept {
@@ -64,26 +66,21 @@ public:
                : 0.0;
   };
 
-  // Simulator configuration
-  void timeout(uint64_t timeout) noexcept { timeout_ = timeout; }
-  void show_pipeline(bool show) noexcept { show_pipeline_ = show; }
-
   // Debug output
   void dump_registers() const;
   void dump_memory(addr_t start, size_t size) const;
 
 protected:
   // components
-  std::unique_ptr<cpu_t> dut_;
-  std::unique_ptr<hal::DeviceManager> device_manager_;
   std::unique_ptr<RiscConfig> config_;
+  std::unique_ptr<system_t> dut_;
+  std::unique_ptr<hal::DeviceManager> device_manager_;
 
 #ifdef ENABLE_TRACE
   std::unique_ptr<VerilatedVcdC> vcd_;
 #endif
 
   uint64_t timeout_{1000000};
-  bool terminate_{false};
   bool show_pipeline_{false};
   bool trace_enabled_{false};
   uint32_t l1_icache_line_size_;
@@ -91,6 +88,7 @@ protected:
 
   // Simulator state
   uint64_t _time_count{0};
+  bool _terminate{false};
 
   uint64_t _l1_icache_accesses{0};
   uint64_t _l1_icache_misses{0};
@@ -106,10 +104,9 @@ protected:
 
   // Overridable hooks
   virtual void register_devices() {};
-  virtual void on_init() {}
   virtual void on_clock_tick() {};
+  virtual void on_init() {};
   virtual void on_exit() {};
   virtual void on_reset() {};
 };
-
 } // namespace demu

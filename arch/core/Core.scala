@@ -368,54 +368,52 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   csrfile.extraInputIO("instret") := instret_count
 
   // Debug
-  if (p(IsDebug)) {
-    val debug_cycle_count   = IO(Output(UInt(64.W)))
-    val debug_instret_count = IO(Output(UInt(64.W)))
-    val debug_pc            = IO(Output(UInt(p(XLen).W)))
-    val debug_instr         = IO(Output(UInt(p(ILen).W)))
-    val debug_reg_we        = IO(Output(Bool()))
-    val debug_reg_addr      = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
-    val debug_reg_data      = IO(Output(UInt(p(XLen).W)))
+  val debug_cycle_count   = IO(Output(UInt(64.W)))
+  val debug_instret_count = IO(Output(UInt(64.W)))
+  val debug_pc            = IO(Output(UInt(p(XLen).W)))
+  val debug_instr         = IO(Output(UInt(p(ILen).W)))
+  val debug_reg_we        = IO(Output(Bool()))
+  val debug_reg_addr      = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
+  val debug_reg_data      = IO(Output(UInt(p(XLen).W)))
 
-    val debug_branch_taken  = IO(Output(Bool()))
-    val debug_branch_source = IO(Output(UInt(p(XLen).W)))
-    val debug_branch_target = IO(Output(UInt(p(XLen).W)))
+  val debug_branch_taken  = IO(Output(Bool()))
+  val debug_branch_source = IO(Output(UInt(p(XLen).W)))
+  val debug_branch_target = IO(Output(UInt(p(XLen).W)))
 
-    val debug_if_instr  = IO(Output(UInt(p(ILen).W)))
-    val debug_id_instr  = IO(Output(UInt(p(ILen).W)))
-    val debug_ex_instr  = IO(Output(UInt(p(ILen).W)))
-    val debug_mem_instr = IO(Output(UInt(p(ILen).W)))
-    val debug_wb_instr  = IO(Output(UInt(p(ILen).W)))
+  val debug_if_instr  = IO(Output(UInt(p(ILen).W)))
+  val debug_id_instr  = IO(Output(UInt(p(ILen).W)))
+  val debug_ex_instr  = IO(Output(UInt(p(ILen).W)))
+  val debug_mem_instr = IO(Output(UInt(p(ILen).W)))
+  val debug_wb_instr  = IO(Output(UInt(p(ILen).W)))
 
-    val debug_l1_icache_access = IO(Output(Bool()))
-    val debug_l1_icache_miss   = IO(Output(Bool()))
-    val debug_l1_dcache_access = IO(Output(Bool()))
-    val debug_l1_dcache_miss   = IO(Output(Bool()))
+  val debug_l1_icache_access = IO(Output(Bool()))
+  val debug_l1_icache_miss   = IO(Output(Bool()))
+  val debug_l1_dcache_access = IO(Output(Bool()))
+  val debug_l1_dcache_miss   = IO(Output(Bool()))
 
-    debug_cycle_count   := cycle_count
-    debug_instret_count := instret_count
-    debug_pc            := mem_wb("pc")
-    debug_instr         := mem_wb("instr")
-    debug_reg_addr      := mem_wb("rd")
-    debug_reg_we        := mem_wb("regwrite").asBool
-    debug_reg_data      := mem_wb("wb_data")
+  debug_cycle_count   := cycle_count
+  debug_instret_count := instret_count
+  debug_pc            := mem_wb("pc")
+  debug_instr         := mem_wb("instr")
+  debug_reg_addr      := mem_wb("rd")
+  debug_reg_we        := mem_wb("regwrite").asBool
+  debug_reg_data      := mem_wb("wb_data")
 
-    // Branch Debugging
-    debug_branch_taken  := bru.taken
-    debug_branch_source := bru.pc
-    debug_branch_target := bru.target
+  // Branch Debugging
+  debug_branch_taken  := bru.taken
+  debug_branch_source := bru.pc
+  debug_branch_target := bru.target
 
-    // Pipelines Debugging
-    debug_if_instr  := Mux(ifu.ibuffer_deq_fire && !ifu.reset_ibuffer, ifu.if_instr, p(Bubble).value.U(p(ILen).W))
-    debug_id_instr  := if_id("instr")
-    debug_ex_instr  := id_ex("instr")
-    debug_mem_instr := ex_mem("instr")
-    debug_wb_instr  := mem_wb("instr")
+  // Pipelines Debugging
+  debug_if_instr  := Mux(ifu.ibuffer_deq_fire && !ifu.reset_ibuffer, ifu.if_instr, p(Bubble).value.U(p(ILen).W))
+  debug_id_instr  := if_id("instr")
+  debug_ex_instr  := id_ex("instr")
+  debug_mem_instr := ex_mem("instr")
+  debug_wb_instr  := mem_wb("instr")
 
-    // Cache Debugging
-    debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
-    debug_l1_icache_miss   := !l1_icache.upper.resp.bits.hit
-    debug_l1_dcache_access := RegNext(l1_dcache.upper.req.fire)
-    debug_l1_dcache_miss   := !l1_dcache.upper.resp.bits.hit
-  }
+  // Cache Debugging
+  debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
+  debug_l1_icache_miss   := !l1_icache.upper.resp.bits.hit
+  debug_l1_dcache_access := RegNext(l1_dcache.upper.req.fire)
+  debug_l1_dcache_miss   := !l1_dcache.upper.resp.bits.hit
 }

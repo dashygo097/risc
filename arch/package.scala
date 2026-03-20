@@ -13,9 +13,6 @@ package object configs {
   // Architecture Parameters
   object ISA extends Field[String]("rv32i")
 
-  // General Parameters
-  object IsDebug extends Field[Boolean](true)
-
   // CPU Parameters
   object IBufferSize        extends Field[Int](4)
   object IsRegfileUseBypass extends Field[Boolean](true)
@@ -70,9 +67,6 @@ package object configs {
     NumArchRegs -> NumArchRegs(),
     IsBigEndian -> IsBigEndian(),
     Bubble      -> Bubble(),
-
-    // General
-    IsDebug -> IsDebug(),
 
     // Core
     IBufferSize        -> IBufferSize(),

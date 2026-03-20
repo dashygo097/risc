@@ -12,16 +12,8 @@ file(GLOB_RECURSE DEMU_HEADERS
   ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
 )
 
-set(CPU_RTL_SOURCE ${RTL_DIR}/${ISA_TARGET}_cpu.sv)
-if(NOT EXISTS ${CPU_RTL_SOURCE})
-  message(WARNING "RTL file for cpu not found: ${CPU_RTL_SOURCE}")
+set(SYSTEM_RTL_SOURCE ${RTL_DIR}/${ISA_TARGET}_system.sv)
+if(NOT EXISTS ${SYSTEM_RTL_SOURCE})
+  message(WARNING "RTL file not found: ${SYSTEM_RTL_SOURCE}")
   message(WARNING "Please make sure your Chisel design has been generated")
-endif()
-
-if(ENABLE_SYSTEM) 
-  set(SYSTEM_RTL_SOURCE ${RTL_DIR}/${ISA_TARGET}_system.sv)
-  if(NOT EXISTS ${SYSTEM_RTL_SOURCE})
-    message(WARNING "RTL file for system not found: ${SYSTEM_RTL_SOURCE}")
-    message(WARNING "Please make sure your Chisel design has been generated")
-  endif()
 endif()

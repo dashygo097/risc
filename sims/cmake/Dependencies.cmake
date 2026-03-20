@@ -32,10 +32,6 @@ else()
     list(APPEND VERILATOR_ARGS --coverage)
   endif()
 
-  if(ENABLE_SYSTEM)
-    add_compile_definitions(ENABLE_SYSTEM)
-  endif()
-
 endif()
 
 get_filename_component(PROTO_ROOT
