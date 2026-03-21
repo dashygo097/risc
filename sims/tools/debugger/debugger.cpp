@@ -555,7 +555,58 @@ void Debugger::cmd_memory(const std::vector<std::string> &args) {
     }
   }
 
-  sim_.dump_memory(addr, count * 4);
+  const auto *device = sim_.device(addr);
+  if (!device) {
+    fmt::print("No device mapped at 0x{:08x}\n", addr);
+    return;
+  }
+
+  const auto *alloc = device->allocator();
+  if (!alloc) {
+    fmt::print("Device '{}' has no memory allocator\n", device->name());
+    return;
+  }
+
+  uint32_t bytes = count * 4;
+  fmt::print("\n  {} [0x{:08x} - 0x{:08x}]\n\n", device->name(), addr,
+             addr + bytes - 1);
+
+  for (uint32_t i = 0; i < bytes; i += 16) {
+    fmt::print("  0x{:08x}:  ", addr + i);
+
+    for (uint32_t j = 0; j < 16 && (i + j) < bytes; j++) {
+      addr_t a = addr + i + j;
+      if (alloc->is_valid_addr(a))
+        fmt::print("{:02x} ", alloc->read_byte(a));
+      else
+        fmt::print("?? ");
+      if (j == 7)
+        fmt::print(" ");
+    }
+
+    uint32_t remaining = std::min(16u, bytes - i);
+    if (remaining < 16) {
+      for (uint32_t j = remaining; j < 16; j++) {
+        fmt::print("   ");
+        if (j == 7)
+          fmt::print(" ");
+      }
+    }
+
+    fmt::print(" |");
+    for (uint32_t j = 0; j < 16 && (i + j) < bytes; j++) {
+      addr_t a = addr + i + j;
+      if (alloc->is_valid_addr(a)) {
+        uint8_t b = alloc->read_byte(a);
+        fmt::print("{}", (b >= 0x20 && b < 0x7f) ? static_cast<char>(b) : '.');
+      } else {
+        fmt::print("?");
+      }
+    }
+    fmt::print("|\n");
+  }
+
+  fmt::print("\n");
 }
 
 void Debugger::cmd_reset(const std::vector<std::string> &) {

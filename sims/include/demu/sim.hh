@@ -31,6 +31,9 @@ public:
   void run(uint64_t max_cycles = 0);
 
   // Architecture state access
+  [[nodiscard]] hal::Device *device(addr_t addr) {
+    return device_manager_->find_device_for_address(addr);
+  }
   [[nodiscard]] addr_t pc() const noexcept {
     return static_cast<addr_t>(dut_->debug_pc);
   };
