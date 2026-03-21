@@ -1,10 +1,10 @@
 #pragma once
 
+#include "./allocator.hh"
 #include "./hardware.hh"
 #include "risc.pb.h"
 
 namespace demu::hal {
-
 using namespace isa;
 
 class Device : public Hardware {
@@ -40,7 +40,19 @@ public:
     return addr - base_address();
   }
 
+  // NOTE: Every derived device should have a memory allocator which takes up
+  // some address spaces
+  [[nodiscard]] virtual MemoryAllocator *allocator() const noexcept {
+    return nullptr;
+  }
   virtual void dump(addr_t start, size_t size) const noexcept {}
+
+  bool load_binary(const std::string &filename, addr_t offset = 0) {
+    auto *alloc = allocator();
+    if (!alloc)
+      return false;
+    return alloc->load_binary(filename, offset);
+  }
 
 private:
   risc::DeviceDescriptor desc_;

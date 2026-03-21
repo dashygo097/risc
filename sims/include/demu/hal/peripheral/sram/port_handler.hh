@@ -47,13 +47,15 @@ public:
       for (size_t i = 0; i < N; ++i) {
         const addr_t word_addr =
             *s.req.addr + static_cast<addr_t>(i * sizeof(word_t));
-        traits::set(*s.resp.data, i, sram->memory().read<word_t>(word_addr));
+        traits::set(*s.resp.data, i,
+                    sram->allocator()->read<word_t>(word_addr));
       }
     } else {
       for (size_t i = 0; i < N; ++i) {
         const addr_t word_addr =
             *s.req.addr + static_cast<addr_t>(i * sizeof(word_t));
-        sram->memory().write<word_t>(word_addr, traits::get(*s.req.data, i));
+        sram->allocator()->write<word_t>(word_addr,
+                                         traits::get(*s.req.data, i));
       }
     }
   }
@@ -91,7 +93,7 @@ public:
     for (size_t i = 0; i < N; ++i) {
       const addr_t word_addr =
           *s.req.addr + static_cast<addr_t>(i * sizeof(word_t));
-      traits::set(*s.resp.data, i, sram->memory().read<word_t>(word_addr));
+      traits::set(*s.resp.data, i, sram->allocator()->read<word_t>(word_addr));
     }
   }
 

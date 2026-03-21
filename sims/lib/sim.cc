@@ -1,4 +1,5 @@
 #include "demu/sim.hh"
+#include "demu/elf_loader.hh"
 #include "demu/logger.hh"
 
 namespace demu {
@@ -22,18 +23,67 @@ DemuSimulator::~DemuSimulator() {
 }
 
 bool DemuSimulator::load_bin(const std::string &filename, addr_t base_addr) {
-  // NOTE: Use AXILIteSRAM by now
-  if (device_manager_->get_device_by_name<hal::axi::AXILiteSRAM>("imem")
-          ->load_binary(filename, 0)) {
+  auto *device = device_manager_->find_device_for_address(base_addr);
+  if (!device) {
+    DEMU_ERROR("No device mapped at address 0x{:08x}", base_addr);
+    return false;
+  }
+
+  auto *alloc = device->allocator();
+  if (!alloc) {
+    DEMU_ERROR("Device '{}' has no memory allocator", device->name());
+    return false;
+  }
+
+  if (alloc->load_binary(filename, base_addr)) {
     return true;
   }
-  DEMU_ERROR("System failed to load binary: {}", filename);
+
+  DEMU_ERROR("Failed to load binary: {}", filename);
   return false;
 }
 
 bool DemuSimulator::load_elf(const std::string &filename) {
-  DEMU_WARN("ELF loading not yet implemented for System mode.");
-  return false;
+  std::vector<ELFSection> sections;
+  uint32_t entry_point = 0;
+
+  if (!ELFLoader::load(sections, entry_point, filename)) {
+    DEMU_ERROR("Failed to parse ELF: {}", filename);
+    return false;
+  }
+
+  DEMU_INFO("ELF entry point: 0x{:08x}, {} loadable sections", entry_point,
+            sections.size());
+
+  for (const auto &section : sections) {
+    if (section.data.empty())
+      continue;
+
+    auto *device = device_manager_->find_device_for_address(section.addr);
+    if (!device) {
+      DEMU_ERROR("No device mapped at 0x{:08x} for section '{}'", section.addr,
+                 section.name);
+      return false;
+    }
+
+    auto *alloc = device->allocator();
+    if (!alloc) {
+      DEMU_ERROR("Device '{}' has no allocator for section '{}'",
+                 device->name(), section.name);
+      return false;
+    }
+
+    for (size_t i = 0; i < section.data.size(); ++i) {
+      addr_t addr = section.addr + static_cast<addr_t>(i);
+      alloc->write_byte(addr, section.data[i]);
+    }
+
+    DEMU_INFO("Loaded section '{}' at 0x{:08x} ({} bytes)", section.name,
+              section.addr, section.data.size());
+  }
+
+  DEMU_INFO("ELF loaded successfully. Entry: 0x{:08x}", entry_point);
+  return true;
 }
 
 void DemuSimulator::init() {

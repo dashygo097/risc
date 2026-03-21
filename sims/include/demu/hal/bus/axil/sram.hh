@@ -39,8 +39,8 @@ public:
   uint8_t r_resp() const noexcept override;
 
   // Bypass
-  bool load_binary(const std::string &filename, addr_t offset = 0) {
-    return sram_->memory().load_binary(filename, offset);
+  [[nodiscard]] MemoryAllocator *allocator() const noexcept override {
+    return sram_->allocator();
   }
 
 private:

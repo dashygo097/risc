@@ -14,9 +14,8 @@ public:
 
   ~SRAM() override = default;
 
-  [[nodiscard]] MemoryAllocator &memory() noexcept { return *memory_; }
-  [[nodiscard]] const MemoryAllocator &memory() const noexcept {
-    return *memory_;
+  [[nodiscard]] MemoryAllocator *allocator() const noexcept override {
+    return memory_.get();
   }
 
   void clock_tick() override;

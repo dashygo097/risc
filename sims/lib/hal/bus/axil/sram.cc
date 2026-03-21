@@ -31,7 +31,7 @@ void AXILiteSRAM::process_writes() {
   if (valid) {
     for (int i = 0; i < 4; ++i)
       if (wdata.strb & (1u << i))
-        sram_->memory().write_byte(
+        allocator()->write_byte(
             addr + i, static_cast<byte_t>((wdata.data >> (i * 8)) & 0xFF));
   }
 
@@ -45,7 +45,7 @@ void AXILiteSRAM::process_reads() {
   ReadTransaction &rt = _read_queue.front();
   const bool valid = owns_address(rt.addr) && (rt.addr % INSTR_ALIGNMENT == 0);
 
-  rt.data = valid ? sram_->memory().read_word(rt.addr) : 0u;
+  rt.data = valid ? allocator()->read_word(rt.addr) : 0u;
   rt.processed = true;
 }
 
@@ -100,7 +100,7 @@ void AXILiteSRAM::dump(addr_t start, size_t size) const noexcept {
   HAL_INFO("SRAM dump [0x{:08X} - 0x{:08X}]:", static_cast<uint64_t>(start),
            static_cast<uint64_t>(start + clamped));
 
-  const byte_t *ptr = sram_->memory().get_ptr(start);
+  const byte_t *ptr = allocator()->get_ptr(start);
   if (!ptr)
     return;
 
