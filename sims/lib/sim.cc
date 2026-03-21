@@ -23,7 +23,7 @@ DemuSimulator::~DemuSimulator() {
 
 bool DemuSimulator::load_bin(const std::string &filename, addr_t base_addr) {
   // NOTE: Use AXILIteSRAM by now
-  if (device_manager_->get_slave_by_name<hal::axi::AXILiteSRAM>("imem")
+  if (device_manager_->get_device_by_name<hal::axi::AXILiteSRAM>("imem")
           ->load_binary(filename, 0)) {
     return true;
   }
@@ -119,12 +119,12 @@ void DemuSimulator::dump_registers() const {
 }
 
 void DemuSimulator::dump_memory(addr_t start, size_t size) const {
-  const auto *slave = device_manager_->find_slave_for_address(start);
-  if (!slave) {
+  const auto *device = device_manager_->find_device_for_address(start);
+  if (!device) {
     HAL_WARN("Invalid memory dump address: 0x{:0x8x}", start);
     return;
   }
-  slave->dump(start, size);
+  device->dump(start, size);
 }
 
 void DemuSimulator::clock_tick() {

@@ -3,37 +3,37 @@
 
 namespace demu::hal {
 
-// Slave Retrieval — by port
-Device *DeviceManager::get_slave(port_id_t port) noexcept {
+// Device Retrieval — by port
+Device *DeviceManager::get_device(port_id_t port) noexcept {
   if (port >= slots_.size())
     return nullptr;
   return slots_[port].device.get();
 }
 
-const Device *DeviceManager::get_slave(port_id_t port) const noexcept {
+const Device *DeviceManager::get_device(port_id_t port) const noexcept {
   if (port >= slots_.size())
     return nullptr;
   return slots_[port].device.get();
 }
 
-// Slave Retrieval — by name
-Device *DeviceManager::get_slave_by_name(std::string_view name) noexcept {
+// Device Retrieval — by name
+Device *DeviceManager::get_device_by_name(std::string_view name) noexcept {
   auto it = name_indices_.find(std::string(name));
   if (it == name_indices_.end())
     return nullptr;
-  return get_slave(it->second);
+  return get_device(it->second);
 }
 
 const Device *
-DeviceManager::get_slave_by_name(std::string_view name) const noexcept {
+DeviceManager::get_device_by_name(std::string_view name) const noexcept {
   auto it = name_indices_.find(std::string(name));
   if (it == name_indices_.end())
     return nullptr;
-  return get_slave(it->second);
+  return get_device(it->second);
 }
 
-// Slave Retrieval — by address
-Device *DeviceManager::find_slave_for_address(addr_t addr) noexcept {
+// Device Retrieval — by address
+Device *DeviceManager::find_device_for_address(addr_t addr) noexcept {
   if (addr_indices_.empty())
     return nullptr;
 
@@ -42,19 +42,19 @@ Device *DeviceManager::find_slave_for_address(addr_t addr) noexcept {
     return nullptr;
 
   --it;
-  auto *slave = get_slave(it->second);
-  if (slave && slave->owns_address(addr)) {
-    HAL_TRACE("Address 0x{:08X} mapped to slave '{}' (Port {})", addr,
+  auto *device = get_device(it->second);
+  if (device && device->owns_address(addr)) {
+    HAL_TRACE("Address 0x{:08X} mapped to device '{}' (Port {})", addr,
               slots_[it->second].desc.name(), it->second);
-    return slave;
+    return device;
   }
 
-  HAL_WARN("No slave device owns address 0x{:08X}", addr);
+  HAL_WARN("No device device owns address 0x{:08X}", addr);
   return nullptr;
 }
 
 const Device *
-DeviceManager::find_slave_for_address(addr_t addr) const noexcept {
+DeviceManager::find_device_for_address(addr_t addr) const noexcept {
   if (addr_indices_.empty())
     return nullptr;
 
@@ -63,11 +63,11 @@ DeviceManager::find_slave_for_address(addr_t addr) const noexcept {
     return nullptr;
 
   --it;
-  const auto *slave = get_slave(it->second);
-  if (slave && slave->owns_address(addr)) {
-    HAL_TRACE("Address 0x{:08X} mapped to slave '{}' (Port {})", addr,
+  const auto *device = get_device(it->second);
+  if (device && device->owns_address(addr)) {
+    HAL_TRACE("Address 0x{:08X} mapped to device '{}' (Port {})", addr,
               slots_[it->second].desc.name(), it->second);
-    return slave;
+    return device;
   }
   return nullptr;
 }
@@ -105,20 +105,21 @@ void DeviceManager::clock_tick() noexcept {
 }
 
 // Informational
-bool DeviceManager::has_slave_at(port_id_t port) const noexcept {
+bool DeviceManager::has_device_at(port_id_t port) const noexcept {
   return port < slots_.size() && slots_[port].device != nullptr;
 }
 
 std::optional<std::string_view>
-DeviceManager::get_slave_name(port_id_t port) const noexcept {
-  if (!has_slave_at(port))
+DeviceManager::get_device_name(port_id_t port) const noexcept {
+  if (!has_device_at(port))
     return std::nullopt;
   return std::string_view(slots_[port].desc.name());
 }
 
 void DeviceManager::dump_device_map() const {
   HAL_INFO("--- Device Map Summary ---");
-  HAL_INFO("Active Slaves: {} / {} ports", active_slave_count(), port_count());
+  HAL_INFO("Active Devices: {} / {} ports", active_device_count(),
+           port_count());
 
   for (const auto &[base, port] : addr_indices_) {
     const auto &slot = slots_[port];

@@ -17,9 +17,9 @@ protected:
     const auto *dmem_r = config_->find_region("dmem");
     const auto *uart_r = config_->find_region("uart");
 
-    device_manager_->register_slave<demu::hal::axi::AXILiteSRAM>(0, *imem_r);
-    device_manager_->register_slave<demu::hal::axi::AXILiteSRAM>(1, *dmem_r);
-    device_manager_->register_slave<demu::hal::axi::AXILiteSRAM>(2, *uart_r);
+    device_manager_->register_device<demu::hal::axi::AXILiteSRAM>(0, *imem_r);
+    device_manager_->register_device<demu::hal::axi::AXILiteSRAM>(1, *dmem_r);
+    device_manager_->register_device<demu::hal::axi::AXILiteSRAM>(2, *uart_r);
 
     device_manager_->register_handler(
         0, std::make_unique<demu::hal::axi::AXILitePortHandler>([this]() {
