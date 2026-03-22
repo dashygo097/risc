@@ -8,6 +8,7 @@ import "configs/bpu.proto";
 import "configs/regfile.proto";
 import "configs/rob.proto";
 import "configs/bus.proto";
+import "configs/csr.proto";
 
 option java_package = "arch.configs.proto";
 option java_outer_classname = "RiscConfigProto";
@@ -19,5 +20,6 @@ message RiscConfig {
   RobConfig rob = 4;
   CacheConfig l1i = 5;
   CacheConfig l1d = 6;
-  BusConfig bus = 7;
+  CsrConfig csr = 7;
+  BusConfig bus = 8;
 }

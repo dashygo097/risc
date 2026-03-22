@@ -35,6 +35,9 @@ public:
   [[nodiscard]] const risc::CacheConfig &l1d() const noexcept {
     return proto_.l1d();
   }
+  [[nodiscard]] const risc::CsrConfig &csr() const noexcept {
+    return proto_.csr();
+  }
   [[nodiscard]] const risc::BusConfig &bus() const noexcept {
     return proto_.bus();
   }

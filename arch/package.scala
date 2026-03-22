@@ -13,11 +13,15 @@ package object configs {
   // Architecture Parameters
   object ISA extends Field[String]("rv32i")
 
-  // CPU Parameters
-  object IBufferSize        extends Field[Int](4)
+  // Ifu Parameters
+  object IBufferSize extends Field[Int](4)
+
+  // Regfile Parameters
   object IsRegfileUseBypass extends Field[Boolean](true)
   object NumPhyRegs         extends Field[Int](64)
-  object ROBSize            extends Field[Int](16)
+
+  // ROB Parameters
+  object ROBSize extends Field[Int](16)
 
   // Branch Prediction
   object BTBWays       extends Field[Int](4)
@@ -34,6 +38,9 @@ package object configs {
   object L1DCacheSets       extends Field[Int](8)
   object L1DCacheLineSize   extends Field[Int](16) // in bytes
   object L1DCacheReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
+
+  // Csr Parameters
+  object EnableCSR extends Field[Boolean](true)
 
   // Bus Parameters
   object BusType                       extends Field[String]("axil")
@@ -68,11 +75,15 @@ package object configs {
     IsBigEndian -> IsBigEndian(),
     Bubble      -> Bubble(),
 
-    // Core
-    IBufferSize        -> IBufferSize(),
+    // IFU
+    IBufferSize -> IBufferSize(),
+
+    // Regfile
     IsRegfileUseBypass -> IsRegfileUseBypass(),
     NumPhyRegs         -> NumPhyRegs(),
-    ROBSize            -> ROBSize(),
+
+    // ROB
+    ROBSize -> ROBSize(),
 
     // Cache
     L1ICacheWays       -> L1ICacheWays(),
@@ -83,6 +94,9 @@ package object configs {
     L1DCacheSets       -> L1DCacheSets(),
     L1DCacheLineSize   -> L1DCacheLineSize(),
     L1DCacheReplPolicy -> L1DCacheReplPolicy(),
+
+    // CSR
+    EnableCSR -> EnableCSR(),
 
     // Bus
     BusType                       -> BusType(),

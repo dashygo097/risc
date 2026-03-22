@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package risc;
+
+option java_package = "arch.configs.proto";
+option java_outer_classname = "CsrProto";
+
+message CsrConfig { bool enable = 1; }

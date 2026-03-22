@@ -53,6 +53,11 @@ object RiscDump {
           replPolicy = toProtoRepl(p(L1DCacheReplPolicy)),
         )
       ),
+      csr = Some(
+        CsrConfig(
+          enable = p(EnableCSR),
+        )
+      ),
       bus = Some(
         BusConfig(
           `type` = toProtoBus(p(arch.configs.BusType)),
