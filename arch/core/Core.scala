@@ -41,89 +41,96 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imm_gen = Module(new ImmGen)
   val alu     = Module(new Alu)
   val lsu     = Module(new Lsu)
-  val csrfile = Module(new CsrFile)
 
-  val l1_icache = Module(new SetAssociativeCacheReadOnly(UInt(p(XLen).W), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy)))
-  val l1_dcache = Module(new SetAssociativeCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
+  val csrfile: Option[CsrFile] =
+    if (p(EnableCSR)) Some(Module(new CsrFile)) else None
 
-  // Pipelines
-  val if_id = Module(
-    new PipelineStage(
-      "if_id",
-      Seq(
-        PipelineField("instr", p(ILen), p(Bubble).value.toLong),
-        PipelineField("pc", p(XLen)),
-        PipelineField("bpu_pred_taken", 1),
-        PipelineField("bpu_pred_target", p(XLen)),
-      )
+  val l1_icache = Module(
+    new SetAssociativeCacheReadOnly(
+      UInt(p(XLen).W),
+      p(XLen),
+      p(L1ICacheLineSize) / (p(XLen) / 8),
+      p(L1ICacheSets),
+      p(L1ICacheWays),
+      p(L1ICacheReplPolicy)
+    )
+  )
+  val l1_dcache = Module(
+    new SetAssociativeCache(
+      UInt(p(XLen).W),
+      p(XLen),
+      p(L1DCacheLineSize) / (p(XLen) / 8),
+      p(L1DCacheSets),
+      p(L1DCacheWays),
+      p(L1DCacheReplPolicy)
     )
   )
 
-  val id_ex = Module(
-    new PipelineStage(
-      "id_ex",
+  val if_id = PipelineStageBuilder("if_id")
+    .field("instr", p(ILen), p(Bubble).value.toLong)
+    .field("pc", p(XLen))
+    .field("bpu_pred_taken", 1)
+    .field("bpu_pred_target", p(XLen))
+    .build()
+
+  val id_ex = PipelineStageBuilder("id_ex")
+    .field("instr", p(ILen), p(Bubble).value.toLong)
+    .field("pc", p(XLen))
+    .field("rd", log2Ceil(p(NumArchRegs)))
+    .field("rs1", log2Ceil(p(NumArchRegs)))
+    .field("rs1_data", p(XLen))
+    .field("rs2", log2Ceil(p(NumArchRegs)))
+    .field("rs2_data", p(XLen))
+    .field("imm", p(XLen))
+    .field("regwrite", 1)
+    .field("branch", 1)
+    .field("br_type", bru_utils.branchTypeWidth)
+    .field("alu", 1)
+    .field("alu_sel1", alu_utils.sel1Width)
+    .field("alu_sel2", alu_utils.sel2Width)
+    .field("alu_fn", alu_utils.fnTypeWidth)
+    .field("alu_mode", 1)
+    .field("lsu", 1)
+    .field("lsu_cmd", lsu_utils.cmdWidth)
+    .addFieldsWhen(p(EnableCSR))(
       Seq(
-        PipelineField("instr", p(ILen), p(Bubble).value.toLong),
-        PipelineField("pc", p(XLen)),
-        PipelineField("rd", log2Ceil(p(NumArchRegs))),
-        PipelineField("rs1", log2Ceil(p(NumArchRegs))),
-        PipelineField("rs1_data", p(XLen)),
-        PipelineField("rs2", log2Ceil(p(NumArchRegs))),
-        PipelineField("rs2_data", p(XLen)),
-        PipelineField("imm", p(XLen)),
-        PipelineField("csr_addr", csr_utils.addrWidth),
-        PipelineField("csr_imm", p(XLen)),
-        PipelineField("regwrite", 1),
-        PipelineField("branch", 1),
-        PipelineField("br_type", bru_utils.branchTypeWidth),
-        PipelineField("alu", 1),
-        PipelineField("alu_sel1", alu_utils.sel1Width),
-        PipelineField("alu_sel2", alu_utils.sel2Width),
-        PipelineField("alu_fn", alu_utils.fnTypeWidth),
-        PipelineField("alu_mode", 1),
-        PipelineField("lsu", 1),
-        PipelineField("lsu_cmd", lsu_utils.cmdWidth),
         PipelineField("csr", 1),
         PipelineField("csr_cmd", csr_utils.cmdWidth),
+        PipelineField("csr_addr", csr_utils.addrWidth),
+        PipelineField("csr_imm", p(XLen)),
       )
     )
-  )
+    .build()
 
-  val ex_mem = Module(
-    new PipelineStage(
-      "ex_mem",
+  val ex_mem = PipelineStageBuilder("ex_mem")
+    .field("instr", p(ILen), p(Bubble).value.toLong)
+    .field("pc", p(XLen))
+    .field("rd", log2Ceil(p(NumArchRegs)))
+    .field("alu_result", p(XLen))
+    .field("rs2_data", p(XLen))
+    .field("regwrite", 1)
+    .field("lsu", 1)
+    .field("lsu_cmd", lsu_utils.cmdWidth)
+    .addFieldsWhen(p(EnableCSR))(
       Seq(
-        PipelineField("instr", p(ILen), p(Bubble).value.toLong),
-        PipelineField("pc", p(XLen)),
-        PipelineField("rd", log2Ceil(p(NumArchRegs))),
-        PipelineField("alu_result", p(XLen)),
-        PipelineField("rs2_data", p(XLen)),
-        PipelineField("regwrite", 1),
-        PipelineField("lsu", 1),
-        PipelineField("lsu_cmd", lsu_utils.cmdWidth),
         PipelineField("csr", 1),
         PipelineField("csr_rdata", p(XLen)),
       )
     )
-  )
+    .build()
 
-  val mem_wb = Module(
-    new PipelineStage(
-      "mem_wb",
-      Seq(
-        PipelineField("instr", p(ILen), p(Bubble).value.toLong),
-        PipelineField("pc", p(XLen), 0L),
-        PipelineField("rd", log2Ceil(p(NumArchRegs)), 0L),
-        PipelineField("regwrite", 1, 0L),
-        PipelineField("wb_data", p(XLen), 0L),
-      )
-    )
-  )
+  val mem_wb = PipelineStageBuilder("mem_wb")
+    .field("instr", p(ILen), p(Bubble).value.toLong)
+    .field("pc", p(XLen), 0L)
+    .field("rd", log2Ceil(p(NumArchRegs)), 0L)
+    .field("regwrite", 1, 0L)
+    .field("wb_data", p(XLen), 0L)
+    .build()
 
-  // Control Signals
+  // Control signals
   val load_use_hazard = Wire(Bool())
 
-  // Performance Counters
+  // Performance counter
   val cycle_count   = RegInit(0.U(64.W))
   val instret_count = RegInit(0.U(64.W))
 
@@ -136,9 +143,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ifu.bpu_taken_in  := bpu.taken
   ifu.bpu_target_in := bpu.target
 
-  val bpu_correct_taken = if_id("bpu_pred_taken").asBool &&
+  val bpu_correct_taken        = if_id("bpu_pred_taken").asBool &&
     (bru.target === if_id("bpu_pred_target"))
-
   val bru_mispredict_taken     = bru.taken && !bpu_correct_taken
   val bru_mispredict_not_taken = bru.en && !bru.taken && if_id("bpu_pred_taken").asBool
 
@@ -155,7 +161,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   bpu.update.target := bru.target
   bpu.update.taken  := bru.taken
 
-  // IF/ID Pipeline
+  // IF/ID pipeline
   if_id.stall := ifu.if_id_stall
   if_id.flush := ifu.if_id_flush
   if_id.drive("instr", ifu.if_instr)
@@ -213,16 +219,17 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   bru.imm    := imm_gen.imm
   bru.brType := decoder.decoded.br_type
 
-  // Load-Use Hazard
+  // Load-use hazard
   load_use_hazard := lsu_utils.isMemRead(id_ex("lsu").asBool, id_ex("lsu_cmd")) &&
     ((id_ex("rd") === rs1) || (id_ex("rd") === rs2)) &&
     id_ex("rd") =/= 0.U
 
-  // ID/EX Pipeline
+  // ID/EX pipeline
   id_ex.stall := ex_mem.stall
   id_ex.flush := (load_use_hazard ||
     ((bru_mispredict_taken || bru_mispredict_not_taken) && !bru.jump)) &&
     !lsu.busy
+
   id_ex.drive("instr", if_id("instr"))
   id_ex.drive("pc", if_id("pc"))
   id_ex.drive("rd", rd)
@@ -231,8 +238,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   id_ex.drive("rs2", rs2)
   id_ex.drive("rs2_data", id_rs2_data)
   id_ex.drive("imm", imm_gen.imm)
-  id_ex.drive("csr_addr", csr_addr)
-  id_ex.drive("csr_imm", imm_gen.csr_imm)
   id_ex.drive("regwrite", decoder.decoded.regwrite)
   id_ex.drive("branch", decoder.decoded.branch)
   id_ex.drive("br_type", decoder.decoded.br_type)
@@ -243,8 +248,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   id_ex.drive("alu_mode", decoder.decoded.alu_mode)
   id_ex.drive("lsu", decoder.decoded.lsu)
   id_ex.drive("lsu_cmd", decoder.decoded.lsu_cmd)
-  id_ex.drive("csr", decoder.decoded.csr)
-  id_ex.drive("csr_cmd", decoder.decoded.csr_cmd)
+  id_ex.driveOpt("csr", decoder.decoded.csr)
+  id_ex.driveOpt("csr_cmd", decoder.decoded.csr_cmd)
+  id_ex.driveOpt("csr_addr", csr_addr)
+  id_ex.driveOpt("csr_imm", imm_gen.csr_imm)
 
   // EX Stage
   ex_fwd.ex_rs1       := id_ex("rs1")
@@ -294,15 +301,18 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   alu.fnType := id_ex("alu_fn")
   alu.mode   := id_ex("alu_mode")
 
-  csrfile.en   := id_ex("csr").asBool
-  csrfile.cmd  := id_ex("csr_cmd")
-  csrfile.addr := id_ex("csr_addr")
-  csrfile.src  := ex_rs1_data
-  csrfile.imm  := id_ex("csr_imm")
+  csrfile.foreach { csr =>
+    csr.en   := id_ex("csr").asBool
+    csr.cmd  := id_ex("csr_cmd")
+    csr.addr := id_ex("csr_addr")
+    csr.src  := ex_rs1_data
+    csr.imm  := id_ex("csr_imm")
+  }
 
-  // EX/MEM Pipeline
+  // EX/MEM pipeline
   ex_mem.stall := mem_wb.stall || lsu.busy
   ex_mem.flush := false.B
+
   ex_mem.drive("instr", id_ex("instr"))
   ex_mem.drive("pc", id_ex("pc"))
   ex_mem.drive("rd", id_ex("rd"))
@@ -311,8 +321,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ex_mem.drive("regwrite", id_ex("regwrite"))
   ex_mem.drive("lsu", id_ex("lsu"))
   ex_mem.drive("lsu_cmd", id_ex("lsu_cmd"))
-  ex_mem.drive("csr", id_ex("csr"))
-  ex_mem.drive("csr_rdata", csrfile.rd)
+  ex_mem.driveOpt("csr", id_ex("csr"))
+  ex_mem.driveOpt("csr_rdata", csrfile.get.rd)
 
   // MEM Stage
   lsu.en    := ex_mem("lsu").asBool
@@ -334,15 +344,18 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     l1_dcache_pending := true.B
   }
 
+  val csrMuxArm: Seq[(Bool, UInt)] =
+    if (p(EnableCSR))
+      Seq(ex_mem("csr").asBool -> ex_mem("csr_rdata"))
+    else
+      Nil
+
   val mem_wb_data = MuxCase(
     ex_mem("alu_result"),
-    Seq(
-      lsu.mem_read         -> lsu.rdata,
-      ex_mem("csr").asBool -> ex_mem("csr_rdata")
-    )
+    Seq(lsu.mem_read -> lsu.rdata) ++ csrMuxArm
   )
 
-  // MEM/WB Pipeline
+  // MEM/WB pipeline
   mem_wb.stall := false.B
   mem_wb.flush := lsu.busy
   mem_wb.drive("instr", ex_mem("instr"))
@@ -356,7 +369,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_data := mem_wb("wb_data")
   regfile.write_en   := mem_wb("regwrite").asBool
 
-  // Extra Information
+  // Performance counters
   cycle_count   := cycle_count + 1.U
   instret_count := instret_count + Mux(
     mem_wb("instr") =/= p(Bubble).value.U(p(ILen).W),
@@ -364,10 +377,12 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     0.U
   )
 
-  csrfile.extraInputIO("cycle")   := cycle_count
-  csrfile.extraInputIO("instret") := instret_count
+  csrfile.foreach { csr =>
+    csr.extraInputIO("cycle")   := cycle_count
+    csr.extraInputIO("instret") := instret_count
+  }
 
-  // Debug
+  // Debug IOs
   val debug_cycle_count   = IO(Output(UInt(64.W)))
   val debug_instret_count = IO(Output(UInt(64.W)))
   val debug_pc            = IO(Output(UInt(p(XLen).W)))
@@ -410,19 +425,20 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   debug_reg_we        := mem_wb("regwrite").asBool
   debug_reg_data      := mem_wb("wb_data")
 
-  // Branch Debugging
   debug_branch_taken  := bru.taken
   debug_branch_source := bru.pc
   debug_branch_target := bru.target
 
-  // Pipelines Debugging
-  debug_if_instr  := Mux(ifu.ibuffer_deq_fire && !ifu.reset_ibuffer, ifu.if_instr, p(Bubble).value.U(p(ILen).W))
+  debug_if_instr  := Mux(
+    ifu.ibuffer_deq_fire && !ifu.reset_ibuffer,
+    ifu.if_instr,
+    p(Bubble).value.U(p(ILen).W)
+  )
   debug_id_instr  := if_id("instr")
   debug_ex_instr  := id_ex("instr")
   debug_mem_instr := ex_mem("instr")
   debug_wb_instr  := mem_wb("instr")
 
-  // Cache Debugging
   debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
   debug_l1_icache_miss   := !l1_icache.upper.resp.bits.hit
   debug_l1_dcache_access := RegNext(l1_dcache.upper.req.fire)

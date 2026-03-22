@@ -2,6 +2,7 @@ package arch.core.pipeline
 
 import arch.configs._
 import chisel3._
+import scala.collection.mutable
 
 class PipelineStage(
   stageName: String,
@@ -42,6 +43,7 @@ class PipelineStage(
 
   override val stageFields: Seq[PipelineField] = fields
 
+  // Public APIs
   def apply(fieldName: String): UInt = {
     requireField(fieldName)
     sout(fieldName)
@@ -54,12 +56,39 @@ class PipelineStage(
     requireField(fieldName)
     sin(fieldName) := value
   }
+
+  def driveOpt(fieldName: String, value: => UInt): Unit =
+    if (hasField(fieldName)) sin(fieldName) := value
 }
 
-object PipelineStage {
-  def apply(
-    name: String,
-    legacy: Seq[(String, Int, Long)]
-  )(implicit p: Parameters): PipelineStage =
-    new PipelineStage(name, legacy.map(PipelineField.fromTuple))
+class PipelineStageBuilder private[pipeline] (stageName: String) {
+
+  private val _fields = mutable.ListBuffer[PipelineField]()
+
+  def field(name: String, width: Int, initVal: Long = 0L): this.type = {
+    _fields += PipelineField(name, width, initVal)
+    this
+  }
+
+  def addField(f: PipelineField): this.type = {
+    _fields += f
+    this
+  }
+
+  def addFields(fs: Seq[PipelineField]): this.type = {
+    _fields ++= fs
+    this
+  }
+
+  def addFieldsWhen(cond: Boolean)(fs: => Seq[PipelineField]): this.type = {
+    if (cond) _fields ++= fs
+    this
+  }
+
+  def build()(implicit p: Parameters): PipelineStage =
+    Module(new PipelineStage(stageName, _fields.toSeq))
+}
+
+object PipelineStageBuilder {
+  def apply(name: String): PipelineStageBuilder = new PipelineStageBuilder(name)
 }
