@@ -36,14 +36,26 @@ set_target_properties(demu PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
 )
 
+# spdlog
 target_link_libraries(demu PUBLIC spdlog::spdlog)
+
+# protobuf 
+set(ABSL_LINK_TARGETS "")
+
+foreach(_absl_target
+    absl::log
+    absl::log_internal_message
+    absl::log_internal_check_op
+)
+  if(TARGET ${_absl_target})
+    list(APPEND ABSL_LINK_TARGETS ${_absl_target})
+  endif()
+endforeach()
+
+list(APPEND ABSL_LINK_TARGETS absl::status absl::strings)
 target_link_libraries(demu PUBLIC
   protobuf::libprotobuf
-  absl::log
-  absl::log_internal_message
-  absl::log_internal_check_op
-  absl::status
-  absl::strings
+  ${ABSL_LINK_TARGETS}
 )
 
 target_compile_definitions(demu PRIVATE

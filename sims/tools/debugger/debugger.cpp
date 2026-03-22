@@ -200,6 +200,7 @@ void Debugger::cmd_help(const std::vector<std::string> &args) {
   for (const auto &cmd : commands_) {
     fmt::print("  {:<12s}({:<3s})  {}\n", cmd.name, cmd.alias, cmd.brief);
   }
+  fmt::print("\n");
 }
 
 void Debugger::cmd_run(const std::vector<std::string> &args) {
