@@ -212,7 +212,7 @@ void DemuSimulator::clock_tick() {
                dut_->debug_branch_source, dut_->debug_branch_target);
   }
 
-  if (dut_->debug_instr != BUBBLE) {
+  if (dut_->debug_instret) {
     Instruction inst(static_cast<instr_t>(dut_->debug_instr));
     DEMU_INFO("RETIRE | Cycle {:6d} | PC=0x{:08x} | Inst=0x{:08x} ({})",
               cycle_count(), static_cast<addr_t>(dut_->debug_pc),

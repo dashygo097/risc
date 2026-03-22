@@ -36,6 +36,7 @@ class RiscSystem(implicit p: Parameters) extends Module {
   // Debug
   val debug_cycle_count   = IO(Output(UInt(64.W)))
   val debug_instret_count = IO(Output(UInt(64.W)))
+  val debug_instret       = IO(Output(Bool()))
   val debug_pc            = IO(Output(UInt(p(XLen).W)))
   val debug_instr         = IO(Output(UInt(p(ILen).W)))
   val debug_reg_we        = IO(Output(Bool()))
@@ -59,6 +60,7 @@ class RiscSystem(implicit p: Parameters) extends Module {
 
   debug_cycle_count   := cpu.debug_cycle_count
   debug_instret_count := cpu.debug_instret_count
+  debug_instret       := cpu.debug_instret
   debug_pc            := cpu.debug_pc
   debug_instr         := cpu.debug_instr
   debug_reg_we        := cpu.debug_reg_we

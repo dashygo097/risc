@@ -370,12 +370,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.write_en   := mem_wb("regwrite").asBool
 
   // Performance counters
+  val instret = mem_wb("instr") =/= p(Bubble).value.U(p(ILen).W)
+
   cycle_count   := cycle_count + 1.U
-  instret_count := instret_count + Mux(
-    mem_wb("instr") =/= p(Bubble).value.U(p(ILen).W),
-    1.U,
-    0.U
-  )
+  instret_count := instret_count + Mux(instret, 1.U, 0.U)
 
   csrfile.foreach { csr =>
     csr.extraInputIO("cycle")   := cycle_count
@@ -385,6 +383,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // Debug IOs
   val debug_cycle_count   = IO(Output(UInt(64.W)))
   val debug_instret_count = IO(Output(UInt(64.W)))
+  val debug_instret       = IO(Output(Bool()))
   val debug_pc            = IO(Output(UInt(p(XLen).W)))
   val debug_instr         = IO(Output(UInt(p(ILen).W)))
   val debug_reg_we        = IO(Output(Bool()))
@@ -406,21 +405,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val debug_l1_dcache_access = IO(Output(Bool()))
   val debug_l1_dcache_miss   = IO(Output(Bool()))
 
-  val last_retired_pc    = RegInit(0.U(p(XLen).W))
-  val last_retired_instr = RegInit(p(Bubble).value.U(p(ILen).W))
-
-  val wb_valid = mem_wb("instr") =/= p(Bubble).value.U(p(ILen).W)
-
-  when(wb_valid) {
-    last_retired_pc    := mem_wb("pc")
-    last_retired_instr := mem_wb("instr")
-  }
-
-  debug_pc    := Mux(wb_valid, mem_wb("pc"), last_retired_pc)
-  debug_instr := Mux(wb_valid, mem_wb("instr"), last_retired_instr)
-
   debug_cycle_count   := cycle_count
   debug_instret_count := instret_count
+  debug_instret       := instret
+  debug_pc            := mem_wb("pc")
+  debug_instr         := mem_wb("instr")
   debug_reg_addr      := mem_wb("rd")
   debug_reg_we        := mem_wb("regwrite").asBool
   debug_reg_data      := mem_wb("wb_data")
