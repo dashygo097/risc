@@ -8,8 +8,8 @@ namespace demu::hal {
 
 MemoryAllocator::MemoryAllocator(addr_t base_addr, size_t size)
     : memory_(size, 0), base_addr_(base_addr) {
-  HAL_INFO("MemoryAllocator initialized: Size={} bytes, BaseAddr=0x{:08x}",
-           size, base_addr);
+  HAL_DEBUG("MemoryAllocator initialized: Size={} bytes, BaseAddr=0x{:08x}",
+            size, base_addr);
 }
 
 // Helpers
@@ -46,8 +46,8 @@ void MemoryAllocator::clear() {
 }
 
 void MemoryAllocator::dump(addr_t start, addr_t length) const {
-  HAL_INFO("MemoryAllocator Dump [0x{:08x} - 0x{:08x}]:", start,
-           start + length);
+  HAL_DEBUG("MemoryAllocator Dump [0x{:08x} - 0x{:08x}]:", start,
+            start + length);
   for (addr_t addr = start; addr < start + length; addr += 16) {
     std::stringstream ss;
     ss << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";

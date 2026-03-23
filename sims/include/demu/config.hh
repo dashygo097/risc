@@ -71,8 +71,8 @@ public:
   }
 
   void dump() const {
-    DEMU_INFO("--- RiscConfig ---");
-    DEMU_INFO("  config: {}", config_path_);
+    DEMU_DEBUG("--- RiscConfig ---");
+    DEMU_DEBUG("  config: {}", config_path_);
     std::string json;
     (void)google::protobuf::util::MessageToJsonString(proto_, &json);
     std::istringstream ss(json);
@@ -80,9 +80,9 @@ public:
     while (std::getline(ss, line))
       DEMU_TRACE("  {}", line);
     for (const auto &r : proto_.bus().address_map())
-      DEMU_INFO("    {:6s} base=0x{:08x} size=0x{:x}", r.name(), r.base(),
-                r.size());
-    DEMU_INFO("------------------")
+      DEMU_DEBUG("    {:6s} base=0x{:08x} size=0x{:x}", r.name(), r.base(),
+                 r.size());
+    DEMU_DEBUG("------------------")
   }
 
   [[nodiscard]] const risc::DeviceDescriptor *
