@@ -10,6 +10,7 @@ option java_outer_classname = "BusConfigProto";
 enum BusType {
   BUS_TYPE_UNKNOWN = 0;
   BUS_TYPE_AXIL = 1;
+  BUS_TYPE_AXIF = 2;
 }
 
 message BusConfig {

@@ -43,7 +43,7 @@ package object configs {
   object EnableCSR extends Field[Boolean](true)
 
   // Bus Parameters
-  object BusType                       extends Field[String]("axil")
+  object BusType                       extends Field[String]("axif")
   object BusCrossbarFifoDepthPerClient extends Field[Int](4)
 
   object BusAddressMap
