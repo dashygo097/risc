@@ -18,3 +18,9 @@
 #include "./bus/axil/signals.hh"
 #include "./bus/axil/slave.hh"
 #include "./bus/axil/sram.hh"
+
+// AXI4-Full
+#include "./bus/axif/port_handler.hh"
+#include "./bus/axif/signals.hh"
+#include "./bus/axif/slave.hh"
+#include "./bus/axif/sram.hh"

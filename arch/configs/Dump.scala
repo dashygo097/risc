@@ -114,6 +114,7 @@ object RiscDump {
 
   private def toProtoBus(s: String): BusType = s match {
     case "axil" => BusType.BUS_TYPE_AXIL
+    case "axif" => BusType.BUS_TYPE_AXIF
     case _      => BusType.BUS_TYPE_UNKNOWN
   }
 }

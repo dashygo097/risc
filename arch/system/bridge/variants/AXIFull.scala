@@ -22,37 +22,60 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val wordsPerRequest = memory.req.bits.data.getWidth / p(XLen)
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
 
-      // Burst length
       val writeBurstLen = (wordsPerRequest - 1).U(8.W)
       val readBurstLen  = (wordsPerRespond - 1).U(8.W)
+      val bytesPerWord  = p(XLen) / 8
 
-      val bytesPerWord = p(XLen) / 8
-
-      // Write path
-      val w_beat_count = RegInit(0.U(log2Ceil(wordsPerRequest).W))
-      val w_active     = RegInit(false.B)
-      val w_data_reg   = Reg(UInt(memory.req.bits.data.getWidth.W))
+      val req_addr   = RegInit(0.U(p(XLen).W))
+      val w_data_reg = RegInit(0.U(memory.req.bits.data.getWidth.W))
 
       val w_data_vec = VecInit((0 until wordsPerRequest).map { i =>
         w_data_reg((i + 1) * p(XLen) - 1, i * p(XLen))
       })
 
-      // Start write burst
-      when(memory.req.fire && isWrite) {
-        w_active     := true.B
-        w_beat_count := 0.U
-        w_data_reg   := memory.req.bits.data.asUInt
-      }.elsewhen(w_active && axi.w.fire) {
-        when(w_beat_count === writeBurstLen) {
-          w_active := false.B
-        }.otherwise {
-          w_beat_count := w_beat_count + 1.U
+      val active_write = RegInit(false.B)
+      val active_read  = RegInit(false.B)
+
+      val aw_sent = RegInit(false.B)
+      val ar_sent = RegInit(false.B)
+
+      val w_beat_count = RegInit(0.U(log2Ceil(wordsPerRequest + 1).W))
+      val r_beat_count = RegInit(0.U(log2Ceil(wordsPerRespond + 1).W))
+
+      val r_data_buffer = Reg(Vec(wordsPerRespond, UInt(p(XLen).W)))
+
+      memory.req.ready := !active_write && !active_read
+
+      when(memory.req.fire) {
+        req_addr := memory.req.bits.addr
+        when(isWrite) {
+          active_write := true.B
+          aw_sent      := false.B
+          w_beat_count := 0.U
+          w_data_reg   := memory.req.bits.data.asUInt
+        }.elsewhen(isRead) {
+          active_read  := true.B
+          ar_sent      := false.B
+          r_beat_count := 0.U
         }
       }
 
-      // AW
-      axi.aw.valid       := memory.req.valid && isWrite && !w_active
-      axi.aw.bits.addr   := memory.req.bits.addr
+      // Write Logic
+      when(active_write && !aw_sent && axi.aw.fire) {
+        aw_sent := true.B
+      }
+
+      val w_last = w_beat_count === writeBurstLen
+      when(active_write && axi.w.fire) {
+        w_beat_count := w_beat_count + 1.U
+      }
+
+      when(active_write && axi.b.fire) {
+        active_write := false.B
+      }
+
+      axi.aw.valid       := active_write && !aw_sent
+      axi.aw.bits.addr   := req_addr
       axi.aw.bits.prot   := 0.U
       axi.aw.bits.id     := 0.U
       axi.aw.bits.len    := writeBurstLen
@@ -64,38 +87,39 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       axi.aw.bits.region := 0.U
       axi.aw.bits.user   := 0.U
 
-      // W
-      axi.w.valid     := w_active
-      axi.w.bits.data := w_data_vec(w_beat_count)
+      val w_in_bounds = w_beat_count < wordsPerRequest.U
+      axi.w.valid     := active_write && w_in_bounds
+      axi.w.bits.data := w_data_vec(Mux(w_in_bounds, w_beat_count, 0.U))
       axi.w.bits.strb := Fill(p(XLen) / 8, 1.U)
-      axi.w.bits.last := w_beat_count === writeBurstLen
+      axi.w.bits.last := w_last
       axi.w.bits.id   := 0.U
       axi.w.bits.user := 0.U
 
-      // B
-      axi.b.ready := memory.resp.ready
+      axi.b.ready := active_write
 
-      // Read path
-      val r_beat_count  = RegInit(0.U(log2Ceil(wordsPerRespond).W))
-      val r_active      = RegInit(false.B)
-      val r_data_buffer = Reg(Vec(wordsPerRespond, UInt(p(XLen).W)))
+      // Read Logic
+      when(active_read && !ar_sent && axi.ar.fire) {
+        ar_sent := true.B
+      }
 
-      // Start read burst
-      when(memory.req.fire && isRead) {
-        r_active     := true.B
-        r_beat_count := 0.U
-      }.elsewhen(r_active && axi.r.fire) {
-        r_data_buffer(r_beat_count) := axi.r.bits.data
-        when(axi.r.bits.last || r_beat_count === readBurstLen) {
-          r_active := false.B
-        }.otherwise {
+      val r_last = axi.r.bits.last || (r_beat_count === readBurstLen)
+
+      when(active_read && axi.r.fire) {
+        when(r_beat_count < wordsPerRespond.U) {
+          r_data_buffer(r_beat_count) := axi.r.bits.data
+        }
+        when(!r_last) {
           r_beat_count := r_beat_count + 1.U
         }
       }
 
-      // AR
-      axi.ar.valid       := memory.req.valid && isRead && !r_active
-      axi.ar.bits.addr   := memory.req.bits.addr
+      val r_complete = active_read && axi.r.fire && r_last
+      when(r_complete) {
+        active_read := false.B
+      }
+
+      axi.ar.valid       := active_read && !ar_sent
+      axi.ar.bits.addr   := req_addr
       axi.ar.bits.prot   := 0.U
       axi.ar.bits.id     := 0.U
       axi.ar.bits.len    := readBurstLen
@@ -107,17 +131,18 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       axi.ar.bits.region := 0.U
       axi.ar.bits.user   := 0.U
 
-      // R
-      axi.r.ready := r_active
+      axi.r.ready := active_read
 
-      // Memory interface
-      memory.req.ready := (!w_active && !r_active)
+      // Memory Response
+      val w_complete = active_write && axi.b.fire
 
-      val w_complete = axi.b.valid && !r_active
-      val r_complete = r_active && axi.r.valid && axi.r.bits.last
+      memory.resp.valid := w_complete || r_complete
 
-      memory.resp.valid     := w_complete || r_complete
-      memory.resp.bits.data := Cat(r_data_buffer.reverse).asTypeOf(memory.resp.bits.data)
+      val final_data_vec = Wire(Vec(wordsPerRespond, UInt(p(XLen).W)))
+      for (i <- 0 until wordsPerRespond)
+        final_data_vec(i) := Mux(active_read && axi.r.fire && r_beat_count === i.U, axi.r.bits.data, r_data_buffer(i))
+
+      memory.resp.bits.data := Cat(final_data_vec.reverse).asTypeOf(memory.resp.bits.data)
       memory.resp.bits.hit  := true.B
 
       axi
@@ -130,52 +155,50 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val readBurstLen    = (wordsPerRespond - 1).U(8.W)
       val bytesPerWord    = p(XLen) / 8
 
-      // Read path
-      val r_beat_count  = RegInit(0.U(log2Ceil(wordsPerRespond).W))
-      val r_active      = RegInit(false.B)
+      val req_addr    = RegInit(0.U(p(XLen).W))
+      val active_read = RegInit(false.B)
+      val ar_sent     = RegInit(false.B)
+
+      val r_beat_count  = RegInit(0.U(log2Ceil(wordsPerRespond + 1).W))
       val r_data_buffer = Reg(Vec(wordsPerRespond, UInt(p(XLen).W)))
 
-      // Start read burst
+      memory.req.ready := !active_read
+
       when(memory.req.fire) {
-        r_active     := true.B
+        req_addr     := memory.req.bits.addr
+        active_read  := true.B
+        ar_sent      := false.B
         r_beat_count := 0.U
-      }.elsewhen(r_active && axi.r.fire) {
-        r_data_buffer(r_beat_count) := axi.r.bits.data
-        when(axi.r.bits.last || r_beat_count === readBurstLen) {
-          r_active := false.B
-        }.otherwise {
+      }
+
+      when(active_read && !ar_sent && axi.ar.fire) {
+        ar_sent := true.B
+      }
+
+      val r_last = axi.r.bits.last || (r_beat_count === readBurstLen)
+
+      when(active_read && axi.r.fire) {
+        when(r_beat_count < wordsPerRespond.U) {
+          r_data_buffer(r_beat_count) := axi.r.bits.data
+        }
+        when(!r_last) {
           r_beat_count := r_beat_count + 1.U
         }
       }
 
-      // AW
-      axi.aw.valid       := false.B
-      axi.aw.bits.addr   := 0.U
-      axi.aw.bits.prot   := 0.U
-      axi.aw.bits.id     := 0.U
-      axi.aw.bits.len    := 0.U
-      axi.aw.bits.size   := 0.U
-      axi.aw.bits.burst  := 0.U
-      axi.aw.bits.lock   := false.B
-      axi.aw.bits.cache  := 0.U
-      axi.aw.bits.qos    := 0.U
-      axi.aw.bits.region := 0.U
-      axi.aw.bits.user   := 0.U
+      val r_complete = active_read && axi.r.fire && r_last
+      when(r_complete) {
+        active_read := false.B
+      }
 
-      // W
-      axi.w.valid     := false.B
-      axi.w.bits.data := 0.U
-      axi.w.bits.strb := 0.U
-      axi.w.bits.last := false.B
-      axi.w.bits.id   := 0.U
-      axi.w.bits.user := 0.U
+      axi.aw.valid := false.B
+      axi.aw.bits  := DontCare
+      axi.w.valid  := false.B
+      axi.w.bits   := DontCare
+      axi.b.ready  := false.B
 
-      // B
-      axi.b.ready := false.B
-
-      // AR
-      axi.ar.valid       := memory.req.valid && !r_active
-      axi.ar.bits.addr   := memory.req.bits.addr
+      axi.ar.valid       := active_read && !ar_sent
+      axi.ar.bits.addr   := req_addr
       axi.ar.bits.prot   := 0.U
       axi.ar.bits.id     := 0.U
       axi.ar.bits.len    := readBurstLen
@@ -187,16 +210,15 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       axi.ar.bits.region := 0.U
       axi.ar.bits.user   := 0.U
 
-      // R
-      axi.r.ready := r_active
+      axi.r.ready := active_read
 
-      // Memory interface
-      memory.req.ready := !r_active
+      memory.resp.valid := r_complete
 
-      val r_complete = r_active && axi.r.valid && axi.r.bits.last
+      val final_data_vec = Wire(Vec(wordsPerRespond, UInt(p(XLen).W)))
+      for (i <- 0 until wordsPerRespond)
+        final_data_vec(i) := Mux(active_read && axi.r.fire && r_beat_count === i.U, axi.r.bits.data, r_data_buffer(i))
 
-      memory.resp.valid     := r_complete
-      memory.resp.bits.data := Cat(r_data_buffer.reverse).asTypeOf(memory.resp.bits.data)
+      memory.resp.bits.data := Cat(final_data_vec.reverse).asTypeOf(memory.resp.bits.data)
       memory.resp.bits.hit  := true.B
 
       axi
