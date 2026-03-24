@@ -46,16 +46,18 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
 
       memory.req.ready := !active_write && !active_read
 
-      when(memory.req.fire) {
+      val is_new_req = memory.req.valid && !active_read && !active_write
+
+      when(is_new_req) {
         req_addr := memory.req.bits.addr
         when(isWrite) {
           active_write := true.B
-          aw_sent      := false.B
+          aw_sent      := axi.aw.ready
           w_beat_count := 0.U
           w_data_reg   := memory.req.bits.data.asUInt
         }.elsewhen(isRead) {
           active_read  := true.B
-          ar_sent      := false.B
+          ar_sent      := axi.ar.ready
           r_beat_count := 0.U
         }
       }
@@ -74,13 +76,14 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         active_write := false.B
       }
 
-      axi.aw.valid       := active_write && !aw_sent
-      axi.aw.bits.addr   := req_addr
+      // Combinatorial AW to save 1 cycle
+      axi.aw.valid       := (is_new_req && isWrite) || (active_write && !aw_sent)
+      axi.aw.bits.addr   := Mux(is_new_req, memory.req.bits.addr, req_addr)
       axi.aw.bits.prot   := 0.U
       axi.aw.bits.id     := 0.U
       axi.aw.bits.len    := writeBurstLen
       axi.aw.bits.size   := log2Ceil(bytesPerWord).U
-      axi.aw.bits.burst  := 1.U // INCR
+      axi.aw.bits.burst  := 1.U
       axi.aw.bits.lock   := false.B
       axi.aw.bits.cache  := 0.U
       axi.aw.bits.qos    := 0.U
@@ -95,7 +98,7 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       axi.w.bits.id   := 0.U
       axi.w.bits.user := 0.U
 
-      axi.b.ready := active_write
+      axi.b.ready := active_write || is_new_req
 
       // Read Logic
       when(active_read && !ar_sent && axi.ar.fire) {
@@ -118,24 +121,23 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         active_read := false.B
       }
 
-      axi.ar.valid       := active_read && !ar_sent
-      axi.ar.bits.addr   := req_addr
+      axi.ar.valid       := (is_new_req && isRead) || (active_read && !ar_sent)
+      axi.ar.bits.addr   := Mux(is_new_req, memory.req.bits.addr, req_addr)
       axi.ar.bits.prot   := 0.U
       axi.ar.bits.id     := 0.U
       axi.ar.bits.len    := readBurstLen
       axi.ar.bits.size   := log2Ceil(bytesPerWord).U
-      axi.ar.bits.burst  := 1.U // INCR
+      axi.ar.bits.burst  := 1.U
       axi.ar.bits.lock   := false.B
       axi.ar.bits.cache  := 0.U
       axi.ar.bits.qos    := 0.U
       axi.ar.bits.region := 0.U
       axi.ar.bits.user   := 0.U
 
-      axi.r.ready := active_read
+      axi.r.ready := active_read || is_new_req
 
       // Memory Response
       val w_complete = active_write && axi.b.fire
-
       memory.resp.valid := w_complete || r_complete
 
       val final_data_vec = Wire(Vec(wordsPerRespond, UInt(p(XLen).W)))
@@ -164,14 +166,14 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
 
       memory.req.ready := !active_read
 
-      when(memory.req.fire) {
+      val is_new_req = memory.req.valid && !active_read
+
+      when(is_new_req) {
         req_addr     := memory.req.bits.addr
         active_read  := true.B
-        ar_sent      := false.B
+        ar_sent      := axi.ar.ready
         r_beat_count := 0.U
-      }
-
-      when(active_read && !ar_sent && axi.ar.fire) {
+      }.elsewhen(active_read && !ar_sent && axi.ar.fire) {
         ar_sent := true.B
       }
 
@@ -197,20 +199,20 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       axi.w.bits   := DontCare
       axi.b.ready  := false.B
 
-      axi.ar.valid       := active_read && !ar_sent
-      axi.ar.bits.addr   := req_addr
+      axi.ar.valid       := is_new_req || (active_read && !ar_sent)
+      axi.ar.bits.addr   := Mux(is_new_req, memory.req.bits.addr, req_addr)
       axi.ar.bits.prot   := 0.U
       axi.ar.bits.id     := 0.U
       axi.ar.bits.len    := readBurstLen
       axi.ar.bits.size   := log2Ceil(bytesPerWord).U
-      axi.ar.bits.burst  := 1.U // INCR
+      axi.ar.bits.burst  := 1.U
       axi.ar.bits.lock   := false.B
       axi.ar.bits.cache  := 0.U
       axi.ar.bits.qos    := 0.U
       axi.ar.bits.region := 0.U
       axi.ar.bits.user   := 0.U
 
-      axi.r.ready := active_read
+      axi.r.ready := active_read || is_new_req
 
       memory.resp.valid := r_complete
 
