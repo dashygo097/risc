@@ -3,40 +3,40 @@
 #include <sstream>
 
 namespace demu::isa {
-Instruction::Instruction(instr_t raw) : _raw(raw) { decode(); }
+Instruction::Instruction(instr_t raw) : raw_(raw) { decode(); }
 
 void Instruction::decode() {
-  _opcode = _raw & 0x7F;
-  _rd = (_raw >> 7) & 0x1F;
-  _funct3 = (_raw >> 12) & 0x7;
-  _rs1 = (_raw >> 15) & 0x1F;
-  _rs2 = (_raw >> 20) & 0x1F;
-  _funct7 = (_raw >> 25) & 0x7F;
+  opcode_ = raw_ & 0x7F;
+  rd_ = (raw_ >> 7) & 0x1F;
+  funct3_ = (raw_ >> 12) & 0x7;
+  rs1_ = (raw_ >> 15) & 0x1F;
+  rs2_ = (raw_ >> 20) & 0x1F;
+  funct7_ = (raw_ >> 25) & 0x7F;
 
   switch (type()) {
   case I_TYPE:
-    _imm = decode_i_imm();
+    imm_ = decode_i_imm();
     break;
   case S_TYPE:
-    _imm = decode_s_imm();
+    imm_ = decode_s_imm();
     break;
   case B_TYPE:
-    _imm = decode_b_imm();
+    imm_ = decode_b_imm();
     break;
   case U_TYPE:
-    _imm = decode_u_imm();
+    imm_ = decode_u_imm();
     break;
   case J_TYPE:
-    _imm = decode_j_imm();
+    imm_ = decode_j_imm();
     break;
   default:
-    _imm = 0;
+    imm_ = 0;
     break;
   }
 }
 
 InstType Instruction::type() const noexcept {
-  switch (_opcode) {
+  switch (opcode_) {
   case 0b0110011:
     return R_TYPE;
   case 0b0010011:
@@ -63,11 +63,11 @@ InstType Instruction::type() const noexcept {
 }
 
 std::string Instruction::mnemonic() const noexcept {
-  switch (_opcode) {
+  switch (opcode_) {
   case 0b0110011:
-    switch (_funct3) {
+    switch (funct3_) {
     case 0b000:
-      return (_funct7 == 0) ? "add" : "sub";
+      return (funct7_ == 0) ? "add" : "sub";
     case 0b001:
       return "sll";
     case 0b010:
@@ -77,7 +77,7 @@ std::string Instruction::mnemonic() const noexcept {
     case 0b100:
       return "xor";
     case 0b101:
-      return (_funct7 == 0) ? "srl" : "sra";
+      return (funct7_ == 0) ? "srl" : "sra";
     case 0b110:
       return "or";
     case 0b111:
@@ -86,7 +86,7 @@ std::string Instruction::mnemonic() const noexcept {
     break;
 
   case 0b0010011:
-    switch (_funct3) {
+    switch (funct3_) {
     case 0b000:
       return "addi";
     case 0b001:
@@ -98,7 +98,7 @@ std::string Instruction::mnemonic() const noexcept {
     case 0b100:
       return "xori";
     case 0b101:
-      return (_funct7 == 0) ? "srli" : "srai";
+      return (funct7_ == 0) ? "srli" : "srai";
     case 0b110:
       return "ori";
     case 0b111:
@@ -107,7 +107,7 @@ std::string Instruction::mnemonic() const noexcept {
     break;
 
   case 0b0000011:
-    switch (_funct3) {
+    switch (funct3_) {
     case 0b000:
       return "lb";
     case 0b001:
@@ -122,7 +122,7 @@ std::string Instruction::mnemonic() const noexcept {
     break;
 
   case 0b0100011:
-    switch (_funct3) {
+    switch (funct3_) {
     case 0b000:
       return "sb";
     case 0b001:
@@ -133,7 +133,7 @@ std::string Instruction::mnemonic() const noexcept {
     break;
 
   case 0b1100011:
-    switch (_funct3) {
+    switch (funct3_) {
     case 0b000:
       return "beq";
     case 0b001:
@@ -159,12 +159,12 @@ std::string Instruction::mnemonic() const noexcept {
     return "auipc";
 
   case 0b1110011:
-    if (_raw == 0b00000000000000000000000001110011)
+    if (raw_ == 0b00000000000000000000000001110011)
       return "ecall";
-    else if (_raw == EBREAK)
+    else if (raw_ == EBREAK)
       return "ebreak";
 
-    switch (_funct3) {
+    switch (funct3_) {
     case 0b001:
       return "csrrw";
     case 0b010:
@@ -193,43 +193,43 @@ std::string Instruction::to_string() const {
   InstType instr_type = type();
   switch (instr_type) {
   case R_TYPE:
-    oss << "x" << (int)_rd << ", x" << (int)_rs1 << ", x" << (int)_rs2;
+    oss << "x" << (int)rd_ << ", x" << (int)rs1_ << ", x" << (int)rs2_;
     break;
 
   case I_TYPE:
-    if (_opcode == 0b0000011) {
-      oss << "x" << (int)_rd << ", " << _imm << "(x" << (int)_rs1 << ")";
+    if (opcode_ == 0b0000011) {
+      oss << "x" << (int)rd_ << ", " << imm_ << "(x" << (int)rs1_ << ")";
     } else {
-      oss << "x" << (int)_rd << ", x" << (int)_rs1 << ", " << _imm;
+      oss << "x" << (int)rd_ << ", x" << (int)rs1_ << ", " << imm_;
     }
     break;
 
   case S_TYPE:
-    oss << "x" << (int)_rs2 << ", " << _imm << "(x" << (int)_rs1 << ")";
+    oss << "x" << (int)rs2_ << ", " << imm_ << "(x" << (int)rs1_ << ")";
     break;
 
   case B_TYPE:
-    oss << "x" << (int)_rs1 << ", x" << (int)_rs2 << ", " << _imm;
+    oss << "x" << (int)rs1_ << ", x" << (int)rs2_ << ", " << imm_;
     break;
 
   case U_TYPE:
-    oss << "x" << (int)_rd << ", 0x" << std::hex << std::setw(8)
-        << std::setfill('0') << (uint32_t)_imm;
+    oss << "x" << (int)rd_ << ", 0x" << std::hex << std::setw(8)
+        << std::setfill('0') << (uint32_t)imm_;
     break;
 
   case J_TYPE:
-    oss << "x" << (int)_rd << ", " << std::dec << _imm;
+    oss << "x" << (int)rd_ << ", " << std::dec << imm_;
     break;
 
   case SYSTEM:
-    if (_raw == 0b00000000000000000000000001110011 || _raw == EBREAK) {
+    if (raw_ == 0b00000000000000000000000001110011 || raw_ == EBREAK) {
       oss << "";
-    } else if (_funct3 <= 0b011) {
-      oss << "x" << (int)_rd << ", x" << (int)_rs1 << ", 0x" << std::hex
-          << std::setw(3) << std::setfill('0') << ((_raw >> 20) & 0xFFF);
+    } else if (funct3_ <= 0b011) {
+      oss << "x" << (int)rd_ << ", x" << (int)rs1_ << ", 0x" << std::hex
+          << std::setw(3) << std::setfill('0') << ((raw_ >> 20) & 0xFFF);
     } else {
-      oss << "x" << (int)_rd << ", 0x" << std::hex << std::setw(3)
-          << std::setfill('0') << ((_raw >> 20) & 0xFFF) << ", " << (int)_rs1;
+      oss << "x" << (int)rd_ << ", 0x" << std::hex << std::setw(3)
+          << std::setfill('0') << ((raw_ >> 20) & 0xFFF) << ", " << (int)rs1_;
     }
     break;
 
@@ -242,32 +242,32 @@ std::string Instruction::to_string() const {
 }
 
 int32_t Instruction::decode_i_imm() const noexcept {
-  int32_t imm = (_raw >> 20) & 0xFFF;
+  int32_t imm = (raw_ >> 20) & 0xFFF;
   if (imm & 0x800)
     imm |= 0xFFFFF000;
   return imm;
 }
 
 int32_t Instruction::decode_s_imm() const noexcept {
-  int32_t imm = ((_raw >> 7) & 0x1F) | ((_raw >> 20) & 0xFE0);
+  int32_t imm = ((raw_ >> 7) & 0x1F) | ((raw_ >> 20) & 0xFE0);
   if (imm & 0x800)
     imm |= 0xFFFFF000;
   return imm;
 }
 
 int32_t Instruction::decode_b_imm() const noexcept {
-  int32_t imm = ((_raw >> 7) & 0x1E) | ((_raw >> 20) & 0x7E0) |
-                ((_raw << 4) & 0x800) | ((_raw >> 19) & 0x1000);
+  int32_t imm = ((raw_ >> 7) & 0x1E) | ((raw_ >> 20) & 0x7E0) |
+                ((raw_ << 4) & 0x800) | ((raw_ >> 19) & 0x1000);
   if (imm & 0x1000)
     imm |= 0xFFFFE000;
   return imm;
 }
 
-int32_t Instruction::decode_u_imm() const noexcept { return _raw & 0xFFFFF000; }
+int32_t Instruction::decode_u_imm() const noexcept { return raw_ & 0xFFFFF000; }
 
 int32_t Instruction::decode_j_imm() const noexcept {
-  int32_t imm = ((_raw >> 20) & 0x7FE) | ((_raw >> 9) & 0x800) |
-                (_raw & 0xFF000) | ((_raw >> 11) & 0x100000);
+  int32_t imm = ((raw_ >> 20) & 0x7FE) | ((raw_ >> 9) & 0x800) |
+                (raw_ & 0xFF000) | ((raw_ >> 11) & 0x100000);
   if (imm & 0x100000)
     imm |= 0xFFE00000;
   return imm;

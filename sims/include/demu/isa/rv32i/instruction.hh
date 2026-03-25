@@ -27,23 +27,23 @@ public:
   [[nodiscard]] std::string mnemonic() const noexcept;
   [[nodiscard]] std::string to_string() const;
 
-  [[nodiscard]] uint8_t opcode() const noexcept { return _opcode; }
-  [[nodiscard]] uint8_t rd() const noexcept { return _rd; }
-  [[nodiscard]] uint8_t rs1() const noexcept { return _rs1; }
-  [[nodiscard]] uint8_t rs2() const noexcept { return _rs2; }
-  [[nodiscard]] uint8_t funct3() const noexcept { return _funct3; }
-  [[nodiscard]] uint8_t funct7() const noexcept { return _funct7; }
-  [[nodiscard]] int32_t imm() const noexcept { return _imm; }
+  [[nodiscard]] uint8_t opcode() const noexcept { return opcode_; }
+  [[nodiscard]] uint8_t rd() const noexcept { return rd_; }
+  [[nodiscard]] uint8_t rs1() const noexcept { return rs1_; }
+  [[nodiscard]] uint8_t rs2() const noexcept { return rs2_; }
+  [[nodiscard]] uint8_t funct3() const noexcept { return funct3_; }
+  [[nodiscard]] uint8_t funct7() const noexcept { return funct7_; }
+  [[nodiscard]] int32_t imm() const noexcept { return imm_; }
 
 private:
-  instr_t _raw;
-  uint8_t _opcode;
-  uint8_t _rd;
-  uint8_t _rs1;
-  uint8_t _rs2;
-  uint8_t _funct3;
-  uint8_t _funct7;
-  int32_t _imm;
+  instr_t raw_;
+  uint8_t opcode_;
+  uint8_t rd_;
+  uint8_t rs1_;
+  uint8_t rs2_;
+  uint8_t funct3_;
+  uint8_t funct7_;
+  int32_t imm_;
 
   void decode();
   [[nodiscard]] int32_t decode_i_imm() const noexcept;
