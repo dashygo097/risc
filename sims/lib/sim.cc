@@ -4,21 +4,42 @@
 
 namespace demu {
 
-DemuSimulator::DemuSimulator(bool enabled_trace)
+DemuSimulator::DemuSimulator(bool enabled_trace, int threads, int argc,
+                             char **argv)
     : trace_enabled_(enabled_trace) {
-  dut_ = std::make_unique<system_t>();
+
+  context_ = std::make_unique<VerilatedContext>();
+  context_->debug(0);
+  context_->randReset(2);
+  context_->threads(threads);
+  context_->commandArgs(argc, argv);
+
+  if (trace_enabled_) {
+    context_->traceEverOn(true);
+  }
+
+  dut_ = std::make_unique<system_t>(context_.get(), "TOP");
+
   device_manager_ = std::make_unique<hal::DeviceManager>();
 
   config_ = std::make_unique<RiscConfig>();
   config_->dump();
   config_->validate();
-};
+}
 
 DemuSimulator::~DemuSimulator() {
+  dut_->final();
+
 #ifdef ENABLE_TRACE
   if (vcd_) {
     vcd_->close();
   }
+#endif
+
+#ifdef VM_COVERAGE
+  Verilated::mkdir("logs");
+  context_->coveragep()->write("logs/coverage.dat");
+  DEMU_INFO("Coverage written to logs/coverage.dat");
 #endif
 }
 
@@ -94,11 +115,11 @@ void DemuSimulator::init() {
 
 #ifdef ENABLE_TRACE
   if (trace_enabled_) {
-    Verilated::traceEverOn(true);
+    Verilated::mkdir("logs");
     vcd_ = std::make_unique<VerilatedVcdC>();
     dut_->trace(vcd_.get(), 99);
-    vcd_->open(("demu_" + std::string(ISA_NAME) + "_trace.vcd").c_str());
-    DEMU_DEBUG("VCD tracing enabled: demu_{}_trace.vcd", ISA_NAME);
+    vcd_->open(("logs/demu_" + std::string(ISA_NAME) + "_trace.vcd").c_str());
+    DEMU_DEBUG("VCD tracing enabled: logs/demu_{}_trace.vcd", ISA_NAME);
   }
 #endif
 }
@@ -115,7 +136,6 @@ void DemuSimulator::reset() {
 
   device_manager_->reset();
 
-  _time_count = 0;
   _l1_icache_misses = 0;
   _l1_dcache_accesses = 0;
   _l1_dcache_misses = 0;
@@ -180,15 +200,22 @@ void DemuSimulator::dump_memory(addr_t start, size_t size) const {
 void DemuSimulator::clock_tick() {
   DEMU_CPU_TICK(cycle_count());
 
+  context_->timeInc(1);
+
   dut_->clock = 0;
   device_manager_->handle_ports();
   dut_->eval();
 
 #ifdef ENABLE_TRACE
   if (vcd_) {
-    vcd_->dump(_time_count++);
+    vcd_->dump(context_->time());
   }
 #endif
+
+  context_->timeInc(1);
+
+  dut_->clock = 1;
+  dut_->eval();
 
   device_manager_->clock_tick();
   handle_cache_profiling();
@@ -220,12 +247,9 @@ void DemuSimulator::clock_tick() {
   }
   on_clock_tick();
 
-  dut_->clock = 1;
-  dut_->eval();
-
 #ifdef ENABLE_TRACE
   if (vcd_) {
-    vcd_->dump(_time_count++);
+    vcd_->dump(context_->time());
   }
 #endif
 }

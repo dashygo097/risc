@@ -8,7 +8,9 @@ using namespace demu::isa;
 
 class DemuSimulatorTop final : public demu::DemuSimulator {
 public:
-  DemuSimulatorTop(bool enabled_trace = false) : DemuSimulator(enabled_trace) {}
+  DemuSimulatorTop(bool enabled_trace = false, int threads = 1, int argc = 0,
+                   char **argv = nullptr)
+      : DemuSimulator(enabled_trace, threads, argc, argv) {}
 
 protected:
   void register_devices() override {
@@ -54,18 +56,19 @@ void print_usage(const char *prog) {
   std::cout << "Options:\n";
   std::cout << "  -h, --help                    Show this help message\n";
   std::cout << "  -t, --trace                   Enable VCD trace\n";
+  std::cout << "  -T, --threads <n>             Number of Verilator threads "
+               "(default: 1)\n";
   std::cout
       << "  -c, --cycles <n>              Run for n cycles (0=unlimited)\n";
-  std::cout
-      << "  -b, --base <addr>             Binary load base address (hex)\n";
   std::cout
       << "  -d, --dump-regs               Dump registers after execution\n";
   std::cout << "  -m, --dump-mem <addr> <size>  Dump memory region\n";
   std::cout
       << "  -p, --show-pipeline           Show pipeline state each cycle\n";
-  std::cout
-      << "  -L12345,                      Set log level (5=error, 4=warn, "
-         "3=info, 2=debug, 1=trace)\n";
+  std::cout << "  -L12345,                      Set log level (5=error, "
+               "4=warn, 3=info, 2=debug, 1=trace)\n";
+  std::cout << "  +<arg>                        Native Verilator arguments "
+               "(e.g., +verilator+rand+reset+2)\n";
   std::cout << "\nSupported file formats:\n";
   std::cout << "  .bin      Raw binary\n";
   std::cout << "  .elf      ELF executable\n";
@@ -82,6 +85,7 @@ int main(int argc, char **argv) {
   bool enable_trace = false;
   bool dump_regs = false;
   bool show_pipeline = false;
+  int threads = 1;
   uint64_t max_cycles = 0;
   uint32_t base_addr = 0;
   uint32_t dump_mem_addr = 0;
@@ -97,6 +101,10 @@ int main(int argc, char **argv) {
       return 0;
     } else if (arg == "-t" || arg == "--trace") {
       enable_trace = true;
+    } else if (arg == "-T" || arg == "--threads") {
+      if (i + 1 < argc) {
+        threads = std::stoi(argv[++i]);
+      }
     } else if (arg == "-d" || arg == "--dump-regs") {
       dump_regs = true;
     } else if (arg == "-c" || arg == "--cycles") {
@@ -115,7 +123,7 @@ int main(int argc, char **argv) {
       }
     } else if (arg == "-p" || arg == "--show-pipeline") {
       show_pipeline = true;
-    } else if (arg[0] == '-' && arg[1] == 'L') {
+    } else if (arg[0] == '-' && arg.length() > 1 && arg[1] == 'L') {
       int log_level = std::stoi(arg.substr(2));
       switch (log_level) {
       case 1:
@@ -136,6 +144,8 @@ int main(int argc, char **argv) {
       default:
         std::cerr << "Unknown log level: " << log_level << std::endl;
       }
+    } else if (arg[0] == '+') {
+      continue;
     } else if (arg[0] != '-') {
       program_file = arg;
     } else {
@@ -151,7 +161,8 @@ int main(int argc, char **argv) {
   }
 
   demu::Logger::init(spdlog_level);
-  DemuSimulatorTop sim(enable_trace);
+
+  DemuSimulatorTop sim(enable_trace, threads, argc, argv);
   sim.show_pipeline(show_pipeline);
 
   sim.init();

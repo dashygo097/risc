@@ -17,7 +17,8 @@ using namespace isa;
 
 class DemuSimulator {
 public:
-  DemuSimulator(bool enabled_trace = false);
+  DemuSimulator(bool enabled_trace = false, int threads = 1, int argc = 0,
+                char **argv = nullptr);
   ~DemuSimulator();
 
   // Program loading
@@ -91,6 +92,8 @@ public:
 protected:
   // components
   std::unique_ptr<RiscConfig> config_;
+
+  std::unique_ptr<VerilatedContext> context_;
   std::unique_ptr<system_t> dut_;
   std::unique_ptr<hal::DeviceManager> device_manager_;
 
@@ -103,7 +106,6 @@ protected:
   bool trace_enabled_{false};
 
   // Simulator state
-  uint64_t _time_count{0};
   bool _terminate{false};
 
   uint64_t _l1_icache_accesses{0};

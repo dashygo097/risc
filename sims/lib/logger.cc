@@ -16,8 +16,8 @@ void Logger::init() { init(spdlog::level::info); }
 void Logger::init(spdlog::level::level_enum level) {
   // Create sinks
   auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-  auto file_sink =
-      std::make_shared<spdlog::sinks::basic_file_sink_mt>("demu.log", true);
+  auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
+      "logs/demu.log", true);
 
   // Create formatter for console sink
   auto console_formatter = std::make_unique<spdlog::pattern_formatter>();

@@ -9,7 +9,9 @@ using namespace demu::isa;
 
 class DemuDebuggerTop final : public demu::DemuSimulator {
 public:
-  DemuDebuggerTop(bool enabled_trace = false) : DemuSimulator(enabled_trace) {}
+  DemuDebuggerTop(bool enabled_trace = false, int threads = 1, int argc = 0,
+                  char **argv = nullptr)
+      : DemuSimulator(enabled_trace, threads, argc, argv) {}
 
 protected:
   void register_devices() override {
@@ -50,11 +52,21 @@ protected:
 };
 
 void print_usage(const char *prog) {
-  std::cout << "Usage: " << prog << " [options] <program.bin>\n\n";
+  std::cout << "Usage: " << prog << " [options] <program_file>\n\n";
   std::cout << "Options:\n";
-  std::cout << "  -h, --help       Show this help message\n";
-  std::cout << "  -t, --trace      Enable VCD trace\n";
-  std::cout << "  -L<1-5>          Log level (1=trace, 5=error)\n";
+  std::cout << "  -h, --help                    Show this help message\n";
+  std::cout << "  -t, --trace                   Enable VCD trace\n";
+  std::cout << "  -T, --threads <n>             Number of Verilator threads "
+               "(default: 1)\n";
+  std::cout
+      << "  -b, --base <addr>             Binary load base address (hex)\n";
+  std::cout << "  -L12345,                      Set log level (5=error, "
+               "4=warn, 3=info, 2=debug, 1=trace)\n";
+  std::cout << "  +<arg>                        Native Verilator arguments "
+               "(e.g., +verilator+rand+reset+2)\n";
+  std::cout << "\nSupported file formats:\n";
+  std::cout << "  .bin      Raw binary\n";
+  std::cout << "  .elf      ELF executable\n";
   std::cout << std::endl;
 }
 
@@ -66,6 +78,8 @@ int main(int argc, char **argv) {
 
   std::string program_file;
   bool enable_trace = false;
+  int threads = 1;
+  uint32_t base_addr = 0;
   spdlog::level::level_enum spdlog_level = spdlog::level::warn;
 
   for (int i = 1; i < argc; i++) {
@@ -76,9 +90,17 @@ int main(int argc, char **argv) {
       return 0;
     } else if (arg == "-t" || arg == "--trace") {
       enable_trace = true;
-    } else if (arg.size() >= 3 && arg[0] == '-' && arg[1] == 'L') {
-      int level = std::stoi(arg.substr(2));
-      switch (level) {
+    } else if (arg == "-T" || arg == "--threads") {
+      if (i + 1 < argc) {
+        threads = std::stoi(argv[++i]);
+      }
+    } else if (arg == "-b" || arg == "--base") {
+      if (i + 1 < argc) {
+        base_addr = std::stoul(argv[++i], nullptr, 16);
+      }
+    } else if (arg[0] == '-' && arg.length() > 1 && arg[1] == 'L') {
+      int log_level = std::stoi(arg.substr(2));
+      switch (log_level) {
       case 1:
         spdlog_level = spdlog::level::trace;
         break;
@@ -95,8 +117,10 @@ int main(int argc, char **argv) {
         spdlog_level = spdlog::level::err;
         break;
       default:
-        std::cerr << "Unknown log level: " << level << std::endl;
+        std::cerr << "Unknown log level: " << log_level << std::endl;
       }
+    } else if (arg[0] == '+') {
+      continue;
     } else if (arg[0] != '-') {
       program_file = arg;
     } else {
@@ -112,7 +136,8 @@ int main(int argc, char **argv) {
   }
 
   demu::Logger::init(spdlog_level);
-  DemuDebuggerTop sim(enable_trace);
+
+  DemuDebuggerTop sim(enable_trace, threads, argc, argv);
 
   sim.init();
   sim.reset();
@@ -121,7 +146,7 @@ int main(int argc, char **argv) {
   bool loaded = false;
 
   if (ext == "bin") {
-    loaded = sim.load_bin(program_file, 0);
+    loaded = sim.load_bin(program_file, base_addr);
   } else if (ext == "elf") {
     loaded = sim.load_elf(program_file);
   } else {
