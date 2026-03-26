@@ -63,6 +63,18 @@ foreach(_absl_target
   endif()
 endforeach()
 
+# Fallback: some packaged protobuf builds require utf8_range but do not export a CMake target.
+# When the target is missing, try to locate the static library manually and link it.
+if(NOT TARGET utf8_range)
+  find_library(UTF8_RANGE_LIB NAMES utf8_range)
+  if(UTF8_RANGE_LIB)
+    message(STATUS "Linking external utf8_range: ${UTF8_RANGE_LIB}")
+    list(APPEND ABSL_LINK_TARGETS ${UTF8_RANGE_LIB})
+  else()
+    message(WARNING "utf8_range library not found; protobuf may fail to link if it was built with utf8_range")
+  endif()
+endif()
+
 list(APPEND ABSL_LINK_TARGETS absl::status absl::strings)
 target_link_libraries(demu PUBLIC
   protobuf::libprotobuf
