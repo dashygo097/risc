@@ -13,6 +13,7 @@ import pma._
 import pipeline._
 import forwarding._
 import arch.configs._
+import mul._
 import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
 import chisel3._
 import chisel3.util.{ log2Ceil, MuxLookup, MuxCase }
@@ -41,6 +42,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imm_gen = Module(new ImmGen)
   val alu     = Module(new Alu)
   val lsu     = Module(new Lsu)
+  val mul     = Module(new Mul)
 
   val csrfile: Option[CsrFile] =
     if (p(EnableCSR)) Some(Module(new CsrFile)) else None
@@ -90,6 +92,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     .field("alu_sel2", alu_utils.sel2Width)
     .field("alu_fn", alu_utils.fnTypeWidth)
     .field("alu_mode", 1)
+    .field("mul_en", 1)
+    .field("mul_high", 1)
+    .field("mul_a_signed", 1)
+    .field("mul_b_signed", 1)
     .field("lsu", 1)
     .field("lsu_cmd", lsu_utils.cmdWidth)
     .addFieldsWhen(p(EnableCSR))(
@@ -224,8 +230,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     ((id_ex("rd") === rs1) || (id_ex("rd") === rs2)) &&
     id_ex("rd") =/= 0.U
 
+  // MUL stall placeholder (assigned in EX stage)
+  val mul_stall = WireDefault(false.B)
+
   // ID/EX pipeline
-  id_ex.stall := ex_mem.stall
+  id_ex.stall := lsu.busy || mul_stall
   id_ex.flush := (load_use_hazard ||
     ((bru_mispredict_taken || bru_mispredict_not_taken) && !bru.jump)) &&
     !lsu.busy
@@ -246,6 +255,10 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   id_ex.drive("alu_sel2", decoder.decoded.alu_sel2)
   id_ex.drive("alu_fn", decoder.decoded.alu_fn)
   id_ex.drive("alu_mode", decoder.decoded.alu_mode)
+  id_ex.drive("mul_en", decoder.decoded.mul_en)
+  id_ex.drive("mul_high", decoder.decoded.mul_high)
+  id_ex.drive("mul_a_signed", decoder.decoded.mul_a_signed)
+  id_ex.drive("mul_b_signed", decoder.decoded.mul_b_signed)
   id_ex.drive("lsu", decoder.decoded.lsu)
   id_ex.drive("lsu_cmd", decoder.decoded.lsu_cmd)
   id_ex.driveOpt("csr", decoder.decoded.csr)
@@ -301,6 +314,33 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   alu.fnType := id_ex("alu_fn")
   alu.mode   := id_ex("alu_mode")
 
+  // MUL state (blocking version)
+  val mul_req      = id_ex("mul_en").asBool
+  val mul_inflight = RegInit(false.B)
+
+  // pure combinational stall to hold EX when mul pending
+  mul_stall := mul_req && !mul.io.done
+
+  // one-shot fire when entering mul and multiplier not already inflight
+  val mul_fire = mul_req && !mul_inflight && !mul.io.done
+
+  when(id_ex.flush) {
+    mul_inflight := false.B
+  }.elsewhen(mul_fire) {
+    mul_inflight := true.B
+  }.elsewhen(mul.io.done) {
+    mul_inflight := false.B
+  }
+
+  // MUL IO
+  mul.io.en        := mul_fire
+  mul.io.kill      := id_ex.flush
+  mul.io.src1      := ex_rs1_data
+  mul.io.src2      := ex_rs2_data
+  mul.io.a_signed   := id_ex("mul_a_signed").asBool
+  mul.io.b_signed   := id_ex("mul_b_signed").asBool
+  mul.io.high      := id_ex("mul_high").asBool
+
   csrfile.foreach { csr =>
     csr.en   := id_ex("csr").asBool
     csr.cmd  := id_ex("csr_cmd")
@@ -310,13 +350,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   }
 
   // EX/MEM pipeline
-  ex_mem.stall := mem_wb.stall || lsu.busy
-  ex_mem.flush := false.B
+  ex_mem.stall := mem_wb.stall || lsu.busy || (mul_inflight && !mul.io.done)
+  ex_mem.flush := mul_stall
 
   ex_mem.drive("instr", id_ex("instr"))
   ex_mem.drive("pc", id_ex("pc"))
   ex_mem.drive("rd", id_ex("rd"))
-  ex_mem.drive("alu_result", alu.result)
+  ex_mem.drive("alu_result", Mux(id_ex("mul_en").asBool, mul.io.result, alu.result))
   ex_mem.drive("rs2_data", ex_rs2_data)
   ex_mem.drive("regwrite", id_ex("regwrite"))
   ex_mem.drive("lsu", id_ex("lsu"))

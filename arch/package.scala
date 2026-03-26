@@ -45,6 +45,8 @@ package object configs {
   // Bus Parameters
   object BusType                       extends Field[String]("axif")
   object BusCrossbarFifoDepthPerClient extends Field[Int](4)
+  // Mul Parameters
+  object MulPipelineStages extends Field[Int](2)
 
   object BusAddressMap
       extends Field[Seq[DeviceDescriptor]](
@@ -102,5 +104,6 @@ package object configs {
     BusType                       -> BusType(),
     BusCrossbarFifoDepthPerClient -> BusCrossbarFifoDepthPerClient(),
     BusAddressMap                 -> BusAddressMap(),
+    MulPipelineStages             -> MulPipelineStages(),
   )
 }
