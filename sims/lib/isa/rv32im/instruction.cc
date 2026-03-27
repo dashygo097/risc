@@ -64,42 +64,61 @@ InstType Instruction::type() const noexcept {
 
 std::string Instruction::mnemonic() const noexcept {
   switch (opcode_) {
+
   case 0b0110011:
     switch (funct3_) {
     case 0b000:
       if (funct7_ == 0b0000000)
         return "add";
-      else if (funct7_ == 0b0100000)
+      if (funct7_ == 0b0100000)
         return "sub";
-      else if (funct7_ == 0b0000001)
+      if (funct7_ == 0b0000001)
         return "mul";
       break;
     case 0b001:
       if (funct7_ == 0b0000000)
         return "sll";
-      else if (funct7_ == 0b0000001)
+      if (funct7_ == 0b0000001)
         return "mulh";
       break;
     case 0b010:
       if (funct7_ == 0b0000000)
         return "slt";
-      else if (funct7_ == 0b0000001)
+      if (funct7_ == 0b0000001)
         return "mulhsu";
       break;
     case 0b011:
       if (funct7_ == 0b0000000)
         return "sltu";
-      else if (funct7_ == 0b0000001)
+      if (funct7_ == 0b0000001)
         return "mulhu";
       break;
     case 0b100:
-      return "xor";
+      if (funct7_ == 0b0000000)
+        return "xor";
+      if (funct7_ == 0b0000001)
+        return "div";
+      break;
     case 0b101:
-      return (funct7_ == 0) ? "srl" : "sra";
+      if (funct7_ == 0b0000000)
+        return "srl";
+      if (funct7_ == 0b0100000)
+        return "sra";
+      if (funct7_ == 0b0000001)
+        return "divu";
+      break;
     case 0b110:
-      return "or";
+      if (funct7_ == 0b0000000)
+        return "or";
+      if (funct7_ == 0b0000001)
+        return "rem";
+      break;
     case 0b111:
-      return "and";
+      if (funct7_ == 0b0000000)
+        return "and";
+      if (funct7_ == 0b0000001)
+        return "remu";
+      break;
     }
     break;
 
@@ -108,7 +127,9 @@ std::string Instruction::mnemonic() const noexcept {
     case 0b000:
       return "addi";
     case 0b001:
-      return "slli";
+      if (funct7_ == 0b0000000)
+        return "slli";
+      break;
     case 0b010:
       return "slti";
     case 0b011:
@@ -116,7 +137,11 @@ std::string Instruction::mnemonic() const noexcept {
     case 0b100:
       return "xori";
     case 0b101:
-      return (funct7_ == 0) ? "srli" : "srai";
+      if (funct7_ == 0b0000000)
+        return "srli";
+      if (funct7_ == 0b0100000)
+        return "srai";
+      break;
     case 0b110:
       return "ori";
     case 0b111:
@@ -170,18 +195,20 @@ std::string Instruction::mnemonic() const noexcept {
   case 0b1101111:
     return "jal";
   case 0b1100111:
-    return "jalr";
+    if (funct3_ == 0b000)
+      return "jalr";
+    break;
+
   case 0b0110111:
     return "lui";
   case 0b0010111:
     return "auipc";
 
   case 0b1110011:
-    if (raw_ == 0b00000000000000000000000001110011)
+    if (raw_ == 0x00000073)
       return "ecall";
-    else if (raw_ == EBREAK)
+    if (raw_ == EBREAK)
       return "ebreak";
-
     switch (funct3_) {
     case 0b001:
       return "csrrw";
@@ -240,7 +267,7 @@ std::string Instruction::to_string() const {
     break;
 
   case SYSTEM:
-    if (raw_ == 0b00000000000000000000000001110011 || raw_ == EBREAK) {
+    if (raw_ == 0x00000073 || raw_ == EBREAK) {
       oss << "";
     } else if (funct3_ <= 0b011) {
       oss << "x" << (int)rd_ << ", x" << (int)rs1_ << ", 0x" << std::hex
