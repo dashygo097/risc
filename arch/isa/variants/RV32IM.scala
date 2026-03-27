@@ -1,0 +1,35 @@
+package arch.isa
+
+import arch.isa.proto._
+import chisel3.util.BitPat
+
+object RV32IM extends IsaWrapper {
+  override val isa: Isa = Isa(
+    name = "rv32im",
+    xlen = RV32I.xlen,
+    ilen = RV32I.ilen,
+    iAlign = RV32I.iAlign,
+    numArchRegs = RV32I.numArchRegs,
+    isBigEndian = RV32I.isBigEndian,
+    instrSet = Some(
+      InstructionSet(
+        nop = RV32I.instrSet.nop,
+        encodings = RV32I.instrSet.encodings ++ Seq(
+          enc("MUL", BitPat("b0000001_?????_?????_000_?????_0110011")),
+          enc("MULH", BitPat("b0000001_?????_?????_001_?????_0110011")),
+          enc("MULHSU", BitPat("b0000001_?????_?????_010_?????_0110011")),
+          enc("MULHU", BitPat("b0000001_?????_?????_011_?????_0110011")),
+        )
+      )
+    ),
+  )
+
+  private def enc(name: String, bp: BitPat): InstructionEncoding =
+    InstructionEncoding(
+      name = name,
+      value = bp.value.intValue,
+      mask = bp.mask.intValue,
+    )
+
+  IsaFactory.register(this)
+}

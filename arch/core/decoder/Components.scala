@@ -41,15 +41,15 @@ class DecodedOutput(implicit p: Parameters) extends Bundle {
   val lsu     = Bool()
   val lsu_cmd = UInt(lsu_utils.cmdWidth.W)
 
+  // csr
+  val csr     = Bool()
+  val csr_cmd = UInt(csr_utils.cmdWidth.W)
+
   // mul
   val mul_en       = Bool()
   val mul_high     = Bool()
   val mul_a_signed = Bool()
   val mul_b_signed = Bool()
-
-  // csr
-  val csr     = Bool()
-  val csr_cmd = UInt(csr_utils.cmdWidth.W)
 }
 
 trait DecoderUtilities extends Utilities {
@@ -61,5 +61,6 @@ trait DecoderUtilities extends Utilities {
 object DecoderUtilitiesFactory extends UtilitiesFactory[DecoderUtilities]("Decoder")
 
 object DecoderInit {
-  val rv32iUtils = RV32IDecoderUtilities
+  val rv32iUtils  = RV32IDecoderUtilities
+  val rv32imUtils = RV32IMDecoderUtilities
 }

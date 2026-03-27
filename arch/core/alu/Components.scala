@@ -30,5 +30,6 @@ trait AluUtilities extends Utilities {
 object AluUtilitiesFactory extends UtilitiesFactory[AluUtilities]("ALU")
 
 object AluInit {
-  val rv32iUtils = RV32IAluUtilities
+  val rv32iUtils  = RV32IAluUtilities
+  val rv32imUtils = RV32IMAluUtilities
 }
