@@ -13,7 +13,7 @@ abstract class IsaWrapper {
   final def numArchRegs: Int     = isa.numArchRegs.toInt
   final def isBigEndian: Boolean = isa.isBigEndian
 
-  final def bubble: BitPat = {
+  final def bubble: BitPat           = {
     val nop = isa.instrSet
       .flatMap(_.nop)
       .getOrElse(throw new Exception(s"ISA '$name' has no NOP defined"))
@@ -26,7 +26,7 @@ abstract class IsaWrapper {
 
     BitPat("b" + bits)
   }
-
+  final def instrSet: InstructionSet = isa.instrSet.get
 }
 
 object IsaFactory {
@@ -49,11 +49,12 @@ object IsaFactory {
       )
     )
 
-  def isa(isa: String): Isa             = get(isa).isa
-  def xlen(isa: String): Int            = get(isa).xlen
-  def ilen(isa: String): Int            = get(isa).ilen
-  def iAlign(isa: String): Int          = get(isa).iAlign
-  def numArchRegs(isa: String): Int     = get(isa).numArchRegs
-  def isBigEndian(isa: String): Boolean = get(isa).isBigEndian
-  def bubble(isa: String): BitPat       = get(isa).bubble
+  def isa(isa: String): Isa                 = get(isa).isa
+  def xlen(isa: String): Int                = get(isa).xlen
+  def ilen(isa: String): Int                = get(isa).ilen
+  def iAlign(isa: String): Int              = get(isa).iAlign
+  def numArchRegs(isa: String): Int         = get(isa).numArchRegs
+  def isBigEndian(isa: String): Boolean     = get(isa).isBigEndian
+  def bubble(isa: String): BitPat           = get(isa).bubble
+  def instrSet(isa: String): InstructionSet = get(isa).instrSet
 }

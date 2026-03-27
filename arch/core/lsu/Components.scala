@@ -20,5 +20,6 @@ trait LsuUtilities extends Utilities {
 object LsuUtilitiesFactory extends UtilitiesFactory[LsuUtilities]("LSU")
 
 object LsuInit {
-  val rv32iUtils = RV32ILsuUtilities
+  val rv32iUtils  = RV32ILsuUtilities
+  val rv32imUtils = RV32IMLsuUtilities
 }

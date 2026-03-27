@@ -12,5 +12,6 @@ trait ImmUtilities extends Utilities {
 object ImmUtilitiesFactory extends UtilitiesFactory[ImmUtilities]("Imm")
 
 object ImmInit {
-  val rv32iUtils = RV32IImmUtilities
+  val rv32iUtils  = RV32IImmUtilities
+  val rv32imUtils = RV32IMImmUtilities
 }

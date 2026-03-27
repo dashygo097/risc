@@ -4,15 +4,12 @@ import arch.configs._
 import chisel3._
 import vopts.math.Multiplier
 
-trait RV32IMulConsts extends MulConsts
-
-object RV32IMulUtilities extends RegisteredUtilities[MulUtilities] with RV32IMulConsts {
+object RV32IMulUtilities extends RegisteredUtilities[MulUtilities] {
   override def utils: MulUtilities = new MulUtilities {
     override def name: String = "rv32i"
 
-    override def build(dw: Int): Multiplier = {
-      Module(new Multiplier(dw, pipeline_stages = p(MulPipelineStages)))
-    }
+    override def build: Multiplier =
+      Module(new Multiplier(p(XLen), pipeline_stages = p(MulPipelineStages)))
   }
 
   override def factory: UtilitiesFactory[MulUtilities] = MulUtilitiesFactory

@@ -333,13 +333,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   }
 
   // MUL IO
-  mul.io.en        := mul_fire
-  mul.io.kill      := id_ex.flush
-  mul.io.src1      := ex_rs1_data
-  mul.io.src2      := ex_rs2_data
-  mul.io.a_signed   := id_ex("mul_a_signed").asBool
-  mul.io.b_signed   := id_ex("mul_b_signed").asBool
-  mul.io.high      := id_ex("mul_high").asBool
+  mul.io.en       := mul_fire
+  mul.io.kill     := id_ex.flush
+  mul.io.src1     := ex_rs1_data
+  mul.io.src2     := ex_rs2_data
+  mul.io.a_signed := id_ex("mul_a_signed").asBool
+  mul.io.b_signed := id_ex("mul_b_signed").asBool
+  mul.io.high     := id_ex("mul_high").asBool
 
   csrfile.foreach { csr =>
     csr.en   := id_ex("csr").asBool

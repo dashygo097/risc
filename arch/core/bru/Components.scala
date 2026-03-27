@@ -16,5 +16,6 @@ trait BruUtilities extends Utilities {
 object BruUtilitiesFactory extends UtilitiesFactory[BruUtilities]("BRU")
 
 object BruInit {
-  val rv32iUtils = RV32IBruUtilities
+  val rv32iUtils  = RV32IBruUtilities
+  val rv32imUtils = RV32IMBruUtilities
 }

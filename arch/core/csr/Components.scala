@@ -29,5 +29,6 @@ trait CsrUtilities extends Utilities {
 object CsrUtilitiesFactory extends UtilitiesFactory[CsrUtilities]("CSR")
 
 object CsrInit {
-  val rv32iUtils = RV32ICsrUtilities
+  val rv32iUtils  = RV32ICsrUtilities
+  val rv32imUtils = RV32IMCsrUtilities
 }

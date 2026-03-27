@@ -14,5 +14,6 @@ trait RegfileUtilities extends Utilities {
 object RegfileUtilitiesFactory extends UtilitiesFactory[RegfileUtilities]("Regfile")
 
 object RegfileInit {
-  val rv32iUtils = RV32IRegfileUtilities
+  val rv32iUtils  = RV32IRegfileUtilities
+  val rv32imUtils = RV32IMRegfileUtilities
 }

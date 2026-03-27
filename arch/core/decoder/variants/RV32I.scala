@@ -3,7 +3,6 @@ package arch.core.decoder
 import arch.core.imm.RV32IImmConsts
 import arch.core.alu.RV32IAluConsts
 import arch.core.lsu.RV32ILsuConsts
-import arch.core.mul.RV32IMulConsts
 import arch.core.bru.RV32IBranchConsts
 import arch.core.csr.RV32ICsrConsts
 import arch.configs._
@@ -11,13 +10,7 @@ import arch.isa._
 import chisel3._
 import chisel3.util.BitPat
 
-trait RV32IDecoderConsts
-  extends RV32IImmConsts
-  with RV32IAluConsts
-  with RV32ILsuConsts
-  with RV32IBranchConsts
-  with RV32ICsrConsts
-  with RV32IMulConsts {
+trait RV32IDecoderConsts extends RV32IImmConsts with RV32IAluConsts with RV32ILsuConsts with RV32IBranchConsts with RV32ICsrConsts {
   def X = BitPat("b?")
   def N = BitPat("b0")
   def Y = BitPat("b1")
@@ -89,11 +82,6 @@ object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with 
       enc("SRA")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, Y, AFN_SRL, N, M_X, N, C_X, N, N, N, N),
       enc("OR")     -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_OR, N, M_X, N, C_X, N, N, N, N),
       enc("AND")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_AND, N, M_X, N, C_X, N, N, N, N),
-      // R-Type Mul
-      enc("MUL")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_X, N, M_X, N, C_X, Y, N, Y, Y),
-      enc("MULH")   -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_X, N, M_X, N, C_X, Y, Y, Y, Y),
-      enc("MULHSU") -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_X, N, M_X, N, C_X, Y, Y, Y, N),
-      enc("MULHU")  -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_X, N, M_X, N, C_X, Y, Y, N, N),
       // I-Type: Arithmetic
       enc("ADDI")   -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N),
       enc("SLLI")   -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_SLL, N, M_X, N, C_X, N, N, N, N),

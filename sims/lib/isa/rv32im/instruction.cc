@@ -67,13 +67,31 @@ std::string Instruction::mnemonic() const noexcept {
   case 0b0110011:
     switch (funct3_) {
     case 0b000:
-      return (funct7_ == 0) ? "add" : "sub";
+      if (funct7_ == 0b0000000)
+        return "add";
+      else if (funct7_ == 0b0100000)
+        return "sub";
+      else if (funct7_ == 0b0000001)
+        return "mul";
+      break;
     case 0b001:
-      return "sll";
+      if (funct7_ == 0b0000000)
+        return "sll";
+      else if (funct7_ == 0b0000001)
+        return "mulh";
+      break;
     case 0b010:
-      return "slt";
+      if (funct7_ == 0b0000000)
+        return "slt";
+      else if (funct7_ == 0b0000001)
+        return "mulhsu";
+      break;
     case 0b011:
-      return "sltu";
+      if (funct7_ == 0b0000000)
+        return "sltu";
+      else if (funct7_ == 0b0000001)
+        return "mulhu";
+      break;
     case 0b100:
       return "xor";
     case 0b101:
