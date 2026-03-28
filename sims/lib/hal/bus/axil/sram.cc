@@ -18,8 +18,9 @@ void AXILiteSRAM::clock_tick() {
 }
 
 void AXILiteSRAM::process_writes() {
-  if (_write_addr_queue.empty() || _write_data_queue.empty())
+  if (_write_addr_queue.empty() || _write_data_queue.empty()) {
     return;
+}
 
   const addr_t addr = _write_addr_queue.front();
   _write_addr_queue.pop();
@@ -29,18 +30,21 @@ void AXILiteSRAM::process_writes() {
   const bool valid = owns_address(addr) && (addr % INSTR_ALIGNMENT == 0);
 
   if (valid) {
-    for (int i = 0; i < 4; ++i)
-      if (wdata.strb & (1u << i))
+    for (int i = 0; i < 4; ++i) {
+      if (wdata.strb & (1u << i)) {
         allocator()->write_byte(
             addr + i, static_cast<byte_t>((wdata.data >> (i * 8)) & 0xFF));
+}
+}
   }
 
-  _write_resp_queue.push({valid ? uint8_t(0) : uint8_t(2)});
+  _write_resp_queue.push({valid ? static_cast<uint8_t>(0) : static_cast<uint8_t>(2)});
 }
 
 void AXILiteSRAM::process_reads() {
-  if (_read_queue.empty() || _read_queue.front().processed)
+  if (_read_queue.empty() || _read_queue.front().processed) {
     return;
+}
 
   ReadTransaction &rt = _read_queue.front();
   const bool valid = owns_address(rt.addr) && (rt.addr % INSTR_ALIGNMENT == 0);
@@ -51,42 +55,44 @@ void AXILiteSRAM::process_reads() {
 
 // AW
 void AXILiteSRAM::aw_valid(addr_t addr) { _write_addr_queue.push(addr); }
-bool AXILiteSRAM::aw_ready() const noexcept { return true; }
+auto AXILiteSRAM::aw_ready() const noexcept -> bool { return true; }
 
 // W
 void AXILiteSRAM::w_valid(word_t data, byte_t strb) {
   _write_data_queue.push({data, strb});
 }
-bool AXILiteSRAM::w_ready() const noexcept { return true; }
+auto AXILiteSRAM::w_ready() const noexcept -> bool { return true; }
 
 // B
-bool AXILiteSRAM::b_valid() const noexcept {
+auto AXILiteSRAM::b_valid() const noexcept -> bool {
   return !_write_resp_queue.empty();
 }
 void AXILiteSRAM::b_ready(bool ready) {
-  if (ready && !_write_resp_queue.empty())
+  if (ready && !_write_resp_queue.empty()) {
     _write_resp_queue.pop();
 }
-uint8_t AXILiteSRAM::b_resp() const noexcept {
+}
+auto AXILiteSRAM::b_resp() const noexcept -> uint8_t {
   return _write_resp_queue.empty() ? 0u : _write_resp_queue.front().resp;
 }
 
 // AR
 void AXILiteSRAM::ar_valid(addr_t addr) { _read_queue.push({addr, 0u, false}); }
-bool AXILiteSRAM::ar_ready() const noexcept { return true; }
+auto AXILiteSRAM::ar_ready() const noexcept -> bool { return true; }
 
 // R
-bool AXILiteSRAM::r_valid() const noexcept {
+auto AXILiteSRAM::r_valid() const noexcept -> bool {
   return !_read_queue.empty() && _read_queue.front().processed;
 }
 void AXILiteSRAM::r_ready(bool ready) {
-  if (ready && r_valid())
+  if (ready && r_valid()) {
     _read_queue.pop();
 }
-word_t AXILiteSRAM::r_data() const noexcept {
+}
+auto AXILiteSRAM::r_data() const noexcept -> word_t {
   return _read_queue.empty() ? 0u : _read_queue.front().data;
 }
-uint8_t AXILiteSRAM::r_resp() const noexcept { return 0u; }
+auto AXILiteSRAM::r_resp() const noexcept -> uint8_t { return 0u; }
 
 void AXILiteSRAM::dump(addr_t start, size_t size) const noexcept {
   if (!owns_address(start)) {
@@ -101,20 +107,23 @@ void AXILiteSRAM::dump(addr_t start, size_t size) const noexcept {
            static_cast<uint64_t>(start + clamped));
 
   const byte_t *ptr = allocator()->get_ptr(start);
-  if (!ptr)
+  if (!ptr) {
     return;
+}
 
   for (size_t i = 0; i < clamped; i += 16) {
     std::stringstream ss;
     ss << std::hex << std::setw(8) << std::setfill('0') << (start + i) << ": ";
     for (size_t j = 0; j < 16; ++j) {
-      if (i + j < clamped)
+      if (i + j < clamped) {
         ss << std::hex << std::setw(2) << std::setfill('0')
            << static_cast<int>(ptr[i + j]) << ' ';
-      else
+      } else {
         ss << "   ";
-      if (j == 7)
+}
+      if (j == 7) {
         ss << ' ';
+}
     }
     ss << " |";
     for (size_t j = 0; j < 16 && (i + j) < clamped; ++j) {

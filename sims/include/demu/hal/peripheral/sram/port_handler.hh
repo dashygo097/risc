@@ -9,14 +9,14 @@ namespace demu::hal::sram {
 
 template <typename T, typename = void> struct sram_data_traits {
   static constexpr size_t width = std::tuple_size_v<T>;
-  static word_t get(const T &d, size_t i) { return d[i]; }
+  static auto get(const T &d, size_t i) -> word_t { return d[i]; }
   static void set(T &d, size_t i, word_t v) { d[i] = v; }
 };
 
 template <typename T>
 struct sram_data_traits<T, std::enable_if_t<std::is_scalar_v<T>>> {
   static constexpr size_t width = 1;
-  static word_t get(const T &d, size_t) { return static_cast<word_t>(d); }
+  static auto get(const T &d, size_t) -> word_t { return static_cast<word_t>(d); }
   static void set(T &d, size_t, word_t v) { d = static_cast<T>(v); }
 };
 
@@ -32,16 +32,18 @@ public:
 
   void handle(hal::Hardware *hw) noexcept override {
     auto *sram = dynamic_cast<SRAM *>(hw);
-    if (!sram)
+    if (!sram) {
       return;
+}
 
     auto s = provider_();
 
     *s.req.ready = 1;
     *s.resp.valid = 1;
 
-    if (!*s.req.valid)
+    if (!*s.req.valid) {
       return;
+}
 
     if (*s.req.op == 0) {
       for (size_t i = 0; i < N; ++i) {
@@ -60,7 +62,7 @@ public:
     }
   }
 
-  const char *protocol_name() const noexcept override { return "Cache"; }
+  [[nodiscard]] auto protocol_name() const noexcept -> const char * override { return "Cache"; }
 
 private:
   SignalProvider provider_;
@@ -79,16 +81,18 @@ public:
 
   void handle(hal::Hardware *hw) noexcept override {
     auto *sram = dynamic_cast<SRAM *>(hw);
-    if (!sram)
+    if (!sram) {
       return;
+}
 
     auto s = provider_();
 
     *s.req.ready = 1;
     *s.resp.valid = 1;
 
-    if (!*s.req.valid)
+    if (!*s.req.valid) {
       return;
+}
 
     for (size_t i = 0; i < N; ++i) {
       const addr_t word_addr =
@@ -97,7 +101,7 @@ public:
     }
   }
 
-  const char *protocol_name() const noexcept override {
+  [[nodiscard]] auto protocol_name() const noexcept -> const char * override {
     return "Cache Read-Only";
   }
 

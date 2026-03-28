@@ -12,30 +12,30 @@ public:
   // AW Channel
   virtual void aw_valid(bool valid, uint32_t id, addr_t addr, uint8_t len,
                         uint8_t size, uint8_t burst) = 0;
-  virtual bool aw_ready() const noexcept = 0;
+  virtual auto aw_ready() const noexcept -> bool = 0;
 
   // W Channel
   virtual void w_valid(bool valid, word_t data, byte_t strb, bool last) = 0;
-  virtual bool w_ready() const noexcept = 0;
+  virtual auto w_ready() const noexcept -> bool = 0;
 
   // B Channel
-  virtual bool b_valid() const noexcept = 0;
+  virtual auto b_valid() const noexcept -> bool = 0;
   virtual void b_ready(bool ready) = 0;
-  virtual uint8_t b_resp() const noexcept = 0;
-  virtual uint32_t b_id() const noexcept = 0;
+  virtual auto b_resp() const noexcept -> uint8_t = 0;
+  virtual auto b_id() const noexcept -> uint32_t = 0;
 
   // AR Channel
   virtual void ar_valid(bool valid, uint32_t id, addr_t addr, uint8_t len,
                         uint8_t size, uint8_t burst) = 0;
-  virtual bool ar_ready() const noexcept = 0;
+  virtual auto ar_ready() const noexcept -> bool = 0;
 
   // R Channel
-  virtual bool r_valid() const noexcept = 0;
+  virtual auto r_valid() const noexcept -> bool = 0;
   virtual void r_ready(bool ready) = 0;
-  virtual word_t r_data() const noexcept = 0;
-  virtual uint8_t r_resp() const noexcept = 0;
-  virtual uint32_t r_id() const noexcept = 0;
-  virtual bool r_last() const noexcept = 0;
+  virtual auto r_data() const noexcept -> word_t = 0;
+  virtual auto r_resp() const noexcept -> uint8_t = 0;
+  virtual auto r_id() const noexcept -> uint32_t = 0;
+  virtual auto r_last() const noexcept -> bool = 0;
 };
 
 } // namespace demu::hal::axi

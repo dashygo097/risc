@@ -14,7 +14,7 @@ public:
 
   ~SRAM() override = default;
 
-  [[nodiscard]] MemoryAllocator *allocator() const noexcept override {
+  [[nodiscard]] auto allocator() const noexcept -> MemoryAllocator * override {
     return memory_.get();
   }
 

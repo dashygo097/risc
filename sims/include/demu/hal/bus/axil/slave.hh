@@ -14,22 +14,22 @@ public:
 
   // AW
   virtual void aw_valid(addr_t addr) = 0;
-  virtual bool aw_ready() const noexcept = 0;
+  virtual auto aw_ready() const noexcept -> bool = 0;
   // W
   virtual void w_valid(word_t data, byte_t strb) = 0;
-  virtual bool w_ready() const noexcept = 0;
+  virtual auto w_ready() const noexcept -> bool = 0;
   // B
-  virtual bool b_valid() const noexcept = 0;
+  virtual auto b_valid() const noexcept -> bool = 0;
   virtual void b_ready(bool ready) = 0;
-  virtual uint8_t b_resp() const noexcept = 0;
+  virtual auto b_resp() const noexcept -> uint8_t = 0;
   // AR
   virtual void ar_valid(addr_t addr) = 0;
-  virtual bool ar_ready() const noexcept = 0;
+  virtual auto ar_ready() const noexcept -> bool = 0;
   // R
-  virtual bool r_valid() const noexcept = 0;
+  virtual auto r_valid() const noexcept -> bool = 0;
   virtual void r_ready(bool ready) = 0;
-  virtual word_t r_data() const noexcept = 0;
-  virtual uint8_t r_resp() const noexcept = 0;
+  virtual auto r_data() const noexcept -> word_t = 0;
+  virtual auto r_resp() const noexcept -> uint8_t = 0;
 };
 
 } // namespace demu::hal::axi

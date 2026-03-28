@@ -4,8 +4,10 @@
 #include <cstdint>
 #include <string>
 
-#define EBREAK 0x00100073
-#define BUBBLE 0x00000013
+enum {
+EBREAK = 0x00100073,
+BUBBLE = 0x00000013
+};
 
 namespace demu::isa {
 enum InstType {
@@ -23,17 +25,17 @@ class Instruction {
 public:
   explicit Instruction(instr_t raw);
 
-  [[nodiscard]] InstType type() const noexcept;
+  [[nodiscard]] auto type() const noexcept -> InstType;
   [[nodiscard]] std::string mnemonic() const noexcept;
   [[nodiscard]] std::string to_string() const;
 
-  [[nodiscard]] uint8_t opcode() const noexcept { return opcode_; }
-  [[nodiscard]] uint8_t rd() const noexcept { return rd_; }
-  [[nodiscard]] uint8_t rs1() const noexcept { return rs1_; }
-  [[nodiscard]] uint8_t rs2() const noexcept { return rs2_; }
-  [[nodiscard]] uint8_t funct3() const noexcept { return funct3_; }
-  [[nodiscard]] uint8_t funct7() const noexcept { return funct7_; }
-  [[nodiscard]] int32_t imm() const noexcept { return imm_; }
+  [[nodiscard]] auto opcode() const noexcept -> uint8_t { return opcode_; }
+  [[nodiscard]] auto rd() const noexcept -> uint8_t { return rd_; }
+  [[nodiscard]] auto rs1() const noexcept -> uint8_t { return rs1_; }
+  [[nodiscard]] auto rs2() const noexcept -> uint8_t { return rs2_; }
+  [[nodiscard]] auto funct3() const noexcept -> uint8_t { return funct3_; }
+  [[nodiscard]] auto funct7() const noexcept -> uint8_t { return funct7_; }
+  [[nodiscard]] auto imm() const noexcept -> int32_t { return imm_; }
 
 private:
   instr_t raw_;
@@ -46,11 +48,11 @@ private:
   int32_t imm_;
 
   void decode();
-  [[nodiscard]] int32_t decode_i_imm() const noexcept;
-  [[nodiscard]] int32_t decode_s_imm() const noexcept;
-  [[nodiscard]] int32_t decode_b_imm() const noexcept;
-  [[nodiscard]] int32_t decode_u_imm() const noexcept;
-  [[nodiscard]] int32_t decode_j_imm() const noexcept;
+  [[nodiscard]] auto decode_i_imm() const noexcept -> int32_t;
+  [[nodiscard]] auto decode_s_imm() const noexcept -> int32_t;
+  [[nodiscard]] auto decode_b_imm() const noexcept -> int32_t;
+  [[nodiscard]] auto decode_u_imm() const noexcept -> int32_t;
+  [[nodiscard]] auto decode_j_imm() const noexcept -> int32_t;
 };
 
 } // namespace demu::isa

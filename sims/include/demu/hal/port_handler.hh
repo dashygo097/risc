@@ -10,7 +10,7 @@ public:
 
   virtual void handle(Hardware *hw) noexcept = 0;
 
-  virtual const char *protocol_name() const noexcept = 0;
+  [[nodiscard]] virtual auto protocol_name() const noexcept -> const char * = 0;
 };
 
 } // namespace demu::hal

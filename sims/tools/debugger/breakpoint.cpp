@@ -3,28 +3,31 @@
 
 namespace demu::dbg {
 
-uint32_t BreakpointManager::add_breakpoint(BreakType type, uint64_t value) {
+auto BreakpointManager::add_breakpoint(BreakType type, uint64_t value)
+    -> uint32_t {
   uint32_t id = next_id_++;
   breakpoints_[id] = {id, type, value, true};
   return id;
 }
 
-uint32_t BreakpointManager::add_watchpoint(uint32_t addr, uint32_t size,
-                                           WatchType type) {
+auto BreakpointManager::add_watchpoint(uint32_t addr, uint32_t size,
+                                       WatchType type) -> uint32_t {
   uint32_t id = next_id_++;
   watchpoints_[id] = {id, addr, size, type, true};
   return id;
 }
 
-bool BreakpointManager::remove(uint32_t id) {
-  if (breakpoints_.erase(id))
+auto BreakpointManager::remove(uint32_t id) -> bool {
+  if (breakpoints_.erase(id)) {
     return true;
-  if (watchpoints_.erase(id))
+  }
+  if (watchpoints_.erase(id)) {
     return true;
+  }
   return false;
 }
 
-bool BreakpointManager::enable(uint32_t id) {
+auto BreakpointManager::enable(uint32_t id) -> bool {
   auto bit = breakpoints_.find(id);
   if (bit != breakpoints_.end()) {
     bit->second.enabled = true;
@@ -38,7 +41,7 @@ bool BreakpointManager::enable(uint32_t id) {
   return false;
 }
 
-bool BreakpointManager::disable(uint32_t id) {
+auto BreakpointManager::disable(uint32_t id) -> bool {
   auto bit = breakpoints_.find(id);
   if (bit != breakpoints_.end()) {
     bit->second.enabled = false;
@@ -52,64 +55,75 @@ bool BreakpointManager::disable(uint32_t id) {
   return false;
 }
 
-bool BreakpointManager::check_breakpoint(uint64_t pc, uint64_t cycle,
-                                         uint64_t instret) const {
+auto BreakpointManager::check_breakpoint(uint64_t pc, uint64_t cycle,
+                                         uint64_t instret) const -> bool {
   for (const auto &[id, bp] : breakpoints_) {
-    if (!bp.enabled)
+    if (!bp.enabled) {
       continue;
+    }
     switch (bp.type) {
     case BreakType::PC:
-      if (pc == bp.value)
+      if (pc == bp.value) {
         return true;
+      }
       break;
     case BreakType::CYCLE:
-      if (cycle >= bp.value)
+      if (cycle >= bp.value) {
         return true;
+      }
       break;
     case BreakType::INSTRET:
-      if (instret >= bp.value)
+      if (instret >= bp.value) {
         return true;
+      }
       break;
     }
   }
   return false;
 }
 
-bool BreakpointManager::check_watchpoint_read(uint32_t addr,
-                                              uint32_t size) const {
+auto BreakpointManager::check_watchpoint_read(uint32_t addr,
+                                              uint32_t size) const -> bool {
   for (const auto &[id, wp] : watchpoints_) {
-    if (!wp.enabled)
+    if (!wp.enabled) {
       continue;
-    if (wp.type == WatchType::WRITE)
+    }
+    if (wp.type == WatchType::WRITE) {
       continue;
-    if (ranges_overlap(addr, size, wp.address, wp.size))
+    }
+    if (ranges_overlap(addr, size, wp.address, wp.size)) {
       return true;
+    }
   }
   return false;
 }
 
-bool BreakpointManager::check_watchpoint_write(uint32_t addr,
-                                               uint32_t size) const {
+auto BreakpointManager::check_watchpoint_write(uint32_t addr,
+                                               uint32_t size) const -> bool {
   for (const auto &[id, wp] : watchpoints_) {
-    if (!wp.enabled)
+    if (!wp.enabled) {
       continue;
-    if (wp.type == WatchType::READ)
+    }
+    if (wp.type == WatchType::READ) {
       continue;
-    if (ranges_overlap(addr, size, wp.address, wp.size))
+    }
+    if (ranges_overlap(addr, size, wp.address, wp.size)) {
       return true;
+    }
   }
   return false;
 }
 
-bool BreakpointManager::ranges_overlap(uint32_t a_start, uint32_t a_size,
-                                       uint32_t b_start,
-                                       uint32_t b_size) const {
+auto BreakpointManager::ranges_overlap(uint32_t a_start, uint32_t a_size,
+                                       uint32_t b_start, uint32_t b_size) const
+    -> bool {
   return a_start < (b_start + b_size) && b_start < (a_start + a_size);
 }
 
-std::string BreakpointManager::list() const {
-  if (breakpoints_.empty() && watchpoints_.empty())
+auto BreakpointManager::list() const -> std::string {
+  if (breakpoints_.empty() && watchpoints_.empty()) {
     return "No breakpoints or watchpoints set.\n";
+  }
 
   std::string result;
 

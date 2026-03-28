@@ -16,8 +16,9 @@ public:
 
   void handle(hal::Hardware *hw) noexcept override {
     auto *slave = dynamic_cast<AXIFullSlave *>(hw);
-    if (!slave)
+    if (!slave) {
       return;
+}
 
     auto s = provider_();
 
@@ -46,7 +47,7 @@ public:
     *s.rlast = slave->r_last();
   }
 
-  const char *protocol_name() const noexcept override { return "AXI4-Full"; }
+  [[nodiscard]] auto protocol_name() const noexcept -> const char * override { return "AXI4-Full"; }
 
 private:
   SignalProvider provider_;

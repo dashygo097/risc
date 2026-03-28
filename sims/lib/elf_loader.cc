@@ -5,10 +5,11 @@
 
 namespace demu {
 
-bool ELFLoader::is_elf(const std::string &filename) {
+auto ELFLoader::is_elf(const std::string &filename) -> bool {
   std::ifstream file(filename, std::ios::binary);
-  if (!file.is_open())
+  if (!file.is_open()) {
     return false;
+}
 
   uint8_t magic[4];
   file.read(reinterpret_cast<char *>(magic), 4);
@@ -17,7 +18,7 @@ bool ELFLoader::is_elf(const std::string &filename) {
           magic[3] == 'F');
 }
 
-bool ELFLoader::load(hal::MemoryAllocator &mem, const std::string &filename) {
+auto ELFLoader::load(hal::MemoryAllocator &mem, const std::string &filename) -> bool {
   if (!is_elf(filename)) {
     DEMU_ERROR("Not a valid ELF file: {}", filename);
     return false;
@@ -64,8 +65,8 @@ bool ELFLoader::load(hal::MemoryAllocator &mem, const std::string &filename) {
   return true;
 }
 
-bool ELFLoader::load(std::vector<ELFSection> &sections, uint32_t &entry_point,
-                     const std::string &filename) {
+auto ELFLoader::load(std::vector<ELFSection> &sections, uint32_t &entry_point,
+                     const std::string &filename) -> bool {
   sections.clear();
   entry_point = 0;
 
@@ -100,8 +101,9 @@ bool ELFLoader::load(std::vector<ELFSection> &sections, uint32_t &entry_point,
     file.seekg(ph_pos);
     file.read(reinterpret_cast<char *>(&ph), sizeof(ph));
 
-    if (ph.p_type != PT_LOAD)
+    if (ph.p_type != PT_LOAD) {
       continue;
+}
 
     ELFSection section;
     section.addr = ph.p_paddr;
@@ -113,12 +115,13 @@ bool ELFLoader::load(std::vector<ELFSection> &sections, uint32_t &entry_point,
       file.read(reinterpret_cast<char *>(section.data.data()), ph.p_filesz);
     }
 
-    if (ph.p_flags & 0x1) // PF_X
+    if (ph.p_flags & 0x1) { // PF_X
       section.name = fmt::format(".text@0x{:08x}", ph.p_paddr);
-    else if (ph.p_flags & 0x2) // PF_W
+    } else if (ph.p_flags & 0x2) { // PF_W
       section.name = fmt::format(".data@0x{:08x}", ph.p_paddr);
-    else
+    } else {
       section.name = fmt::format(".rodata@0x{:08x}", ph.p_paddr);
+}
 
     DEMU_INFO("ELF segment: {} addr=0x{:08x} filesz=0x{:x} memsz=0x{:x}",
               section.name, ph.p_paddr, ph.p_filesz, ph.p_memsz);

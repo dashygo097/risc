@@ -43,7 +43,7 @@ DemuSimulator::~DemuSimulator() {
 #endif
 }
 
-bool DemuSimulator::load_bin(const std::string &filename, addr_t base_addr) {
+auto DemuSimulator::load_bin(const std::string &filename, addr_t base_addr) -> bool {
   auto *device = device_manager_->find_device_for_address(base_addr);
   if (!device) {
     DEMU_ERROR("No device mapped at address 0x{:08x}", base_addr);
@@ -64,7 +64,7 @@ bool DemuSimulator::load_bin(const std::string &filename, addr_t base_addr) {
   return false;
 }
 
-bool DemuSimulator::load_elf(const std::string &filename) {
+auto DemuSimulator::load_elf(const std::string &filename) -> bool {
   std::vector<ELFSection> sections;
   uint32_t entry_point = 0;
 
@@ -77,8 +77,9 @@ bool DemuSimulator::load_elf(const std::string &filename) {
             sections.size());
 
   for (const auto &section : sections) {
-    if (section.data.empty())
+    if (section.data.empty()) {
       continue;
+}
 
     auto *device = device_manager_->find_device_for_address(section.addr);
     if (!device) {
@@ -222,7 +223,7 @@ void DemuSimulator::clock_tick() {
 
   if (dut_->debug_reg_addr != 0) {
     if (dut_->debug_reg_we) {
-      word_t reg_data = static_cast<word_t>(dut_->debug_reg_data);
+      auto reg_data = static_cast<word_t>(dut_->debug_reg_data);
       _register_values[dut_->debug_reg_addr] = reg_data;
       DEMU_REG_WRITE(dut_->debug_reg_addr, reg_data);
     }
