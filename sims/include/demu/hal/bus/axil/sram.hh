@@ -21,25 +21,25 @@ public:
 
   // AW
   void aw_valid(addr_t addr) override;
-  bool aw_ready() const noexcept override;
+  auto aw_ready() const noexcept -> bool override;
   // W
   void w_valid(word_t data, byte_t strb) override;
-  bool w_ready() const noexcept override;
+  auto w_ready() const noexcept -> bool override;
   // B
-  bool b_valid() const noexcept override;
+  auto b_valid() const noexcept -> bool override;
   void b_ready(bool ready) override;
-  uint8_t b_resp() const noexcept override;
+  auto b_resp() const noexcept -> uint8_t override;
   // AR
   void ar_valid(addr_t addr) override;
-  bool ar_ready() const noexcept override;
+  auto ar_ready() const noexcept -> bool override;
   // R
-  bool r_valid() const noexcept override;
+  auto r_valid() const noexcept -> bool override;
   void r_ready(bool ready) override;
-  word_t r_data() const noexcept override;
-  uint8_t r_resp() const noexcept override;
+  auto r_data() const noexcept -> word_t override;
+  auto r_resp() const noexcept -> uint8_t override;
 
   // Bypass
-  [[nodiscard]] MemoryAllocator *allocator() const noexcept override {
+  [[nodiscard]] auto allocator() const noexcept -> MemoryAllocator * override {
     return sram_->allocator();
   }
 

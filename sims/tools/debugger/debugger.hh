@@ -33,11 +33,11 @@ private:
   std::vector<Command> commands_;
 
   void register_commands();
-  Command *find_command(const std::string &input);
+  auto find_command(const std::string &input) -> Command *;
 
-  std::vector<std::string> tokenize(const std::string &line);
-  uint64_t parse_number(const std::string &s);
-  int parse_reg(const std::string &s);
+  auto tokenize(const std::string &line) -> std::vector<std::string>;
+  auto parse_number(const std::string &s) -> uint64_t;
+  auto parse_reg(const std::string &s) -> int;
 
   void print_stop_banner();
   void print_registers();

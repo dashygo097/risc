@@ -17,43 +17,43 @@ public:
   RiscConfig() { load(get_config_path()); }
   explicit RiscConfig(const std::string &p) { load(p); }
 
-  [[nodiscard]] const risc::IfuConfig &ifu() const noexcept {
+  [[nodiscard]] auto ifu() const noexcept -> const risc::IfuConfig & {
     return proto_.ifu();
   }
-  [[nodiscard]] const risc::BpuConfig &bpu() const noexcept {
+  [[nodiscard]] auto bpu() const noexcept -> const risc::BpuConfig & {
     return proto_.bpu();
   }
-  [[nodiscard]] const risc::RegfileConfig &regfile() const noexcept {
+  [[nodiscard]] auto regfile() const noexcept -> const risc::RegfileConfig & {
     return proto_.regfile();
   }
-  [[nodiscard]] const risc::RobConfig &rob() const noexcept {
+  [[nodiscard]] auto rob() const noexcept -> const risc::RobConfig & {
     return proto_.rob();
   }
-  [[nodiscard]] const risc::CacheConfig &l1i() const noexcept {
+  [[nodiscard]] auto l1i() const noexcept -> const risc::CacheConfig & {
     return proto_.l1i();
   }
-  [[nodiscard]] const risc::CacheConfig &l1d() const noexcept {
+  [[nodiscard]] auto l1d() const noexcept -> const risc::CacheConfig & {
     return proto_.l1d();
   }
-  [[nodiscard]] const risc::CsrConfig &csr() const noexcept {
+  [[nodiscard]] auto csr() const noexcept -> const risc::CsrConfig & {
     return proto_.csr();
   }
-  [[nodiscard]] const risc::BusConfig &bus() const noexcept {
+  [[nodiscard]] auto bus() const noexcept -> const risc::BusConfig & {
     return proto_.bus();
   }
 
-  [[nodiscard]] bool is_valid() const noexcept { return valid_; }
+  [[nodiscard]] auto is_valid() const noexcept -> bool { return valid_; }
 
-  [[nodiscard]] uint32_t
-  l1i_line_words(uint32_t word_bytes = 4) const noexcept {
+  [[nodiscard]] auto l1i_line_words(uint32_t word_bytes = 4) const noexcept
+      -> uint32_t {
     return proto_.l1i().line_size() / word_bytes;
   }
-  [[nodiscard]] uint32_t
-  l1d_line_words(uint32_t word_bytes = 4) const noexcept {
+  [[nodiscard]] auto l1d_line_words(uint32_t word_bytes = 4) const noexcept
+      -> uint32_t {
     return proto_.l1d().line_size() / word_bytes;
   }
 
-  bool validate() const {
+  auto validate() const -> bool {
     bool ok = true;
     if (!find_region("imem")) {
       DEMU_ERROR("RiscConfig: imem not found");
@@ -85,11 +85,13 @@ public:
     DEMU_DEBUG("------------------")
   }
 
-  [[nodiscard]] const risc::DeviceDescriptor *
-  find_region(const std::string &dev) const noexcept {
-    for (const auto &r : proto_.bus().address_map())
-      if (r.name() == dev)
+  [[nodiscard]] auto find_region(const std::string &dev) const noexcept
+      -> const risc::DeviceDescriptor * {
+    for (const auto &r : proto_.bus().address_map()) {
+      if (r.name() == dev) {
         return &r;
+      }
+    }
     return nullptr;
   }
 
@@ -98,9 +100,9 @@ private:
   std::string config_path_;
   bool valid_{false};
 
-  static std::string get_config_path() {
+  static auto get_config_path() -> std::string {
 #ifdef RTL_CONFIG_FILE
-    return std::string(RTL_CONFIG_FILE);
+    return {RTL_CONFIG_FILE};
 #else
     DEMU_ERROR("RTL_CONFIG_FILE not defined");
     return "";

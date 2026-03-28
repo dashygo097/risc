@@ -13,8 +13,8 @@ MemoryAllocator::MemoryAllocator(addr_t base_addr, size_t size)
 }
 
 // Helpers
-bool MemoryAllocator::load_binary(const std::string &filename,
-                                  addr_t load_offset) {
+auto MemoryAllocator::load_binary(const std::string &filename,
+                                  addr_t load_offset) -> bool {
   std::ifstream file(filename, std::ios::binary | std::ios::ate);
   if (!file.is_open()) {
     HAL_ERROR("Failed to open binary file: {}", filename);
@@ -53,16 +53,17 @@ void MemoryAllocator::dump(addr_t start, addr_t length) const {
     ss << std::hex << std::setw(8) << std::setfill('0') << addr << ": ";
 
     for (size_t i = 0; i < 16 && addr + i < start + length; i++) {
-      if (i == 8)
+      if (i == 8) {
         ss << " ";
+      }
       ss << std::hex << std::setw(2) << std::setfill('0')
-         << (int)read_byte(addr + i) << " ";
+         << static_cast<int>(read_byte(addr + i)) << " ";
     }
 
     ss << " |";
     for (size_t i = 0; i < 16 && addr + i < start + length; i++) {
       byte_t c = read_byte(addr + i);
-      ss << (c >= 32 && c < 127 ? (char)c : '.');
+      ss << (c >= 32 && c < 127 ? static_cast<char>(c) : '.');
     }
     ss << "|";
 
@@ -70,12 +71,14 @@ void MemoryAllocator::dump(addr_t start, addr_t length) const {
   }
 }
 
-[[nodiscard]] bool MemoryAllocator::is_valid_addr(addr_t addr) const noexcept {
+[[nodiscard]] auto MemoryAllocator::is_valid_addr(addr_t addr) const noexcept
+    -> bool {
   return addr >= base_addr_ &&
          (addr - base_addr_) < static_cast<addr_t>(memory_.size());
 }
 
-[[nodiscard]] addr_t MemoryAllocator::to_offset(addr_t addr) const noexcept {
+[[nodiscard]] auto MemoryAllocator::to_offset(addr_t addr) const noexcept
+    -> addr_t {
   return addr - base_addr_;
 }
 

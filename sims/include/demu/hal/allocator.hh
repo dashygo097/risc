@@ -13,7 +13,7 @@ public:
   MemoryAllocator(addr_t base_addr, size_t size);
   ~MemoryAllocator() = default;
 
-  template <typename T> [[nodiscard]] T read(addr_t addr) const noexcept {
+  template <typename T> [[nodiscard]] auto read(addr_t addr) const noexcept -> T {
     if (!is_valid_addr(addr)) {
       HAL_WARN("Invalid Read at 0x{:08x}", addr);
       return T{};
@@ -22,13 +22,13 @@ public:
     std::memcpy(&val, memory_.data() + to_offset(addr), sizeof(T));
     return val;
   }
-  [[nodiscard]] inline word_t read_word(addr_t addr) const noexcept {
+  [[nodiscard]] inline auto read_word(addr_t addr) const noexcept -> word_t {
     return read<word_t>(addr);
   }
-  [[nodiscard]] inline half_t read_half(addr_t addr) const noexcept {
+  [[nodiscard]] inline auto read_half(addr_t addr) const noexcept -> half_t {
     return read<half_t>(addr);
   }
-  [[nodiscard]] inline byte_t read_byte(addr_t addr) const noexcept {
+  [[nodiscard]] inline auto read_byte(addr_t addr) const noexcept -> byte_t {
     return read<byte_t>(addr);
   }
 
@@ -50,17 +50,17 @@ public:
   }
 
   // Helpers
-  [[nodiscard]] bool is_valid_addr(addr_t addr) const noexcept;
-  [[nodiscard]] addr_t to_offset(addr_t addr) const noexcept;
-  bool load_binary(const std::string &filename, addr_t offset = 0);
+  [[nodiscard]] auto is_valid_addr(addr_t addr) const noexcept -> bool;
+  [[nodiscard]] auto to_offset(addr_t addr) const noexcept -> addr_t;
+  auto load_binary(const std::string &filename, addr_t offset = 0) -> bool;
   void dump(addr_t start, addr_t length) const;
   void clear();
 
   // Direct access
-  [[nodiscard]] byte_t *data() noexcept { return memory_.data(); }
-  [[nodiscard]] size_t size() const noexcept { return memory_.size(); }
-  [[nodiscard]] addr_t base_address() const noexcept { return base_addr_; }
-  [[nodiscard]] byte_t *get_ptr(addr_t addr) {
+  [[nodiscard]] auto data() noexcept -> byte_t * { return memory_.data(); }
+  [[nodiscard]] auto size() const noexcept -> size_t { return memory_.size(); }
+  [[nodiscard]] auto base_address() const noexcept -> addr_t { return base_addr_; }
+  [[nodiscard]] auto get_ptr(addr_t addr) -> byte_t * {
     if (!is_valid_addr(addr)) {
       HAL_WARN("Invalid memory access at address 0x{:08x}", addr);
       return nullptr;

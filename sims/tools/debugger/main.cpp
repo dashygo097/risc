@@ -9,8 +9,8 @@ using namespace demu::isa;
 
 class DemuDebuggerTop final : public demu::DemuSimulator {
 public:
-  DemuDebuggerTop(bool enabled_trace = false, int threads = 1, int argc = 0,
-                  char **argv = nullptr)
+  explicit DemuDebuggerTop(bool enabled_trace = false, int threads = 1,
+                           int argc = 0, char **argv = nullptr)
       : DemuSimulator(enabled_trace, threads, argc, argv) {}
 
 protected:
@@ -24,25 +24,28 @@ protected:
     device_manager_->register_device<demu::hal::axi::AXIFullSRAM>(2, *uart_r);
 
     device_manager_->register_handler(
-        0, std::make_unique<demu::hal::axi::AXIFullPortHandler>([this]() {
-          demu::hal::axi::AXIFullSignals s;
-          MAP_AXIF_SIGNALS(dut_, s, 0);
-          return s;
-        }));
+        0, std::make_unique<demu::hal::axi::AXIFullPortHandler>(
+               [this]() -> demu::hal::axi::AXIFullSignals {
+                 demu::hal::axi::AXIFullSignals s;
+                 MAP_AXIF_SIGNALS(dut_, s, 0);
+                 return s;
+               }));
 
     device_manager_->register_handler(
-        1, std::make_unique<demu::hal::axi::AXIFullPortHandler>([this]() {
-          demu::hal::axi::AXIFullSignals s;
-          MAP_AXIF_SIGNALS(dut_, s, 1);
-          return s;
-        }));
+        1, std::make_unique<demu::hal::axi::AXIFullPortHandler>(
+               [this]() -> demu::hal::axi::AXIFullSignals {
+                 demu::hal::axi::AXIFullSignals s;
+                 MAP_AXIF_SIGNALS(dut_, s, 1);
+                 return s;
+               }));
 
     device_manager_->register_handler(
-        2, std::make_unique<demu::hal::axi::AXIFullPortHandler>([this]() {
-          demu::hal::axi::AXIFullSignals s;
-          MAP_AXIF_SIGNALS(dut_, s, 2);
-          return s;
-        }));
+        2, std::make_unique<demu::hal::axi::AXIFullPortHandler>(
+               [this]() -> demu::hal::axi::AXIFullSignals {
+                 demu::hal::axi::AXIFullSignals s;
+                 MAP_AXIF_SIGNALS(dut_, s, 2);
+                 return s;
+               }));
   }
 
   void on_init() override {}
@@ -70,7 +73,7 @@ void print_usage(const char *prog) {
   std::cout << std::endl;
 }
 
-int main(int argc, char **argv) {
+auto main(int argc, char **argv) -> int {
   if (argc < 2) {
     print_usage(argv[0]);
     return 1;

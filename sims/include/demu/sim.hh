@@ -17,13 +17,13 @@ using namespace isa;
 
 class DemuSimulator {
 public:
-  DemuSimulator(bool enabled_trace = false, int threads = 1, int argc = 0,
-                char **argv = nullptr);
+  explicit DemuSimulator(bool enabled_trace = false, int threads = 1,
+                         int argc = 0, char **argv = nullptr);
   ~DemuSimulator();
 
   // Program loading
-  bool load_bin(const std::string &filename, addr_t offset = 0);
-  bool load_elf(const std::string &filename);
+  auto load_bin(const std::string &filename, addr_t offset = 0) -> bool;
+  auto load_elf(const std::string &filename) -> bool;
 
   // Simulation control
   void init();
@@ -32,29 +32,29 @@ public:
   void run(uint64_t max_cycles = 0);
 
   // Architecture state access
-  [[nodiscard]] hal::Device *device(addr_t addr) {
+  [[nodiscard]] auto device(addr_t addr) -> hal::Device * {
     return device_manager_->find_device_for_address(addr);
   }
-  [[nodiscard]] addr_t pc() const noexcept {
+  [[nodiscard]] auto pc() const noexcept -> addr_t {
     return static_cast<addr_t>(dut_->debug_pc);
   };
-  [[nodiscard]] word_t reg(uint8_t reg) const noexcept {
+  [[nodiscard]] auto reg(uint8_t reg) const noexcept -> word_t {
     auto it = _register_values.find(reg);
     return it != _register_values.end() ? it->second : 0;
   };
-  [[nodiscard]] instr_t if_instr() const noexcept {
+  [[nodiscard]] auto if_instr() const noexcept -> instr_t {
     return static_cast<instr_t>(dut_->debug_if_instr);
   }
-  [[nodiscard]] instr_t id_instr() const noexcept {
+  [[nodiscard]] auto id_instr() const noexcept -> instr_t {
     return static_cast<instr_t>(dut_->debug_id_instr);
   }
-  [[nodiscard]] instr_t ex_instr() const noexcept {
+  [[nodiscard]] auto ex_instr() const noexcept -> instr_t {
     return static_cast<instr_t>(dut_->debug_ex_instr);
   }
-  [[nodiscard]] instr_t mem_instr() const noexcept {
+  [[nodiscard]] auto mem_instr() const noexcept -> instr_t {
     return static_cast<instr_t>(dut_->debug_mem_instr);
   }
-  [[nodiscard]] instr_t wb_instr() const noexcept {
+  [[nodiscard]] auto wb_instr() const noexcept -> instr_t {
     return static_cast<instr_t>(dut_->debug_wb_instr);
   }
 
@@ -63,25 +63,28 @@ public:
   void show_pipeline(bool show) noexcept { show_pipeline_ = show; }
 
   // Simulator statistics
-  [[nodiscard]] uint64_t cycle_count() const noexcept {
+  [[nodiscard]] auto cycle_count() const noexcept -> uint64_t {
     return dut_->debug_cycle_count;
   }
-  [[nodiscard]] uint64_t instret_count() const {
+  [[nodiscard]] auto instret_count() const -> uint64_t {
     return dut_->debug_instret_count;
   }
-  [[nodiscard]] double ipc() const noexcept {
+  [[nodiscard]] auto ipc() const noexcept -> double {
     return dut_->debug_cycle_count > 0
-               ? (double)dut_->debug_instret_count / dut_->debug_cycle_count
+               ? static_cast<double>(dut_->debug_instret_count) /
+                     dut_->debug_cycle_count
                : 0.0;
   };
-  [[nodiscard]] double l1_icache_hit_rate() const noexcept {
+  [[nodiscard]] auto l1_icache_hit_rate() const noexcept -> double {
     return _l1_icache_accesses > 0
-               ? 1.0 - (double)_l1_icache_misses / _l1_icache_accesses
+               ? 1.0 - static_cast<double>(_l1_icache_misses) /
+                           _l1_icache_accesses
                : 0.0;
   };
-  [[nodiscard]] double l1_dcache_hit_rate() const noexcept {
+  [[nodiscard]] auto l1_dcache_hit_rate() const noexcept -> double {
     return _l1_dcache_accesses > 0
-               ? 1.0 - (double)_l1_dcache_misses / _l1_dcache_accesses
+               ? 1.0 - static_cast<double>(_l1_dcache_misses) /
+                           _l1_dcache_accesses
                : 0.0;
   };
 

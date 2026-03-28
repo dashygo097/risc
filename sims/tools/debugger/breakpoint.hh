@@ -26,26 +26,30 @@ struct Watchpoint {
 
 class BreakpointManager {
 public:
-  uint32_t add_breakpoint(BreakType type, uint64_t value);
-  uint32_t add_watchpoint(uint32_t addr, uint32_t size, WatchType type);
+  auto add_breakpoint(BreakType type, uint64_t value) -> uint32_t;
+  auto add_watchpoint(uint32_t addr, uint32_t size, WatchType type) -> uint32_t;
 
-  bool remove(uint32_t id);
-  bool enable(uint32_t id);
-  bool disable(uint32_t id);
+  auto remove(uint32_t id) -> bool;
+  auto enable(uint32_t id) -> bool;
+  auto disable(uint32_t id) -> bool;
 
-  bool check_breakpoint(uint64_t pc, uint64_t cycle, uint64_t instret) const;
-  bool check_watchpoint_read(uint32_t addr, uint32_t size) const;
-  bool check_watchpoint_write(uint32_t addr, uint32_t size) const;
+  [[nodiscard]] auto check_breakpoint(uint64_t pc, uint64_t cycle,
+                                      uint64_t instret) const -> bool;
+  [[nodiscard]] auto check_watchpoint_read(uint32_t addr, uint32_t size) const
+      -> bool;
+  [[nodiscard]] auto check_watchpoint_write(uint32_t addr, uint32_t size) const
+      -> bool;
 
-  std::string list() const;
+  [[nodiscard]] auto list() const -> std::string;
 
 private:
   uint32_t next_id_{1};
   std::map<uint32_t, Breakpoint> breakpoints_;
   std::map<uint32_t, Watchpoint> watchpoints_;
 
-  bool ranges_overlap(uint32_t a_start, uint32_t a_size, uint32_t b_start,
-                      uint32_t b_size) const;
+  [[nodiscard]] auto ranges_overlap(uint32_t a_start, uint32_t a_size,
+                                    uint32_t b_start, uint32_t b_size) const
+      -> bool;
 };
 
 } // namespace demu::dbg

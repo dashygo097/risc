@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "./allocator.hh"
 #include "./hardware.hh"
 #include "risc.pb.h"
@@ -9,48 +11,49 @@ using namespace isa;
 
 class Device : public Hardware {
 public:
-  explicit Device(const risc::DeviceDescriptor &desc) : desc_(desc) {}
+  explicit Device(risc::DeviceDescriptor desc) : desc_(std::move(desc)) {}
 
-  virtual ~Device() = default;
+  ~Device() override = default;
 
-  [[nodiscard]] addr_t base_address() const noexcept {
+  [[nodiscard]] auto base_address() const noexcept -> addr_t {
     return static_cast<addr_t>(desc_.base());
   }
-  [[nodiscard]] size_t address_range() const noexcept {
+  [[nodiscard]] auto address_range() const noexcept -> size_t {
     return static_cast<size_t>(desc_.size());
   }
-  [[nodiscard]] const char *name() const noexcept override {
+  [[nodiscard]] auto name() const noexcept -> const char * override {
     return desc_.name().c_str();
   }
-  [[nodiscard]] risc::DeviceType device_type() const noexcept {
+  [[nodiscard]] auto device_type() const noexcept -> risc::DeviceType {
     return desc_.type();
   }
-  [[nodiscard]] const risc::DeviceDescriptor &descriptor() const noexcept {
+  [[nodiscard]] auto descriptor() const noexcept -> const risc::DeviceDescriptor & {
     return desc_;
   }
 
-  [[nodiscard]] bool owns_address(addr_t addr) const noexcept {
+  [[nodiscard]] auto owns_address(addr_t addr) const noexcept -> bool {
     const addr_t base = base_address();
     return addr >= base && addr < (base + address_range());
   }
-  [[nodiscard]] bool is_valid_offset(addr_t offset) const noexcept {
+  [[nodiscard]] auto is_valid_offset(addr_t offset) const noexcept -> bool {
     return offset < address_range();
   }
-  [[nodiscard]] addr_t to_offset(addr_t addr) const noexcept {
+  [[nodiscard]] auto to_offset(addr_t addr) const noexcept -> addr_t {
     return addr - base_address();
   }
 
   // NOTE: Every derived device should have a memory allocator which takes up
   // some address spaces
-  [[nodiscard]] virtual MemoryAllocator *allocator() const noexcept {
+  [[nodiscard]] virtual auto allocator() const noexcept -> MemoryAllocator * {
     return nullptr;
   }
   virtual void dump(addr_t start, size_t size) const noexcept {}
 
-  bool load_binary(const std::string &filename, addr_t offset = 0) {
+  auto load_binary(const std::string &filename, addr_t offset = 0) -> bool {
     auto *alloc = allocator();
-    if (!alloc)
+    if (!alloc) {
       return false;
+}
     return alloc->load_binary(filename, offset);
   }
 

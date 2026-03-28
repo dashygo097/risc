@@ -38,7 +38,8 @@ public:
     dest.append(level_name.data(), level_name.data() + level_name.size());
   }
 
-  std::unique_ptr<custom_flag_formatter> clone() const override {
+  [[nodiscard]] auto clone() const
+      -> std::unique_ptr<custom_flag_formatter> override {
     return std::make_unique<Formatter>();
   }
 };
@@ -48,11 +49,15 @@ public:
   static void init();
   static void init(spdlog::level::level_enum level);
 
-  static std::shared_ptr<spdlog::logger> &getDemuLogger() {
+  static auto getDemuLogger() -> std::shared_ptr<spdlog::logger> & {
     return demu_logger_;
   }
-  static std::shared_ptr<spdlog::logger> &getIsaLogger() { return isa_logger_; }
-  static std::shared_ptr<spdlog::logger> &getHalLogger() { return hal_logger_; }
+  static auto getIsaLogger() -> std::shared_ptr<spdlog::logger> & {
+    return isa_logger_;
+  }
+  static auto getHalLogger() -> std::shared_ptr<spdlog::logger> & {
+    return hal_logger_;
+  }
 
 private:
   static std::shared_ptr<spdlog::logger> demu_logger_;

@@ -47,12 +47,12 @@ struct ELFSection {
 
 class ELFLoader final {
 public:
-  static bool load(hal::MemoryAllocator &mem, const std::string &filename);
-  static bool load(std::vector<ELFSection> &sections, uint32_t &entry_point,
-                   const std::string &filename);
+  static auto load(hal::MemoryAllocator &mem, const std::string &filename) -> bool;
+  static auto load(std::vector<ELFSection> &sections, uint32_t &entry_point,
+                   const std::string &filename) -> bool;
 
 private:
-  static bool is_elf(const std::string &filename);
+  static auto is_elf(const std::string &filename) -> bool;
 };
 
 } // namespace demu

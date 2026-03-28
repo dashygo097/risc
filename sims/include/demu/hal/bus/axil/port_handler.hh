@@ -16,19 +16,22 @@ public:
 
   void handle(hal::Hardware *hw) noexcept override {
     auto *slave = dynamic_cast<AXILiteSlave *>(hw);
-    if (!slave)
+    if (!slave) {
       return;
+}
 
     auto s = provider_();
 
     // AW
-    if (*s.awvalid && slave->aw_ready())
+    if (*s.awvalid && slave->aw_ready()) {
       slave->aw_valid(*s.awaddr);
+}
     *s.awready = slave->aw_ready();
 
     // W
-    if (*s.wvalid && slave->w_ready())
+    if (*s.wvalid && slave->w_ready()) {
       slave->w_valid(*s.wdata, *s.wstrb & 0xF);
+}
     *s.wready = slave->w_ready();
 
     // B
@@ -37,8 +40,9 @@ public:
     slave->b_ready(*s.bready);
 
     // AR
-    if (*s.arvalid && slave->ar_ready())
+    if (*s.arvalid && slave->ar_ready()) {
       slave->ar_valid(*s.araddr);
+}
     *s.arready = slave->ar_ready();
 
     // R
@@ -48,7 +52,7 @@ public:
     slave->r_ready(*s.rready);
   }
 
-  const char *protocol_name() const noexcept override { return "AXI4-Lite"; }
+  [[nodiscard]] auto protocol_name() const noexcept -> const char * override { return "AXI4-Lite"; }
 
 private:
   SignalProvider provider_;

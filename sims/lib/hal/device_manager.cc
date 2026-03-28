@@ -4,42 +4,50 @@
 namespace demu::hal {
 
 // Device Retrieval — by port
-Device *DeviceManager::get_device(port_id_t port) noexcept {
-  if (port >= slots_.size())
+auto DeviceManager::get_device(port_id_t port) noexcept -> Device * {
+  if (port >= slots_.size()) {
     return nullptr;
+  }
   return slots_[port].device.get();
 }
 
-const Device *DeviceManager::get_device(port_id_t port) const noexcept {
-  if (port >= slots_.size())
+auto DeviceManager::get_device(port_id_t port) const noexcept
+    -> const Device * {
+  if (port >= slots_.size()) {
     return nullptr;
+  }
   return slots_[port].device.get();
 }
 
 // Device Retrieval — by name
-Device *DeviceManager::get_device_by_name(std::string_view name) noexcept {
+auto DeviceManager::get_device_by_name(std::string_view name) noexcept
+    -> Device * {
   auto it = name_indices_.find(std::string(name));
-  if (it == name_indices_.end())
+  if (it == name_indices_.end()) {
     return nullptr;
+  }
   return get_device(it->second);
 }
 
-const Device *
-DeviceManager::get_device_by_name(std::string_view name) const noexcept {
+auto DeviceManager::get_device_by_name(std::string_view name) const noexcept
+    -> const Device * {
   auto it = name_indices_.find(std::string(name));
-  if (it == name_indices_.end())
+  if (it == name_indices_.end()) {
     return nullptr;
+  }
   return get_device(it->second);
 }
 
 // Device Retrieval — by address
-Device *DeviceManager::find_device_for_address(addr_t addr) noexcept {
-  if (addr_indices_.empty())
+auto DeviceManager::find_device_for_address(addr_t addr) noexcept -> Device * {
+  if (addr_indices_.empty()) {
     return nullptr;
+  }
 
   auto it = addr_indices_.upper_bound(addr);
-  if (it == addr_indices_.begin())
+  if (it == addr_indices_.begin()) {
     return nullptr;
+  }
 
   --it;
   auto *device = get_device(it->second);
@@ -53,14 +61,16 @@ Device *DeviceManager::find_device_for_address(addr_t addr) noexcept {
   return nullptr;
 }
 
-const Device *
-DeviceManager::find_device_for_address(addr_t addr) const noexcept {
-  if (addr_indices_.empty())
+auto DeviceManager::find_device_for_address(addr_t addr) const noexcept
+    -> const Device * {
+  if (addr_indices_.empty()) {
     return nullptr;
+  }
 
   auto it = addr_indices_.upper_bound(addr);
-  if (it == addr_indices_.begin())
+  if (it == addr_indices_.begin()) {
     return nullptr;
+  }
 
   --it;
   const auto *device = get_device(it->second);
@@ -83,8 +93,9 @@ void DeviceManager::register_handler(port_id_t port,
 
 void DeviceManager::handle_ports() noexcept {
   for (auto &slot : slots_) {
-    if (slot.device && slot.handler)
+    if (slot.device && slot.handler) {
       slot.handler->handle(slot.device.get());
+    }
   }
 }
 
@@ -92,27 +103,30 @@ void DeviceManager::handle_ports() noexcept {
 void DeviceManager::reset() noexcept {
   HAL_DEBUG("Resetting all emulated hardware devices...");
   for (auto &slot : slots_) {
-    if (slot.device)
+    if (slot.device) {
       slot.device->reset();
+    }
   }
 }
 
 void DeviceManager::clock_tick() noexcept {
   for (auto &slot : slots_) {
-    if (slot.device)
+    if (slot.device) {
       slot.device->clock_tick();
+    }
   }
 }
 
 // Informational
-bool DeviceManager::has_device_at(port_id_t port) const noexcept {
+auto DeviceManager::has_device_at(port_id_t port) const noexcept -> bool {
   return port < slots_.size() && slots_[port].device != nullptr;
 }
 
-std::optional<std::string_view>
-DeviceManager::get_device_name(port_id_t port) const noexcept {
-  if (!has_device_at(port))
+auto DeviceManager::get_device_name(port_id_t port) const noexcept
+    -> std::optional<std::string_view> {
+  if (!has_device_at(port)) {
     return std::nullopt;
+  }
   return std::string_view(slots_[port].desc.name());
 }
 
@@ -140,8 +154,9 @@ void DeviceManager::ensure_capacity(port_id_t port) {
 
 void DeviceManager::rebuild_indices_for(port_id_t port) {
   auto &slot = slots_[port];
-  if (!slot.device)
+  if (!slot.device) {
     return;
+  }
 
   name_indices_[slot.desc.name()] = port;
   addr_indices_[slot.device->base_address()] = port;
@@ -149,8 +164,9 @@ void DeviceManager::rebuild_indices_for(port_id_t port) {
 
 void DeviceManager::remove_indices_for(port_id_t port) {
   auto &slot = slots_[port];
-  if (!slot.device)
+  if (!slot.device) {
     return;
+  }
 
   name_indices_.erase(slot.desc.name());
   addr_indices_.erase(slot.device->base_address());

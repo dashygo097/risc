@@ -44,37 +44,37 @@ public:
   }
   void r_ready(bool ready) override { pin_rready = ready; }
 
-  bool aw_ready() const noexcept override {
+  auto aw_ready() const noexcept -> bool override {
     return write_req_queue.size() < 16;
   }
-  bool w_ready() const noexcept override {
+  auto w_ready() const noexcept -> bool override {
     return write_data_queue.size() < 16;
   }
-  bool b_valid() const noexcept override { return !write_resp_queue.empty(); }
-  uint8_t b_resp() const noexcept override {
+  auto b_valid() const noexcept -> bool override { return !write_resp_queue.empty(); }
+  auto b_resp() const noexcept -> uint8_t override {
     return b_valid() ? write_resp_queue.front().resp : 0;
   }
-  uint32_t b_id() const noexcept override {
+  auto b_id() const noexcept -> uint32_t override {
     return b_valid() ? write_resp_queue.front().id : 0;
   }
 
-  bool ar_ready() const noexcept override { return read_req_queue.size() < 16; }
-  bool r_valid() const noexcept override { return !read_data_queue.empty(); }
-  word_t r_data() const noexcept override {
+  auto ar_ready() const noexcept -> bool override { return read_req_queue.size() < 16; }
+  auto r_valid() const noexcept -> bool override { return !read_data_queue.empty(); }
+  auto r_data() const noexcept -> word_t override {
     return r_valid() ? read_data_queue.front().data : 0;
   }
-  uint8_t r_resp() const noexcept override {
+  auto r_resp() const noexcept -> uint8_t override {
     return r_valid() ? read_data_queue.front().resp : 0;
   }
-  uint32_t r_id() const noexcept override {
+  auto r_id() const noexcept -> uint32_t override {
     return r_valid() ? read_data_queue.front().id : 0;
   }
-  bool r_last() const noexcept override {
+  auto r_last() const noexcept -> bool override {
     return r_valid() ? read_data_queue.front().last : false;
   }
 
   // Bypass
-  [[nodiscard]] MemoryAllocator *allocator() const noexcept override {
+  [[nodiscard]] auto allocator() const noexcept -> MemoryAllocator * override {
     return sram_->allocator();
   }
 

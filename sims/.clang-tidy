@@ -1,3 +1,4 @@
 Checks: >
   google-*,
   modernize-*
+HeaderFilterRegex: "^(?!.*(verilator|spdlog|protobuf|absl)).*"

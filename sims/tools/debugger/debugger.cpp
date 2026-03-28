@@ -16,53 +16,56 @@ Debugger::Debugger(demu::DemuSimulator &sim) : sim_(sim) {
 void Debugger::register_commands() {
   commands_ = {
       {"help", "h", "Show help for all commands or a specific command.",
-       "help [command]", [this](auto &a) { cmd_help(a); }},
+       "help [command]", [this](auto &a) -> auto { cmd_help(a); }},
       {"run", "r", "Reset and run simulation. Optional max cycle count.",
-       "run [max_cycles]", [this](auto &a) { cmd_run(a); }},
+       "run [max_cycles]", [this](auto &a) -> auto { cmd_run(a); }},
       {"continue", "c", "Continue simulation until breakpoint or N cycles.",
-       "continue [cycles]", [this](auto &a) { cmd_continue(a); }},
+       "continue [cycles]", [this](auto &a) -> auto { cmd_continue(a); }},
       {"step", "s", "Advance N clock cycles (default 1).", "step [n]",
-       [this](auto &a) { cmd_step(a); }},
+       [this](auto &a) -> auto { cmd_step(a); }},
       {"stepi", "si", "Advance until N instructions retire (default 1).",
-       "stepi [n]", [this](auto &a) { cmd_stepi(a); }},
+       "stepi [n]", [this](auto &a) -> auto { cmd_stepi(a); }},
       {"break", "b", "Set breakpoint at PC address, cycle count, or instret.",
-       "break <0xADDR | cyc:N | ret:N>", [this](auto &a) { cmd_break(a); }},
+       "break <0xADDR | cyc:N | ret:N>",
+       [this](auto &a) -> auto { cmd_break(a); }},
       {"watch", "w", "Set watchpoint on memory address.",
-       "watch <0xADDR> [r|w|rw] [size]", [this](auto &a) { cmd_watch(a); }},
+       "watch <0xADDR> [r|w|rw] [size]",
+       [this](auto &a) -> auto { cmd_watch(a); }},
       {"delete", "d", "Delete breakpoint or watchpoint by ID.", "delete <id>",
-       [this](auto &a) { cmd_delete(a); }},
+       [this](auto &a) -> auto { cmd_delete(a); }},
       {"enable", "en", "Enable a breakpoint or watchpoint.", "enable <id>",
-       [this](auto &a) { cmd_enable(a); }},
+       [this](auto &a) -> auto { cmd_enable(a); }},
       {"disable", "dis", "Disable a breakpoint or watchpoint.", "disable <id>",
-       [this](auto &a) { cmd_disable(a); }},
+       [this](auto &a) -> auto { cmd_disable(a); }},
       {"info", "i", "Print simulation info.", "info [regs|break|cache|stats]",
-       [this](auto &a) { cmd_info(a); }},
+       [this](auto &a) -> auto { cmd_info(a); }},
       {"print", "p", "Print a register value.", "print <reg>",
-       [this](auto &a) { cmd_print(a); }},
+       [this](auto &a) -> auto { cmd_print(a); }},
       {"pipeline", "pl", "Show pipeline stage instructions.", "pipeline",
-       [this](auto &a) { cmd_pipeline(a); }},
+       [this](auto &a) -> auto { cmd_pipeline(a); }},
       {"display", "dp", "Auto-display register at every stop.", "display <reg>",
-       [this](auto &a) { cmd_display(a); }},
+       [this](auto &a) -> auto { cmd_display(a); }},
       {"undisplay", "ud", "Remove auto-display for register.",
-       "undisplay <reg>", [this](auto &a) { cmd_undisplay(a); }},
+       "undisplay <reg>", [this](auto &a) -> auto { cmd_undisplay(a); }},
       {"memory", "x", "Examine memory.", "memory <0xADDR> [count]",
-       [this](auto &a) { cmd_memory(a); }},
+       [this](auto &a) -> auto { cmd_memory(a); }},
       {"reset", "rst", "Reset the simulator.", "reset",
-       [this](auto &a) { cmd_reset(a); }},
+       [this](auto &a) -> auto { cmd_reset(a); }},
       {"quit", "q", "Exit the debugger.", "quit",
-       [this](auto &a) { cmd_quit(a); }},
+       [this](auto &a) -> auto { cmd_quit(a); }},
   };
 }
 
-Debugger::Command *Debugger::find_command(const std::string &input) {
+auto Debugger::find_command(const std::string &input) -> Debugger::Command * {
   for (auto &cmd : commands_) {
-    if (cmd.name == input || cmd.alias == input)
+    if (cmd.name == input || cmd.alias == input) {
       return &cmd;
+    }
   }
   return nullptr;
 }
 
-std::vector<std::string> Debugger::tokenize(const std::string &line) {
+auto Debugger::tokenize(const std::string &line) -> std::vector<std::string> {
   std::vector<std::string> tokens;
   std::string token;
   for (char c : line) {
@@ -75,41 +78,48 @@ std::vector<std::string> Debugger::tokenize(const std::string &line) {
       token += c;
     }
   }
-  if (!token.empty())
+  if (!token.empty()) {
     tokens.push_back(token);
+  }
   return tokens;
 }
 
-uint64_t Debugger::parse_number(const std::string &s) {
-  if (s.size() > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+auto Debugger::parse_number(const std::string &s) -> uint64_t {
+  if (s.size() > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
     return std::stoull(s, nullptr, 16);
+  }
   return std::stoull(s, nullptr, 10);
 }
 
-int Debugger::parse_reg(const std::string &s) {
-  if (s.empty())
+auto Debugger::parse_reg(const std::string &s) -> int {
+  if (s.empty()) {
     return -1;
+  }
 
   std::string lower = s;
   std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
+                 [](unsigned char c) -> int { return std::tolower(c); });
 
   std::string num_str = lower;
-  if (!num_str.empty() && num_str[0] == 'x')
+  if (!num_str.empty() && num_str[0] == 'x') {
     num_str = num_str.substr(1);
+  }
 
-  if (num_str.empty())
+  if (num_str.empty()) {
     return -1;
+  }
 
   for (char c : num_str) {
-    if (!std::isdigit(static_cast<unsigned char>(c)))
+    if (!std::isdigit(static_cast<unsigned char>(c))) {
       return -1;
+    }
   }
 
   try {
     unsigned long val = std::stoul(num_str);
-    if (val < NUM_GPRS)
+    if (val < NUM_GPRS) {
       return static_cast<int>(val);
+    }
   } catch (...) {
   }
 
@@ -127,12 +137,15 @@ void Debugger::print_registers() {
   fmt::print("\n  PC = 0x{:08x}\n\n", sim_.pc());
   for (int i = 0; i < NUM_GPRS; i += 4) {
     fmt::print("  x{:<2d}=0x{:08x}", i, sim_.reg(i));
-    if (i + 1 < NUM_GPRS)
+    if (i + 1 < NUM_GPRS) {
       fmt::print("  x{:<2d}=0x{:08x}", i + 1, sim_.reg(i + 1));
-    if (i + 2 < NUM_GPRS)
+    }
+    if (i + 2 < NUM_GPRS) {
       fmt::print("  x{:<2d}=0x{:08x}", i + 2, sim_.reg(i + 2));
-    if (i + 3 < NUM_GPRS)
+    }
+    if (i + 3 < NUM_GPRS) {
       fmt::print("  x{:<2d}=0x{:08x}", i + 3, sim_.reg(i + 3));
+    }
     fmt::print("\n");
   }
   fmt::print("\n");
@@ -163,14 +176,16 @@ void Debugger::repl() {
     std::string line(raw);
     free(raw);
 
-    if (line.empty())
+    if (line.empty()) {
       continue;
+    }
 
     add_history(line.c_str());
 
     auto tokens = tokenize(line);
-    if (tokens.empty())
+    if (tokens.empty()) {
       continue;
+    }
 
     Command *cmd = find_command(tokens[0]);
     if (!cmd) {
@@ -362,12 +377,13 @@ void Debugger::cmd_watch(const std::vector<std::string> &args) {
   uint32_t size = 4;
 
   if (args.size() >= 3) {
-    if (args[2] == "r")
+    if (args[2] == "r") {
       wtype = WatchType::READ;
-    else if (args[2] == "w")
+    } else if (args[2] == "w") {
       wtype = WatchType::WRITE;
-    else if (args[2] == "rw")
+    } else if (args[2] == "rw") {
       wtype = WatchType::READWRITE;
+    }
   }
 
   if (args.size() >= 4) {
@@ -389,11 +405,12 @@ void Debugger::cmd_delete(const std::vector<std::string> &args) {
     return;
   }
   try {
-    uint32_t id = static_cast<uint32_t>(parse_number(args[1]));
-    if (bp_mgr_.remove(id))
+    auto id = static_cast<uint32_t>(parse_number(args[1]));
+    if (bp_mgr_.remove(id)) {
       fmt::print("Deleted #{}\n", id);
-    else
+    } else {
       fmt::print("No breakpoint/watchpoint with id #{}\n", id);
+    }
   } catch (...) {
     fmt::print("Invalid id: {}\n", args[1]);
   }
@@ -405,11 +422,12 @@ void Debugger::cmd_enable(const std::vector<std::string> &args) {
     return;
   }
   try {
-    uint32_t id = static_cast<uint32_t>(parse_number(args[1]));
-    if (bp_mgr_.enable(id))
+    auto id = static_cast<uint32_t>(parse_number(args[1]));
+    if (bp_mgr_.enable(id)) {
       fmt::print("Enabled #{}\n", id);
-    else
+    } else {
       fmt::print("No breakpoint/watchpoint with id #{}\n", id);
+    }
   } catch (...) {
     fmt::print("Invalid id: {}\n", args[1]);
   }
@@ -421,11 +439,12 @@ void Debugger::cmd_disable(const std::vector<std::string> &args) {
     return;
   }
   try {
-    uint32_t id = static_cast<uint32_t>(parse_number(args[1]));
-    if (bp_mgr_.disable(id))
+    auto id = static_cast<uint32_t>(parse_number(args[1]));
+    if (bp_mgr_.disable(id)) {
       fmt::print("Disabled #{}\n", id);
-    else
+    } else {
       fmt::print("No breakpoint/watchpoint with id #{}\n", id);
+    }
   } catch (...) {
     fmt::print("Invalid id: {}\n", args[1]);
   }
@@ -471,7 +490,7 @@ void Debugger::cmd_print(const std::vector<std::string> &args) {
 
   std::string target = args[1];
   std::transform(target.begin(), target.end(), target.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
+                 [](unsigned char c) -> int { return std::tolower(c); });
 
   if (target == "pc") {
     fmt::print("  PC = 0x{:08x}\n", sim_.pc());
@@ -577,20 +596,23 @@ void Debugger::cmd_memory(const std::vector<std::string> &args) {
 
     for (uint32_t j = 0; j < 16 && (i + j) < bytes; j++) {
       addr_t a = addr + i + j;
-      if (alloc->is_valid_addr(a))
+      if (alloc->is_valid_addr(a)) {
         fmt::print("{:02x} ", alloc->read_byte(a));
-      else
+      } else {
         fmt::print("?? ");
-      if (j == 7)
+      }
+      if (j == 7) {
         fmt::print(" ");
+      }
     }
 
     uint32_t remaining = std::min(16u, bytes - i);
     if (remaining < 16) {
       for (uint32_t j = remaining; j < 16; j++) {
         fmt::print("   ");
-        if (j == 7)
+        if (j == 7) {
           fmt::print(" ");
+        }
       }
     }
 
