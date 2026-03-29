@@ -18,7 +18,7 @@ public:
     auto *slave = dynamic_cast<AXIFullSlave *>(hw);
     if (!slave) {
       return;
-}
+    }
 
     auto s = provider_();
 
@@ -47,7 +47,9 @@ public:
     *s.rlast = slave->r_last();
   }
 
-  [[nodiscard]] auto protocol_name() const noexcept -> const char * override { return "AXI4-Full"; }
+  [[nodiscard]] auto protocol_name() const noexcept -> const char * override {
+    return "AXI4-Full";
+  }
 
 private:
   SignalProvider provider_;

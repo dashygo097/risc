@@ -4,10 +4,7 @@
 #include <cstdint>
 
 #define ISA_NAME "rv32i"
-enum {
-NUM_GPRS = 32,
-INSTR_ALIGNMENT = 4
-};
+enum { NUM_GPRS = 32, INSTR_ALIGNMENT = 4 };
 
 namespace demu::isa {
 using system_t = Vrv32i_system;

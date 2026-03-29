@@ -16,7 +16,9 @@ template <typename T, typename = void> struct sram_data_traits {
 template <typename T>
 struct sram_data_traits<T, std::enable_if_t<std::is_scalar_v<T>>> {
   static constexpr size_t width = 1;
-  static auto get(const T &d, size_t) -> word_t { return static_cast<word_t>(d); }
+  static auto get(const T &d, size_t) -> word_t {
+    return static_cast<word_t>(d);
+  }
   static void set(T &d, size_t, word_t v) { d = static_cast<T>(v); }
 };
 
@@ -34,7 +36,7 @@ public:
     auto *sram = dynamic_cast<SRAM *>(hw);
     if (!sram) {
       return;
-}
+    }
 
     auto s = provider_();
 
@@ -43,7 +45,7 @@ public:
 
     if (!*s.req.valid) {
       return;
-}
+    }
 
     if (*s.req.op == 0) {
       for (size_t i = 0; i < N; ++i) {
@@ -62,7 +64,9 @@ public:
     }
   }
 
-  [[nodiscard]] auto protocol_name() const noexcept -> const char * override { return "Cache"; }
+  [[nodiscard]] auto protocol_name() const noexcept -> const char * override {
+    return "Cache";
+  }
 
 private:
   SignalProvider provider_;
@@ -83,7 +87,7 @@ public:
     auto *sram = dynamic_cast<SRAM *>(hw);
     if (!sram) {
       return;
-}
+    }
 
     auto s = provider_();
 
@@ -92,7 +96,7 @@ public:
 
     if (!*s.req.valid) {
       return;
-}
+    }
 
     for (size_t i = 0; i < N; ++i) {
       const addr_t word_addr =

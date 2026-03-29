@@ -43,7 +43,8 @@ DemuSimulator::~DemuSimulator() {
 #endif
 }
 
-auto DemuSimulator::load_bin(const std::string &filename, addr_t base_addr) -> bool {
+auto DemuSimulator::load_bin(const std::string &filename, addr_t base_addr)
+    -> bool {
   auto *device = device_manager_->find_device_for_address(base_addr);
   if (!device) {
     DEMU_ERROR("No device mapped at address 0x{:08x}", base_addr);
@@ -79,7 +80,7 @@ auto DemuSimulator::load_elf(const std::string &filename) -> bool {
   for (const auto &section : sections) {
     if (section.data.empty()) {
       continue;
-}
+    }
 
     auto *device = device_manager_->find_device_for_address(section.addr);
     if (!device) {

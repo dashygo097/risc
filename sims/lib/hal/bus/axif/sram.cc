@@ -55,7 +55,7 @@ void AXIFullSRAM::calculate_next_address(BurstTransaction &req) {
 void AXIFullSRAM::process_writes() {
   if (write_req_queue.empty() || write_data_queue.empty()) {
     return;
-}
+  }
 
   BurstTransaction &req = write_req_queue.front();
   const WriteData wdata = write_data_queue.front();
@@ -86,11 +86,11 @@ void AXIFullSRAM::process_writes() {
 void AXIFullSRAM::process_reads() {
   if (read_req_queue.empty()) {
     return;
-}
+  }
 
   if (read_data_queue.size() >= 16) {
     return;
-}
+  }
 
   BurstTransaction &req = read_req_queue.front();
 
@@ -125,7 +125,7 @@ void AXIFullSRAM::dump(addr_t start, size_t size) const noexcept {
   const byte_t *ptr = allocator()->get_ptr(start);
   if (!ptr) {
     return;
-}
+  }
 
   for (size_t i = 0; i < clamped; i += 16) {
     std::stringstream ss;
@@ -136,10 +136,10 @@ void AXIFullSRAM::dump(addr_t start, size_t size) const noexcept {
            << static_cast<int>(ptr[i + j]) << ' ';
       } else {
         ss << "   ";
-}
+      }
       if (j == 7) {
         ss << ' ';
-}
+      }
     }
     ss << " |";
     for (size_t j = 0; j < 16 && (i + j) < clamped; ++j) {

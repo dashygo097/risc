@@ -20,7 +20,7 @@ void AXILiteSRAM::clock_tick() {
 void AXILiteSRAM::process_writes() {
   if (_write_addr_queue.empty() || _write_data_queue.empty()) {
     return;
-}
+  }
 
   const addr_t addr = _write_addr_queue.front();
   _write_addr_queue.pop();
@@ -34,17 +34,18 @@ void AXILiteSRAM::process_writes() {
       if (wdata.strb & (1u << i)) {
         allocator()->write_byte(
             addr + i, static_cast<byte_t>((wdata.data >> (i * 8)) & 0xFF));
-}
-}
+      }
+    }
   }
 
-  _write_resp_queue.push({valid ? static_cast<uint8_t>(0) : static_cast<uint8_t>(2)});
+  _write_resp_queue.push(
+      {valid ? static_cast<uint8_t>(0) : static_cast<uint8_t>(2)});
 }
 
 void AXILiteSRAM::process_reads() {
   if (_read_queue.empty() || _read_queue.front().processed) {
     return;
-}
+  }
 
   ReadTransaction &rt = _read_queue.front();
   const bool valid = owns_address(rt.addr) && (rt.addr % INSTR_ALIGNMENT == 0);
@@ -70,7 +71,7 @@ auto AXILiteSRAM::b_valid() const noexcept -> bool {
 void AXILiteSRAM::b_ready(bool ready) {
   if (ready && !_write_resp_queue.empty()) {
     _write_resp_queue.pop();
-}
+  }
 }
 auto AXILiteSRAM::b_resp() const noexcept -> uint8_t {
   return _write_resp_queue.empty() ? 0u : _write_resp_queue.front().resp;
@@ -87,7 +88,7 @@ auto AXILiteSRAM::r_valid() const noexcept -> bool {
 void AXILiteSRAM::r_ready(bool ready) {
   if (ready && r_valid()) {
     _read_queue.pop();
-}
+  }
 }
 auto AXILiteSRAM::r_data() const noexcept -> word_t {
   return _read_queue.empty() ? 0u : _read_queue.front().data;
@@ -109,7 +110,7 @@ void AXILiteSRAM::dump(addr_t start, size_t size) const noexcept {
   const byte_t *ptr = allocator()->get_ptr(start);
   if (!ptr) {
     return;
-}
+  }
 
   for (size_t i = 0; i < clamped; i += 16) {
     std::stringstream ss;
@@ -120,10 +121,10 @@ void AXILiteSRAM::dump(addr_t start, size_t size) const noexcept {
            << static_cast<int>(ptr[i + j]) << ' ';
       } else {
         ss << "   ";
-}
+      }
       if (j == 7) {
         ss << ' ';
-}
+      }
     }
     ss << " |";
     for (size_t j = 0; j < 16 && (i + j) < clamped; ++j) {

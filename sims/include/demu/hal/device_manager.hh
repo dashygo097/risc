@@ -30,33 +30,36 @@ public:
   // Device Registration
   template <typename T, typename... Args>
   auto register_device(port_id_t port, risc::DeviceDescriptor desc,
-                     Args &&...args) -> T *;
+                       Args &&...args) -> T *;
 
   // Device Retrieval — by port
   [[nodiscard]] auto get_device(port_id_t port) noexcept -> Device *;
-  [[nodiscard]] auto get_device(port_id_t port) const noexcept -> const Device *;
+  [[nodiscard]] auto get_device(port_id_t port) const noexcept
+      -> const Device *;
 
-  template <typename T> [[nodiscard]] auto get_device(port_id_t port) noexcept -> T *;
+  template <typename T>
+  [[nodiscard]] auto get_device(port_id_t port) noexcept -> T *;
 
   template <typename T>
   [[nodiscard]] auto get_device(port_id_t port) const noexcept -> const T *;
 
   // Device Retrieval — by name
-  [[nodiscard]] auto get_device_by_name(std::string_view name) noexcept -> Device *;
-  [[nodiscard]] auto
-  get_device_by_name(std::string_view name) const noexcept -> const Device *;
+  [[nodiscard]] auto get_device_by_name(std::string_view name) noexcept
+      -> Device *;
+  [[nodiscard]] auto get_device_by_name(std::string_view name) const noexcept
+      -> const Device *;
 
   template <typename T>
   [[nodiscard]] auto get_device_by_name(std::string_view name) noexcept -> T *;
 
   template <typename T>
-  [[nodiscard]] auto
-  get_device_by_name(std::string_view name) const noexcept -> const T *;
+  [[nodiscard]] auto get_device_by_name(std::string_view name) const noexcept
+      -> const T *;
 
   // Device Retrieval — by address
   [[nodiscard]] auto find_device_for_address(addr_t addr) noexcept -> Device *;
-  [[nodiscard]] auto
-  find_device_for_address(addr_t addr) const noexcept -> const Device *;
+  [[nodiscard]] auto find_device_for_address(addr_t addr) const noexcept
+      -> const Device *;
 
   // Port Handlers
   void register_handler(port_id_t port, std::unique_ptr<PortHandler> handler);
@@ -67,13 +70,15 @@ public:
   void clock_tick() noexcept;
 
   // Informational
-  [[nodiscard]] auto port_count() const noexcept -> size_t { return slots_.size(); }
+  [[nodiscard]] auto port_count() const noexcept -> size_t {
+    return slots_.size();
+  }
   [[nodiscard]] auto active_device_count() const noexcept -> size_t {
     return name_indices_.size();
   }
   [[nodiscard]] auto has_device_at(port_id_t port) const noexcept -> bool;
-  [[nodiscard]] auto
-  get_device_name(port_id_t port) const noexcept -> std::optional<std::string_view>;
+  [[nodiscard]] auto get_device_name(port_id_t port) const noexcept
+      -> std::optional<std::string_view>;
 
   void dump_device_map() const;
 
@@ -97,7 +102,7 @@ private:
 
 template <typename T, typename... Args>
 auto DeviceManager::register_device(port_id_t port, risc::DeviceDescriptor desc,
-                                  Args &&...args) -> T * {
+                                    Args &&...args) -> T * {
   static_assert(std::is_base_of_v<Device, T>, "T must derive from Device");
 
   ensure_capacity(port);
@@ -126,7 +131,8 @@ auto DeviceManager::register_device(port_id_t port, risc::DeviceDescriptor desc,
   }
 }
 
-template <typename T> auto DeviceManager::get_device(port_id_t port) noexcept -> T * {
+template <typename T>
+auto DeviceManager::get_device(port_id_t port) noexcept -> T * {
   static_assert(std::is_base_of_v<Device, T>, "T must derive from Device");
   return dynamic_cast<T *>(get_device(port));
 }
@@ -144,8 +150,8 @@ auto DeviceManager::get_device_by_name(std::string_view name) noexcept -> T * {
 }
 
 template <typename T>
-auto
-DeviceManager::get_device_by_name(std::string_view name) const noexcept -> const T * {
+auto DeviceManager::get_device_by_name(std::string_view name) const noexcept
+    -> const T * {
   static_assert(std::is_base_of_v<Device, T>, "T must derive from Device");
   return dynamic_cast<const T *>(get_device_by_name(name));
 }

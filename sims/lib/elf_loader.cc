@@ -9,7 +9,7 @@ auto ELFLoader::is_elf(const std::string &filename) -> bool {
   std::ifstream file(filename, std::ios::binary);
   if (!file.is_open()) {
     return false;
-}
+  }
 
   uint8_t magic[4];
   file.read(reinterpret_cast<char *>(magic), 4);
@@ -18,7 +18,8 @@ auto ELFLoader::is_elf(const std::string &filename) -> bool {
           magic[3] == 'F');
 }
 
-auto ELFLoader::load(hal::MemoryAllocator &mem, const std::string &filename) -> bool {
+auto ELFLoader::load(hal::MemoryAllocator &mem, const std::string &filename)
+    -> bool {
   if (!is_elf(filename)) {
     DEMU_ERROR("Not a valid ELF file: {}", filename);
     return false;
@@ -103,7 +104,7 @@ auto ELFLoader::load(std::vector<ELFSection> &sections, uint32_t &entry_point,
 
     if (ph.p_type != PT_LOAD) {
       continue;
-}
+    }
 
     ELFSection section;
     section.addr = ph.p_paddr;
@@ -121,7 +122,7 @@ auto ELFLoader::load(std::vector<ELFSection> &sections, uint32_t &entry_point,
       section.name = fmt::format(".data@0x{:08x}", ph.p_paddr);
     } else {
       section.name = fmt::format(".rodata@0x{:08x}", ph.p_paddr);
-}
+    }
 
     DEMU_INFO("ELF segment: {} addr=0x{:08x} filesz=0x{:x} memsz=0x{:x}",
               section.name, ph.p_paddr, ph.p_filesz, ph.p_memsz);

@@ -12,7 +12,9 @@ public:
   virtual void clock_tick() = 0;
   virtual void reset() = 0;
 
-  [[nodiscard]] virtual auto name() const noexcept -> const char * { return "Unknown Hardware"; }
+  [[nodiscard]] virtual auto name() const noexcept -> const char * {
+    return "Unknown Hardware";
+  }
 };
 
 template <typename DUT> class RTLHardware : public Hardware {

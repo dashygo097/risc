@@ -21,7 +21,7 @@ void SRAM::dump(addr_t start, size_t size) const noexcept {
   const byte_t *ptr = memory_->get_ptr(start);
   if (!ptr) {
     return;
-}
+  }
 
   for (size_t i = 0; i < clamped; i += 16) {
     std::stringstream ss;
@@ -34,10 +34,10 @@ void SRAM::dump(addr_t start, size_t size) const noexcept {
            << static_cast<int>(ptr[i + j]) << ' ';
       } else {
         ss << "   ";
-}
+      }
       if (j == 7) {
         ss << ' ';
-}
+      }
     }
 
     ss << " |";

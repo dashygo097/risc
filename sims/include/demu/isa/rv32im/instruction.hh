@@ -4,10 +4,7 @@
 #include <cstdint>
 #include <string>
 
-enum {
-EBREAK = 0x00100073,
-BUBBLE = 0x00000013
-};
+enum { EBREAK = 0x00100073, BUBBLE = 0x00000013 };
 
 namespace demu::isa {
 enum InstType {

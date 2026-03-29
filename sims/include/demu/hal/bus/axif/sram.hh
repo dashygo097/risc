@@ -50,7 +50,9 @@ public:
   auto w_ready() const noexcept -> bool override {
     return write_data_queue.size() < 16;
   }
-  auto b_valid() const noexcept -> bool override { return !write_resp_queue.empty(); }
+  auto b_valid() const noexcept -> bool override {
+    return !write_resp_queue.empty();
+  }
   auto b_resp() const noexcept -> uint8_t override {
     return b_valid() ? write_resp_queue.front().resp : 0;
   }
@@ -58,8 +60,12 @@ public:
     return b_valid() ? write_resp_queue.front().id : 0;
   }
 
-  auto ar_ready() const noexcept -> bool override { return read_req_queue.size() < 16; }
-  auto r_valid() const noexcept -> bool override { return !read_data_queue.empty(); }
+  auto ar_ready() const noexcept -> bool override {
+    return read_req_queue.size() < 16;
+  }
+  auto r_valid() const noexcept -> bool override {
+    return !read_data_queue.empty();
+  }
   auto r_data() const noexcept -> word_t override {
     return r_valid() ? read_data_queue.front().data : 0;
   }

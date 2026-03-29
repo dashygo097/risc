@@ -13,7 +13,8 @@ public:
   MemoryAllocator(addr_t base_addr, size_t size);
   ~MemoryAllocator() = default;
 
-  template <typename T> [[nodiscard]] auto read(addr_t addr) const noexcept -> T {
+  template <typename T>
+  [[nodiscard]] auto read(addr_t addr) const noexcept -> T {
     if (!is_valid_addr(addr)) {
       HAL_WARN("Invalid Read at 0x{:08x}", addr);
       return T{};
@@ -59,7 +60,9 @@ public:
   // Direct access
   [[nodiscard]] auto data() noexcept -> byte_t * { return memory_.data(); }
   [[nodiscard]] auto size() const noexcept -> size_t { return memory_.size(); }
-  [[nodiscard]] auto base_address() const noexcept -> addr_t { return base_addr_; }
+  [[nodiscard]] auto base_address() const noexcept -> addr_t {
+    return base_addr_;
+  }
   [[nodiscard]] auto get_ptr(addr_t addr) -> byte_t * {
     if (!is_valid_addr(addr)) {
       HAL_WARN("Invalid memory access at address 0x{:08x}", addr);

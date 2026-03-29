@@ -27,7 +27,8 @@ public:
   [[nodiscard]] auto device_type() const noexcept -> risc::DeviceType {
     return desc_.type();
   }
-  [[nodiscard]] auto descriptor() const noexcept -> const risc::DeviceDescriptor & {
+  [[nodiscard]] auto descriptor() const noexcept
+      -> const risc::DeviceDescriptor & {
     return desc_;
   }
 
@@ -53,7 +54,7 @@ public:
     auto *alloc = allocator();
     if (!alloc) {
       return false;
-}
+    }
     return alloc->load_binary(filename, offset);
   }
 

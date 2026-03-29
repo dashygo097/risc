@@ -70,72 +70,72 @@ std::string Instruction::mnemonic() const noexcept {
     case 0b000:
       if (funct7_ == 0b0000000) {
         return "add";
-}
+      }
       if (funct7_ == 0b0100000) {
         return "sub";
-}
+      }
       if (funct7_ == 0b0000001) {
         return "mul";
-}
+      }
       break;
     case 0b001:
       if (funct7_ == 0b0000000) {
         return "sll";
-}
+      }
       if (funct7_ == 0b0000001) {
         return "mulh";
-}
+      }
       break;
     case 0b010:
       if (funct7_ == 0b0000000) {
         return "slt";
-}
+      }
       if (funct7_ == 0b0000001) {
         return "mulhsu";
-}
+      }
       break;
     case 0b011:
       if (funct7_ == 0b0000000) {
         return "sltu";
-}
+      }
       if (funct7_ == 0b0000001) {
         return "mulhu";
-}
+      }
       break;
     case 0b100:
       if (funct7_ == 0b0000000) {
         return "xor";
-}
+      }
       if (funct7_ == 0b0000001) {
         return "div";
-}
+      }
       break;
     case 0b101:
       if (funct7_ == 0b0000000) {
         return "srl";
-}
+      }
       if (funct7_ == 0b0100000) {
         return "sra";
-}
+      }
       if (funct7_ == 0b0000001) {
         return "divu";
-}
+      }
       break;
     case 0b110:
       if (funct7_ == 0b0000000) {
         return "or";
-}
+      }
       if (funct7_ == 0b0000001) {
         return "rem";
-}
+      }
       break;
     case 0b111:
       if (funct7_ == 0b0000000) {
         return "and";
-}
+      }
       if (funct7_ == 0b0000001) {
         return "remu";
-}
+      }
       break;
     }
     break;
@@ -147,7 +147,7 @@ std::string Instruction::mnemonic() const noexcept {
     case 0b001:
       if (funct7_ == 0b0000000) {
         return "slli";
-}
+      }
       break;
     case 0b010:
       return "slti";
@@ -158,10 +158,10 @@ std::string Instruction::mnemonic() const noexcept {
     case 0b101:
       if (funct7_ == 0b0000000) {
         return "srli";
-}
+      }
       if (funct7_ == 0b0100000) {
         return "srai";
-}
+      }
       break;
     case 0b110:
       return "ori";
@@ -218,7 +218,7 @@ std::string Instruction::mnemonic() const noexcept {
   case 0b1100111:
     if (funct3_ == 0b000) {
       return "jalr";
-}
+    }
     break;
 
   case 0b0110111:
@@ -229,10 +229,10 @@ std::string Instruction::mnemonic() const noexcept {
   case 0b1110011:
     if (raw_ == 0x00000073) {
       return "ecall";
-}
+    }
     if (raw_ == EBREAK) {
       return "ebreak";
-}
+    }
     switch (funct3_) {
     case 0b001:
       return "csrrw";
@@ -262,23 +262,28 @@ auto Instruction::to_string() const -> std::string {
   InstType instr_type = type();
   switch (instr_type) {
   case R_TYPE:
-    oss << "x" << static_cast<int>(rd_) << ", x" << static_cast<int>(rs1_) << ", x" << static_cast<int>(rs2_);
+    oss << "x" << static_cast<int>(rd_) << ", x" << static_cast<int>(rs1_)
+        << ", x" << static_cast<int>(rs2_);
     break;
 
   case I_TYPE:
     if (opcode_ == 0b0000011) {
-      oss << "x" << static_cast<int>(rd_) << ", " << imm_ << "(x" << static_cast<int>(rs1_) << ")";
+      oss << "x" << static_cast<int>(rd_) << ", " << imm_ << "(x"
+          << static_cast<int>(rs1_) << ")";
     } else {
-      oss << "x" << static_cast<int>(rd_) << ", x" << static_cast<int>(rs1_) << ", " << imm_;
+      oss << "x" << static_cast<int>(rd_) << ", x" << static_cast<int>(rs1_)
+          << ", " << imm_;
     }
     break;
 
   case S_TYPE:
-    oss << "x" << static_cast<int>(rs2_) << ", " << imm_ << "(x" << static_cast<int>(rs1_) << ")";
+    oss << "x" << static_cast<int>(rs2_) << ", " << imm_ << "(x"
+        << static_cast<int>(rs1_) << ")";
     break;
 
   case B_TYPE:
-    oss << "x" << static_cast<int>(rs1_) << ", x" << static_cast<int>(rs2_) << ", " << imm_;
+    oss << "x" << static_cast<int>(rs1_) << ", x" << static_cast<int>(rs2_)
+        << ", " << imm_;
     break;
 
   case U_TYPE:
@@ -294,11 +299,13 @@ auto Instruction::to_string() const -> std::string {
     if (raw_ == 0x00000073 || raw_ == EBREAK) {
       oss << "";
     } else if (funct3_ <= 0b011) {
-      oss << "x" << static_cast<int>(rd_) << ", x" << static_cast<int>(rs1_) << ", 0x" << std::hex
-          << std::setw(3) << std::setfill('0') << ((raw_ >> 20) & 0xFFF);
+      oss << "x" << static_cast<int>(rd_) << ", x" << static_cast<int>(rs1_)
+          << ", 0x" << std::hex << std::setw(3) << std::setfill('0')
+          << ((raw_ >> 20) & 0xFFF);
     } else {
       oss << "x" << static_cast<int>(rd_) << ", 0x" << std::hex << std::setw(3)
-          << std::setfill('0') << ((raw_ >> 20) & 0xFFF) << ", " << static_cast<int>(rs1_);
+          << std::setfill('0') << ((raw_ >> 20) & 0xFFF) << ", "
+          << static_cast<int>(rs1_);
     }
     break;
 
@@ -314,7 +321,7 @@ auto Instruction::decode_i_imm() const noexcept -> int32_t {
   int32_t imm = (raw_ >> 20) & 0xFFF;
   if (imm & 0x800) {
     imm |= 0xFFFFF000;
-}
+  }
   return imm;
 }
 
@@ -322,7 +329,7 @@ auto Instruction::decode_s_imm() const noexcept -> int32_t {
   int32_t imm = ((raw_ >> 7) & 0x1F) | ((raw_ >> 20) & 0xFE0);
   if (imm & 0x800) {
     imm |= 0xFFFFF000;
-}
+  }
   return imm;
 }
 
@@ -331,18 +338,20 @@ auto Instruction::decode_b_imm() const noexcept -> int32_t {
                 ((raw_ << 4) & 0x800) | ((raw_ >> 19) & 0x1000);
   if (imm & 0x1000) {
     imm |= 0xFFFFE000;
-}
+  }
   return imm;
 }
 
-auto Instruction::decode_u_imm() const noexcept -> int32_t { return raw_ & 0xFFFFF000; }
+auto Instruction::decode_u_imm() const noexcept -> int32_t {
+  return raw_ & 0xFFFFF000;
+}
 
 auto Instruction::decode_j_imm() const noexcept -> int32_t {
   int32_t imm = ((raw_ >> 20) & 0x7FE) | ((raw_ >> 9) & 0x800) |
                 (raw_ & 0xFF000) | ((raw_ >> 11) & 0x100000);
   if (imm & 0x100000) {
     imm |= 0xFFE00000;
-}
+  }
   return imm;
 }
 
