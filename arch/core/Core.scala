@@ -30,6 +30,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val imem = IO(new CacheReadOnlyIO(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(ILen)))
   val dmem = IO(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen)))
   val mmio = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
+  val irq  = IO(new CoreInterruptIO)
 
   // Modules
   val bpu     = Module(new Bpu)
@@ -136,6 +137,9 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   // Control signals
   val load_use_hazard = Wire(Bool())
 
+  val take_trap = csrfile.map(_.trap_request).getOrElse(false.B)
+  val trap_addr = csrfile.map(_.trap_target).getOrElse(0.U(p(XLen).W))
+
   // Performance counter
   val cycle_count   = RegInit(0.U(64.W))
   val instret_count = RegInit(0.U(64.W))
@@ -162,12 +166,15 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   ifu.load_use_hazard := load_use_hazard
   ifu.lsu_busy        := lsu.busy
 
+  // Wire Trap directly to IFU
+  ifu.take_trap   := take_trap
+  ifu.trap_target := trap_addr
+
   bpu.update.valid  := bru.en
   bpu.update.pc     := if_id("pc")
   bpu.update.target := bru.target
   bpu.update.taken  := bru.taken
 
-  // IF/ID pipeline
   if_id.stall := ifu.if_id_stall
   if_id.flush := ifu.if_id_flush
   if_id.drive("instr", ifu.if_instr)
@@ -230,14 +237,13 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     ((id_ex("rd") === rs1) || (id_ex("rd") === rs2)) &&
     id_ex("rd") =/= 0.U
 
-  // MUL stall placeholder (assigned in EX stage)
   val mul_stall = WireDefault(false.B)
 
   // ID/EX pipeline
   id_ex.stall := lsu.busy || mul_stall
-  id_ex.flush := (load_use_hazard ||
+  id_ex.flush := ((load_use_hazard ||
     ((bru_mispredict_taken || bru_mispredict_not_taken) && !bru.jump)) &&
-    !lsu.busy
+    !lsu.busy) || take_trap
 
   id_ex.drive("instr", if_id("instr"))
   id_ex.drive("pc", if_id("pc"))
@@ -347,11 +353,12 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     csr.addr := id_ex("csr_addr")
     csr.src  := ex_rs1_data
     csr.imm  := id_ex("csr_imm")
+    csr.pc   := id_ex("pc")
   }
 
   // EX/MEM pipeline
   ex_mem.stall := mem_wb.stall || lsu.busy || (mul_inflight && !mul.io.done)
-  ex_mem.flush := mul_stall
+  ex_mem.flush := mul_stall || take_trap
 
   ex_mem.drive("instr", id_ex("instr"))
   ex_mem.drive("pc", id_ex("pc"))
@@ -415,9 +422,14 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   cycle_count   := cycle_count + 1.U
   instret_count := instret_count + Mux(instret, 1.U, 0.U)
 
-  csrfile.foreach { csr =>
-    csr.extraInputIO("cycle")   := cycle_count
-    csr.extraInputIO("instret") := instret_count
+  csrfile.foreach {
+    csr =>
+      csr.extraInputIO("cycle")   := cycle_count
+      csr.extraInputIO("instret") := instret_count
+
+    if (csr.extraInputIO.contains("timer_irq")) csr.extraInputIO("timer_irq") := irq.timer_irq
+    if (csr.extraInputIO.contains("soft_irq")) csr.extraInputIO("soft_irq")   := irq.soft_irq
+    if (csr.extraInputIO.contains("ext_irq")) csr.extraInputIO("ext_irq")     := irq.ext_irq
   }
 
   // Debug IOs

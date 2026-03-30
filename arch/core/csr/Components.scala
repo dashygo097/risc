@@ -24,6 +24,12 @@ trait CsrUtilities extends Utilities {
   def fn(cmd: UInt, csr_data: UInt, src_data: UInt): UInt
   def table: Seq[(Register, CsrUpdateBehavior)]
   def extraInputs: Seq[(String, Int)]
+
+  // Generic Trap/Interrupt Interface
+  def checkInterrupts(regs: Map[String, UInt], extra: Map[String, UInt]): (Bool, UInt, UInt) =
+    (false.B, 0.U, 0.U)
+  def getTrapUpdates(regs: Map[String, UInt], pc: UInt, cause: UInt): Map[String, UInt]      =
+    Map.empty[String, UInt]
 }
 
 object CsrUtilitiesFactory extends UtilitiesFactory[CsrUtilities]("CSR")
