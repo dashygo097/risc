@@ -2,7 +2,6 @@
 
 #include "./config.hh"
 #include "./hal/hal.hh"
-#include "Vrv32i_system.h"
 #include "verilated.h"
 #include <cstdint>
 #include <memory>
@@ -10,6 +9,14 @@
 
 #ifdef ENABLE_TRACE
 #include "verilated_vcd_c.h"
+#endif
+
+#if defined(__ISA_RV32IM__)
+#include "Vrv32im_system.h"
+
+#elif defined(__ISA_RV32I__)
+#include "Vrv32i_system.h"
+
 #endif
 
 namespace demu {

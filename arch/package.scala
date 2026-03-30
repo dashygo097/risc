@@ -11,7 +11,7 @@ package object configs {
 
   // --------------------------------------------
   // Architecture Parameters
-  object ISA extends Field[String]("rv32i")
+  object ISA extends Field[String]("rv32im")
 
   // Ifu Parameters
   object IBufferSize extends Field[Int](8)
@@ -55,7 +55,7 @@ package object configs {
           DeviceDescriptor(name = "imem", `type` = DEVICE_TYPE_SRAM, base = 0x00000000L, size = 0x1000L),
           DeviceDescriptor(name = "dmem", `type` = DEVICE_TYPE_SRAM, base = 0x80000000L, size = 0x4000L),
           DeviceDescriptor(name = "uart", `type` = DEVICE_TYPE_UART, base = 0x10000000L, size = 0x1000L),
-          DeviceDescriptor(name = "clint", `type` = DEVICE_TYPE_CLINT, base = 0x20000000L, size = 0x10000L)
+          DeviceDescriptor(name = "clint", `type` = DEVICE_TYPE_IRH, base = 0x20000000L, size = 0x10000L)
         )
       )
   // --------------------------------------------

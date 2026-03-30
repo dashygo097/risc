@@ -35,7 +35,7 @@ void Instruction::decode() {
   }
 }
 
-auto Instruction::type() const noexcept -> InstType {
+auto Instruction::type() const noexcept -> InstrType {
   switch (opcode_) {
   case 0b0110011:
     return R_TYPE;
@@ -64,7 +64,6 @@ auto Instruction::type() const noexcept -> InstType {
 
 std::string Instruction::mnemonic() const noexcept {
   switch (opcode_) {
-
   case 0b0110011:
     switch (funct3_) {
     case 0b000:
@@ -74,41 +73,51 @@ std::string Instruction::mnemonic() const noexcept {
       if (funct7_ == 0b0100000) {
         return "sub";
       }
+#if defined(__ISA_RV32IM__)
       if (funct7_ == 0b0000001) {
         return "mul";
       }
+#endif
       break;
     case 0b001:
       if (funct7_ == 0b0000000) {
         return "sll";
       }
+#if defined(__ISA_RV32IM__)
       if (funct7_ == 0b0000001) {
         return "mulh";
       }
+#endif
       break;
     case 0b010:
       if (funct7_ == 0b0000000) {
         return "slt";
       }
+#if defined(__ISA_RV32IM__)
       if (funct7_ == 0b0000001) {
         return "mulhsu";
       }
+#endif
       break;
     case 0b011:
       if (funct7_ == 0b0000000) {
         return "sltu";
       }
+#if defined(__ISA_RV32IM__)
       if (funct7_ == 0b0000001) {
         return "mulhu";
       }
+#endif
       break;
     case 0b100:
       if (funct7_ == 0b0000000) {
         return "xor";
       }
+#if defined(__ISA_RV32IM__)
       if (funct7_ == 0b0000001) {
         return "div";
       }
+#endif
       break;
     case 0b101:
       if (funct7_ == 0b0000000) {
@@ -117,25 +126,31 @@ std::string Instruction::mnemonic() const noexcept {
       if (funct7_ == 0b0100000) {
         return "sra";
       }
+#if defined(__ISA_RV32IM__)
       if (funct7_ == 0b0000001) {
         return "divu";
       }
+#endif
       break;
     case 0b110:
       if (funct7_ == 0b0000000) {
         return "or";
       }
+#if defined(__ISA_RV32IM__)
       if (funct7_ == 0b0000001) {
         return "rem";
       }
+#endif
       break;
     case 0b111:
       if (funct7_ == 0b0000000) {
         return "and";
       }
+#if defined(__ISA_RV32IM__)
       if (funct7_ == 0b0000001) {
         return "remu";
       }
+#endif
       break;
     }
     break;
@@ -227,16 +242,21 @@ std::string Instruction::mnemonic() const noexcept {
     return "auipc";
 
   case 0b1110011:
-    if (raw_ == 0x00000073)
+    if (raw_ == BUBBLE) {
       return "ecall";
-    if (raw_ == EBREAK)
+    }
+    if (raw_ == EBREAK) {
       return "ebreak";
-    if (raw_ == 0x00200073)
+    }
+    if (raw_ == URET) {
       return "uret";
-    if (raw_ == 0x10200073)
+    }
+    if (raw_ == SRET) {
       return "sret";
-    if (raw_ == 0x30200073)
+    }
+    if (raw_ == MRET) {
       return "mret";
+    }
     switch (funct3_) {
     case 0b001:
       return "csrrw";
@@ -263,7 +283,7 @@ auto Instruction::to_string() const -> std::string {
 
   oss << std::left << std::setw(8) << mnemonic_str;
 
-  InstType instr_type = type();
+  InstrType instr_type = type();
   switch (instr_type) {
   case R_TYPE:
     oss << "x" << static_cast<int>(rd_) << ", x" << static_cast<int>(rs1_)
@@ -300,8 +320,8 @@ auto Instruction::to_string() const -> std::string {
     break;
 
   case SYSTEM:
-    if (raw_ == 0x00000073 || raw_ == EBREAK || raw_ == 0x00200073 ||
-        raw_ == 0x10200073 || raw_ == 0x30200073) {
+    if (raw_ == BUBBLE || raw_ == EBREAK || raw_ == URET || raw_ == SRET ||
+        raw_ == MRET) {
       oss << "";
     } else if (funct3_ <= 0b011) {
       oss << "x" << static_cast<int>(rd_) << ", x" << static_cast<int>(rs1_)

@@ -4,10 +4,8 @@
 #include <cstdint>
 #include <string>
 
-enum { EBREAK = 0x00100073, BUBBLE = 0x00000013 };
-
 namespace demu::isa {
-enum InstType {
+enum InstrType {
   R_TYPE,
   I_TYPE,
   S_TYPE,
@@ -18,11 +16,19 @@ enum InstType {
   UNKNOWN
 };
 
+enum SystemInstr {
+  EBREAK = 0x00100073,
+  BUBBLE = 0x00000013,
+  URET = 0x00200073,
+  SRET = 0x20200073,
+  MRET = 0x30200073,
+};
+
 class Instruction {
 public:
   explicit Instruction(instr_t raw);
 
-  [[nodiscard]] auto type() const noexcept -> InstType;
+  [[nodiscard]] auto type() const noexcept -> InstrType;
   [[nodiscard]] auto mnemonic() const noexcept -> std::string;
   [[nodiscard]] auto to_string() const -> std::string;
 
