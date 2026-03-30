@@ -4,6 +4,7 @@
 #include "./device.hh"
 #include "./device_manager.hh"
 #include "./hardware.hh"
+#include "./interrupt.hh"
 #include "./port_handler.hh"
 
 // Peripherals
