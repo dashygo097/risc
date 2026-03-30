@@ -4,6 +4,7 @@ import bridge._
 import crossbar._
 import arch.configs._
 import arch.core._
+import arch.core.csr._
 import chisel3._
 import chisel3.util.log2Ceil
 
@@ -14,6 +15,7 @@ class RiscSystem(implicit p: Parameters) extends Module {
   val crossbar_utils = BusCrossbarUtilitiesFactory.getOrThrow(p(BusType))
 
   val devices = IO(Vec(p(BusAddressMap).length, crossbar_utils.slaveType)).suggestName(s"M_${p(BusType)}".toUpperCase)
+  val irq     = IO(new CoreInterruptIO)
 
   dontTouch(devices)
 
@@ -25,6 +27,7 @@ class RiscSystem(implicit p: Parameters) extends Module {
   cpu.imem <> bridge.imem
   cpu.dmem <> bridge.dmem
   cpu.mmio <> bridge.mmio
+  cpu.irq <> irq
 
   crossbar_utils.connect(crossbar.ibus, bridge.ibus)
   crossbar_utils.connect(crossbar.dbus, bridge.dbus)

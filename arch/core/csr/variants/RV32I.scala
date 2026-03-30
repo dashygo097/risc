@@ -83,7 +83,12 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
 
     override def extraInputs: Seq[(String, Int)] = Seq(
       "cycle"   -> 64,
-      "instret" -> 64
+      "instret" -> 64,
+
+      // Interrupts
+      "timer_irq" -> 1,
+      "soft_irq"  -> 1,
+      "ext_irq"   -> 1
     )
 
     override def table: Seq[(Register, CsrUpdateBehavior)] = Seq(
@@ -110,7 +115,15 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
       (Register("mscratch", CSR_MSCRATCH.value, 0x0L, writable = false), NormalUpdate),
       (Register("mepc", CSR_MEPC.value, 0x0L), NormalUpdate),
       (Register("mcause", CSR_MCAUSE.value, 0x0L), NormalUpdate),
-      (Register("mip", CSR_MIP.value, 0x0L), NormalUpdate),
+      (
+        Register("mip", CSR_MIP.value, 0x0L, writable = false),
+        AlwaysUpdate { params =>
+          val meip = params("ext_irq")   // bit 11
+          val mtip = params("timer_irq") // bit 7
+          val msip = params("soft_irq")  // bit 3
+          (meip << 11) | (mtip << 7) | (msip << 3)
+        }
+      ),
       (Register("mcycle", CSR_MCYCLE.value, 0x0L, writable = false), AlwaysUpdate(params => params("cycle")(31, 0))),
       (Register("minstret", CSR_MINSTRET.value, 0x0L, writable = false), AlwaysUpdate(params => params("instret")(31, 0))),
       (Register("mvendorid", CSR_MVENDERID.value, 0x0L, writable = false), NormalUpdate),
@@ -118,6 +131,42 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
       (Register("mimpid", CSR_MIMPID.value, 0x0L, writable = false), NormalUpdate),
       (Register("mhartid", CSR_MHARTID.value, 0x0L, writable = false), NormalUpdate),
     )
+
+    override def checkInterrupts(regs: Map[String, UInt], extra: Map[String, UInt]): (Bool, UInt, UInt) = {
+      val mstatus = regs.getOrElse("mstatus", 0.U)
+      val mie     = regs.getOrElse("mie", 0.U)
+      val mip     = regs.getOrElse("mip", 0.U)
+      val mtvec   = regs.getOrElse("mtvec", 0.U)
+
+      val mstatus_mie         = mstatus(3)
+      val pending_and_enabled = mip & mie
+
+      val ext_irq = pending_and_enabled(11) // MEIP
+      val tim_irq = pending_and_enabled(7)  // MTIP
+      val sft_irq = pending_and_enabled(3)  // MSIP
+
+      val take_irq = mstatus_mie && (ext_irq || sft_irq || tim_irq)
+
+      val async_bit = 1.U(1.W) << 31
+      val cause     = Mux(ext_irq, async_bit | 11.U, Mux(sft_irq, async_bit | 3.U, Mux(tim_irq, async_bit | 7.U, 0.U)))
+
+      val target = mtvec
+
+      (take_irq, target, cause)
+    }
+
+    override def getTrapUpdates(regs: Map[String, UInt], pc: UInt, cause: UInt): Map[String, UInt] = {
+      val mstatus = regs.getOrElse("mstatus", 0.U)
+
+      val mie_bit     = mstatus(3)
+      val new_mstatus = Cat(mstatus(31, 8), mie_bit, mstatus(6, 4), 0.U(1.W), mstatus(2, 0))
+
+      Map(
+        "mstatus" -> new_mstatus,
+        "mepc"    -> pc,
+        "mcause"  -> cause
+      )
+    }
   }
 
   override def factory: UtilitiesFactory[CsrUtilities] = CsrUtilitiesFactory

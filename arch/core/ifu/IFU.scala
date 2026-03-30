@@ -21,6 +21,9 @@ class Ifu(implicit p: Parameters) extends Module {
   val bru_not_taken = IO(Input(Bool()))
   val bru_branch_pc = IO(Input(UInt(p(XLen).W)))
 
+  val take_trap   = IO(Input(Bool()))
+  val trap_target = IO(Input(UInt(p(XLen).W)))
+
   val fetch_pc = IO(Output(UInt(p(XLen).W)))
 
   val if_id_stall        = IO(Output(Bool()))
@@ -62,7 +65,9 @@ class Ifu(implicit p: Parameters) extends Module {
     bpu_pred_target := bpu_target_in
   }
 
-  when(bru_taken || bru_not_taken) {
+  val do_redirect = take_trap || bru_taken || bru_not_taken
+
+  when(do_redirect) {
     imem_valid     := false.B
     bpu_pred_taken := false.B
   }
@@ -76,9 +81,10 @@ class Ifu(implicit p: Parameters) extends Module {
     imem_valid := false.B
   }
 
-  when(bru_taken || bru_not_taken) {
+  when(do_redirect) {
     reset_ibuffer_reg := true.B
   }
+
   when(ibuffer.empty && !imem_pending) {
     reset_ibuffer_reg := false.B
   }
@@ -90,7 +96,7 @@ class Ifu(implicit p: Parameters) extends Module {
   ibuffer.enq.bits.bpu_pred_target := bpu_pred_target
 
   val stall_cond = id_ex_stall || load_use_hazard
-  val flush_cond = (bru_taken || bru_not_taken || !imem_valid || reset_ibuffer_reg) && !lsu_busy
+  val flush_cond = (do_redirect || !imem_valid || reset_ibuffer_reg) && !lsu_busy
 
   ibuffer.deq.ready := (!ibuffer.empty && !stall_cond && !flush_cond) || reset_ibuffer_reg
 
@@ -104,7 +110,9 @@ class Ifu(implicit p: Parameters) extends Module {
   ibuffer_deq_fire := ibuffer.deq.fire
   reset_ibuffer    := reset_ibuffer_reg
 
-  when(bru_taken && !lsu_busy) {
+  when(take_trap && !lsu_busy) {
+    pc := trap_target
+  }.elsewhen(bru_taken && !lsu_busy) {
     pc := bru_target
   }.elsewhen(bru_not_taken && !lsu_busy) {
     pc := bru_branch_pc + 4.U

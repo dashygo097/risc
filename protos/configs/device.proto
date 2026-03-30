@@ -9,6 +9,7 @@ enum DeviceType {
   DEVICE_TYPE_UNSPECIFIED = 0;
   DEVICE_TYPE_SRAM = 1;
   DEVICE_TYPE_UART = 2;
+  DEVICE_TYPE_CLINT = 3;
 }
 
 message DeviceDescriptor {
