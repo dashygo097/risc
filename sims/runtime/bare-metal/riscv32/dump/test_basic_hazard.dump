@@ -1,0 +1,30 @@
+
+elf/test_basic_hazard.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	80000537          	lui	a0,0x80000
+   4:	00000393          	addi	t2,zero,0
+   8:	00000593          	addi	a1,zero,0
+   c:	00a00093          	addi	ra,zero,10
+  10:	00152023          	sw	ra,0(a0) # 80000000 <_ebss>
+  14:	00052103          	lw	sp,0(a0)
+  18:	00052183          	lw	gp,0(a0)
+  1c:	00518213          	addi	tp,gp,5
+  20:	00052283          	lw	t0,0(a0)
+  24:	00a00313          	addi	t1,zero,10
+  28:	00628463          	beq	t0,t1,30 <branch_taken>
+  2c:	ffe38393          	addi	t2,t2,-2
+
+00000030 <branch_taken>:
+  30:	00138393          	addi	t2,t2,1
+  34:	00052403          	lw	s0,0(a0)
+  38:	01400493          	addi	s1,zero,20
+  3c:	00940663          	beq	s0,s1,48 <branch_not_taken>
+  40:	00158593          	addi	a1,a1,1
+  44:	0080006f          	jal	zero,4c <end>
+
+00000048 <branch_not_taken>:
+  48:	fff58593          	addi	a1,a1,-1

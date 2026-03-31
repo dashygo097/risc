@@ -4,7 +4,7 @@ import arch.configs._
 import vopts.com.amba._
 import vopts.mem.cache._
 import chisel3._
-import chisel3.util.{ log2Ceil, Cat, Fill }
+import chisel3.util.{ log2Ceil, Cat }
 
 object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
   override def utils: BusBridgeUtilities = new BusBridgeUtilities {
@@ -21,6 +21,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
 
       val wordsPerRequest = memory.req.bits.data.getWidth / p(XLen)
       val wordsPerRespond = memory.resp.bits.data.getWidth / p(XLen)
+      val bytesPerWord    = p(XLen) / 8
 
       // Write path
       val aw_word_count = RegInit(0.U(log2Ceil(wordsPerRequest).W))
@@ -28,11 +29,16 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val w_word_count  = RegInit(0.U(log2Ceil(wordsPerRequest).W))
       val w_active      = RegInit(false.B)
       val w_complete    = RegInit(false.B)
-      val w_data_reg    = Reg(UInt(memory.req.bits.data.getWidth.W))
-      val w_base_addr   = Reg(UInt(p(XLen).W))
+
+      val w_data_reg  = Reg(UInt(memory.req.bits.data.getWidth.W))
+      val w_strb_reg  = Reg(UInt(memory.req.bits.strb.getWidth.W))
+      val w_base_addr = Reg(UInt(p(XLen).W))
 
       val w_data_vec = VecInit((0 until wordsPerRequest).map { i =>
         w_data_reg((i + 1) * p(XLen) - 1, i * p(XLen))
+      })
+      val w_strb_vec = VecInit((0 until wordsPerRequest).map { i =>
+        w_strb_reg((i + 1) * bytesPerWord - 1, i * bytesPerWord)
       })
 
       // Start write transaction
@@ -43,6 +49,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         w_active      := true.B
         w_complete    := false.B
         w_data_reg    := memory.req.bits.data.asUInt
+        w_strb_reg    := memory.req.bits.strb
         w_base_addr   := memory.req.bits.addr
       }
 
@@ -54,7 +61,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         }
       }
       axi.aw.valid     := aw_active
-      axi.aw.bits.addr := w_base_addr + Cat(aw_word_count, 0.U(log2Ceil(p(XLen) / 8).W))
+      axi.aw.bits.addr := w_base_addr + Cat(aw_word_count, 0.U(log2Ceil(bytesPerWord).W))
       axi.aw.bits.prot := 0.U
 
       // W channel
@@ -66,7 +73,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       }
       axi.w.valid     := w_active
       axi.w.bits.data := w_data_vec(w_word_count)
-      axi.w.bits.strb := Fill(p(XLen) / 8, 1.U)
+      axi.w.bits.strb := w_strb_vec(w_word_count)
 
       // B channel
       val b_count  = RegInit(0.U(log2Ceil(wordsPerRequest).W))
@@ -113,7 +120,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         }
       }
       axi.ar.valid     := ar_active
-      axi.ar.bits.addr := ar_base_addr + Cat(ar_word_count, 0.U(log2Ceil(p(XLen) / 8).W))
+      axi.ar.bits.addr := ar_base_addr + Cat(ar_word_count, 0.U(log2Ceil(bytesPerWord).W))
       axi.ar.bits.prot := 0.U
 
       // R channel

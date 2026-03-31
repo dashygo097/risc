@@ -1,0 +1,6 @@
+[submodule "sims/runtime/rtthread-nano"]
+	path = sims/runtime/rtthread-nano
+	url = https://github.com/dashygo097/rtthread-nano.git
+[submodule "sims/sims/runtime/rtthread-nano"]
+	path = sims/sims/runtime/rtthread-nano
+	url = https://github.com/dashygo097/rtthread-nano.git

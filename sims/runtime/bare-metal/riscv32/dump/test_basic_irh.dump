@@ -1,0 +1,71 @@
+
+elf/test_basic_irh.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00000297          	auipc	t0,0x0
+   4:	07828293          	addi	t0,t0,120 # 78 <trap_handler>
+   8:	30529073          	csrrw	zero,mtvec,t0
+   c:	00000193          	addi	gp,zero,0
+  10:	00000213          	addi	tp,zero,0
+  14:	00800293          	addi	t0,zero,8
+  18:	30429073          	csrrw	zero,mie,t0
+  1c:	00800293          	addi	t0,zero,8
+  20:	30029073          	csrrw	zero,mstatus,t0
+  24:	20000337          	lui	t1,0x20000
+  28:	00100393          	addi	t2,zero,1
+  2c:	00732023          	sw	t2,0(t1) # 20000000 <CLINT_MSIP>
+
+00000030 <wait_for_soft_irq>:
+  30:	00100393          	addi	t2,zero,1
+  34:	fe719ee3          	bne	gp,t2,30 <wait_for_soft_irq>
+  38:	08000293          	addi	t0,zero,128
+  3c:	30429073          	csrrw	zero,mie,t0
+  40:	2000c337          	lui	t1,0x2000c
+  44:	ff830313          	addi	t1,t1,-8 # 2000bff8 <CLINT_MTIME_LO>
+  48:	00032383          	lw	t2,0(t1)
+  4c:	06438393          	addi	t2,t2,100
+  50:	20004337          	lui	t1,0x20004
+  54:	00732023          	sw	t2,0(t1) # 20004000 <CLINT_MTIMECMP_LO>
+  58:	20004337          	lui	t1,0x20004
+  5c:	00430313          	addi	t1,t1,4 # 20004004 <CLINT_MTIMECMP_HI>
+  60:	00032023          	sw	zero,0(t1)
+  64:	00800293          	addi	t0,zero,8
+  68:	30029073          	csrrw	zero,mstatus,t0
+
+0000006c <wait_for_timer_irq>:
+  6c:	00100393          	addi	t2,zero,1
+  70:	fe721ee3          	bne	tp,t2,6c <wait_for_timer_irq>
+  74:	0000006f          	jal	zero,74 <wait_for_timer_irq+0x8>
+
+00000078 <trap_handler>:
+  78:	34202e73          	csrrs	t3,mcause,zero
+  7c:	80000eb7          	lui	t4,0x80000
+  80:	003e8e93          	addi	t4,t4,3 # 80000003 <_ebss+0x3>
+  84:	01de0a63          	beq	t3,t4,98 <handle_soft_irq>
+  88:	80000eb7          	lui	t4,0x80000
+  8c:	007e8e93          	addi	t4,t4,7 # 80000007 <_ebss+0x7>
+  90:	01de0c63          	beq	t3,t4,a8 <handle_timer_irq>
+  94:	0000006f          	jal	zero,94 <trap_handler+0x1c>
+
+00000098 <handle_soft_irq>:
+  98:	20000f37          	lui	t5,0x20000
+  9c:	000f2023          	sw	zero,0(t5) # 20000000 <CLINT_MSIP>
+  a0:	00100193          	addi	gp,zero,1
+  a4:	0280006f          	jal	zero,cc <trap_end>
+
+000000a8 <handle_timer_irq>:
+  a8:	fff00f93          	addi	t6,zero,-1
+  ac:	20004f37          	lui	t5,0x20004
+  b0:	01ff2023          	sw	t6,0(t5) # 20004000 <CLINT_MTIMECMP_LO>
+  b4:	20004f37          	lui	t5,0x20004
+  b8:	004f0f13          	addi	t5,t5,4 # 20004004 <CLINT_MTIMECMP_HI>
+  bc:	01ff2023          	sw	t6,0(t5)
+  c0:	000f2003          	lw	zero,0(t5)
+  c4:	00100213          	addi	tp,zero,1
+  c8:	0040006f          	jal	zero,cc <trap_end>
+
+000000cc <trap_end>:
+  cc:	30200073          	mret

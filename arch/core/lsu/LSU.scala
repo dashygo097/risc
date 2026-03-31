@@ -42,7 +42,7 @@ class Lsu(implicit p: Parameters) extends Module {
   mem_read  := utils.isMemRead(en, cmd)
   mem_write := utils.isMemWrite(en, cmd)
 
-  val aligned_wdata = MuxCase(
+  val raw_wdata = MuxCase(
     wdata,
     Seq(
       utils.isByte(cmd) -> Cat(Fill(24, 0.U), wdata(7, 0)),
@@ -50,6 +50,18 @@ class Lsu(implicit p: Parameters) extends Module {
       utils.isWord(cmd) -> wdata,
     )
   )
+
+  val aligned_wdata = (raw_wdata << (byte_offset << 3))(p(XLen) - 1, 0)
+
+  val raw_wmask = MuxCase(
+    "b1111".U(4.W),
+    Seq(
+      utils.isByte(cmd) -> "b0001".U(4.W),
+      utils.isHalf(cmd) -> "b0011".U(4.W),
+      utils.isWord(cmd) -> "b1111".U(4.W)
+    )
+  )
+  val wmask     = (raw_wmask << byte_offset)(3, 0)
 
   when(!busy) {
     req_fired := false.B
@@ -75,12 +87,14 @@ class Lsu(implicit p: Parameters) extends Module {
   mem.req.bits.op   := Mux(mem_write, CacheOp.WRITE, CacheOp.READ)
   mem.req.bits.addr := addr
   mem.req.bits.data := aligned_wdata
+  mem.req.bits.strb := wmask
   mem.resp.ready    := pma_cacheable
 
   mmio.req.valid     := en && !req_fired && !pma_cacheable
   mmio.req.bits.op   := Mux(mem_write, CacheOp.WRITE, CacheOp.READ)
   mmio.req.bits.addr := addr
   mmio.req.bits.data := aligned_wdata
+  mmio.req.bits.strb := wmask
   mmio.resp.ready    := !pma_cacheable
 
   val raw_rdata     = Mux(pma_cacheable, mem.resp.bits.data, mmio.resp.bits.data)
