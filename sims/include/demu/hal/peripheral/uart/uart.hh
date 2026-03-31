@@ -1,27 +1,30 @@
 #pragma once
 
+#include "../../allocator.hh"
 #include "../../device.hh"
+#include <memory>
 
 namespace demu::hal::uart {
 using namespace isa;
 
-enum {
+enum UartRegisters : addr_t {
   UART_RXD = 0x00,
   UART_TXD = 0x04,
-  UART_TXC = 0x08,
-  UART_RXC = 0x0C,
+  UART_TXC = 0x08, // TX Control/Status
+  UART_RXC = 0x0C, // RX Control/Status
   UART_BAUDIV = 0x10,
 };
 
-class Uart final : public Device {
-  explicit Uart(risc::DeviceDescriptor desc)
-      : Device(desc),
-        memory_(std::make_unique<MemoryAllocator>(desc.base(), desc.size())) {}
+class UART final : public Device {
+public:
+  explicit UART(const risc::DeviceDescriptor &desc)
+      : Device(desc), allocator_(std::make_unique<MemoryAllocator>(
+                          base_address(), address_range())) {}
 
-  ~Uart() override = default;
+  ~UART() override = default;
 
   [[nodiscard]] auto allocator() const noexcept -> MemoryAllocator * override {
-    return memory_.get();
+    return allocator_.get();
   }
 
   void clock_tick() override;
@@ -29,7 +32,7 @@ class Uart final : public Device {
   void dump(addr_t start, size_t size) const noexcept override;
 
 private:
-  std::unique_ptr<MemoryAllocator> memory_;
+  std::unique_ptr<MemoryAllocator> allocator_;
 };
 
 } // namespace demu::hal::uart

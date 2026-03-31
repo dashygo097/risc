@@ -21,7 +21,7 @@ protected:
 
     device_manager_->register_device<demu::hal::axi::AXIFullSRAM>(0, *imem_r);
     device_manager_->register_device<demu::hal::axi::AXIFullSRAM>(1, *dmem_r);
-    device_manager_->register_device<demu::hal::axi::AXIFullSRAM>(2, *uart_r);
+    device_manager_->register_device<demu::hal::axi::AXIFullUART>(2, *uart_r);
 
     device_manager_->register_handler(
         0, std::make_unique<demu::hal::axi::AXIFullPortHandler>(

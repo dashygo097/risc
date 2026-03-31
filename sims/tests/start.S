@@ -1,14 +1,15 @@
 # start.S - Minimal RISC-V startup code
-.section .text.entry
-.globl _start
+.global _start       
+.extern main      
 
 _start:
     csrw mstatus, zero
     csrw mie, zero
 
-    li sp, 0x80004000
+    lui sp, 0x80004
+    mv fp, zero
 
-    call main
+    jal ra, main
 
-halt:
-    j halt
+    j .
+

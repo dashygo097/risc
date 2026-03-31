@@ -13,6 +13,9 @@
 #include "./peripheral/sram/signals.hh"
 #include "./peripheral/sram/sram.hh"
 
+// UART
+#include "./peripheral/uart/uart.hh"
+
 // Bus
 // AXI4-Lite
 #include "./bus/axil/port_handler.hh"
@@ -26,3 +29,4 @@
 #include "./bus/axif/signals.hh"
 #include "./bus/axif/slave.hh"
 #include "./bus/axif/sram.hh"
+#include "./bus/axif/uart.hh"
