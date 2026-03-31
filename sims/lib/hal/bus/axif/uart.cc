@@ -65,10 +65,8 @@ void AXIFullUART::process_writes() {
     addr_t offset = to_offset(req.addr);
 
     if (offset == uart::UART_TXD) {
-      if (wdata.strb & 0x01) {
-        char c = static_cast<char>(wdata.data & 0xFF);
-        std::cout << c << std::flush;
-      }
+      char c = static_cast<char>(wdata.data & 0xFF);
+      std::cout << c << std::flush;
     } else {
       for (int i = 0; i < 4; ++i) {
         if (wdata.strb & (1u << i)) {
