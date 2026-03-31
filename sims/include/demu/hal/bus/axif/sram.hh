@@ -44,39 +44,33 @@ public:
   }
   void r_ready(bool ready) override { pin_rready = ready; }
 
-  auto aw_ready() const noexcept -> bool override {
-    return write_req_queue.size() < 16;
-  }
-  auto w_ready() const noexcept -> bool override {
-    return write_data_queue.size() < 16;
-  }
+  auto aw_ready() const noexcept -> bool override { return true; }
+  auto w_ready() const noexcept -> bool override { return true; }
   auto b_valid() const noexcept -> bool override {
-    return !write_resp_queue.empty();
+    return !_write_resp_queue.empty();
   }
   auto b_resp() const noexcept -> uint8_t override {
-    return b_valid() ? write_resp_queue.front().resp : 0;
+    return b_valid() ? _write_resp_queue.front().resp : 0;
   }
   auto b_id() const noexcept -> uint32_t override {
-    return b_valid() ? write_resp_queue.front().id : 0;
+    return b_valid() ? _write_resp_queue.front().id : 0;
   }
 
-  auto ar_ready() const noexcept -> bool override {
-    return read_req_queue.size() < 16;
-  }
+  auto ar_ready() const noexcept -> bool override { return true; }
   auto r_valid() const noexcept -> bool override {
-    return !read_data_queue.empty();
+    return !_read_data_queue.empty();
   }
   auto r_data() const noexcept -> word_t override {
-    return r_valid() ? read_data_queue.front().data : 0;
+    return r_valid() ? _read_data_queue.front().data : 0;
   }
   auto r_resp() const noexcept -> uint8_t override {
-    return r_valid() ? read_data_queue.front().resp : 0;
+    return r_valid() ? _read_data_queue.front().resp : 0;
   }
   auto r_id() const noexcept -> uint32_t override {
-    return r_valid() ? read_data_queue.front().id : 0;
+    return r_valid() ? _read_data_queue.front().id : 0;
   }
   auto r_last() const noexcept -> bool override {
-    return r_valid() ? read_data_queue.front().last : false;
+    return r_valid() ? _read_data_queue.front().last : false;
   }
 
   // Bypass
@@ -138,12 +132,12 @@ private:
     bool last;
   };
 
-  std::queue<BurstTransaction> write_req_queue;
-  std::queue<WriteData> write_data_queue;
-  std::queue<WriteResponse> write_resp_queue;
+  std::queue<BurstTransaction> _write_req_queue;
+  std::queue<WriteData> _write_data_queue;
+  std::queue<WriteResponse> _write_resp_queue;
 
-  std::queue<BurstTransaction> read_req_queue;
-  std::queue<ReadData> read_data_queue;
+  std::queue<BurstTransaction> _read_req_queue;
+  std::queue<ReadData> _read_data_queue;
 
   void process_writes();
   void process_reads();

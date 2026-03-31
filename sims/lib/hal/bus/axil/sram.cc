@@ -54,47 +54,6 @@ void AXILiteSRAM::process_reads() {
   rt.processed = true;
 }
 
-// AW
-void AXILiteSRAM::aw_valid(addr_t addr) { _write_addr_queue.push(addr); }
-auto AXILiteSRAM::aw_ready() const noexcept -> bool { return true; }
-
-// W
-void AXILiteSRAM::w_valid(word_t data, byte_t strb) {
-  _write_data_queue.push({data, strb});
-}
-auto AXILiteSRAM::w_ready() const noexcept -> bool { return true; }
-
-// B
-auto AXILiteSRAM::b_valid() const noexcept -> bool {
-  return !_write_resp_queue.empty();
-}
-void AXILiteSRAM::b_ready(bool ready) {
-  if (ready && !_write_resp_queue.empty()) {
-    _write_resp_queue.pop();
-  }
-}
-auto AXILiteSRAM::b_resp() const noexcept -> uint8_t {
-  return _write_resp_queue.empty() ? 0u : _write_resp_queue.front().resp;
-}
-
-// AR
-void AXILiteSRAM::ar_valid(addr_t addr) { _read_queue.push({addr, 0u, false}); }
-auto AXILiteSRAM::ar_ready() const noexcept -> bool { return true; }
-
-// R
-auto AXILiteSRAM::r_valid() const noexcept -> bool {
-  return !_read_queue.empty() && _read_queue.front().processed;
-}
-void AXILiteSRAM::r_ready(bool ready) {
-  if (ready && r_valid()) {
-    _read_queue.pop();
-  }
-}
-auto AXILiteSRAM::r_data() const noexcept -> word_t {
-  return _read_queue.empty() ? 0u : _read_queue.front().data;
-}
-auto AXILiteSRAM::r_resp() const noexcept -> uint8_t { return 0u; }
-
 void AXILiteSRAM::dump(addr_t start, size_t size) const noexcept {
   if (!owns_address(start)) {
     HAL_WARN("AXILiteSRAM dump: 0x{:08X} not owned",
