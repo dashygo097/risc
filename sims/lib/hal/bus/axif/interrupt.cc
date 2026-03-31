@@ -5,9 +5,10 @@
 namespace demu::hal::axi {
 
 void AXIFullCLINT::reset() {
-  msip_ = 0;
-  mtimecmp_ = 0xFFFFFFFFFFFFFFFFull;
-  mtime_ = 0;
+  allocator_->clear();
+
+  allocator_->write_word(base_address() + 0x4000, 0xFFFFFFFF);
+  allocator_->write_word(base_address() + 0x4004, 0xFFFFFFFF);
 
   write_req_queue = std::queue<BurstTransaction>();
   write_data_queue = std::queue<WriteData>();
@@ -21,20 +22,42 @@ void AXIFullCLINT::reset() {
   pin_arvalid = false;
   pin_rready = false;
 
-  if (timer_line_)
+  if (timer_line_) {
     timer_line_->deassert_line();
-  if (soft_line_)
+  }
+  if (soft_line_) {
     soft_line_->deassert_line();
+  }
 }
 
 void AXIFullCLINT::clock_tick() {
-  // RTC
-  mtime_++;
+  const addr_t base = base_address();
 
-  if (timer_line_)
-    timer_line_->set_level(mtime_ >= mtimecmp_);
-  if (soft_line_)
-    soft_line_->set_level((msip_ & 1) != 0);
+  uint32_t mtime_lo = allocator_->read_word(base + 0xBFF8);
+  uint32_t mtime_hi = allocator_->read_word(base + 0xBFFC);
+  uint64_t mtime = (static_cast<uint64_t>(mtime_hi) << 32) | mtime_lo;
+
+  // RTC
+  mtime++;
+  allocator_->write_word(base + 0xBFF8,
+                         static_cast<uint32_t>(mtime & 0xFFFFFFFF));
+  allocator_->write_word(base + 0xBFFC, static_cast<uint32_t>(mtime >> 32));
+
+  if (timer_line_ || soft_line_) {
+    uint32_t mtimecmp_lo = allocator_->read_word(base + 0x4000);
+    uint32_t mtimecmp_hi = allocator_->read_word(base + 0x4004);
+    uint64_t mtimecmp =
+        (static_cast<uint64_t>(mtimecmp_hi) << 32) | mtimecmp_lo;
+
+    uint32_t msip = allocator_->read_word(base + 0x0000);
+
+    if (timer_line_) {
+      timer_line_->set_level(mtime >= mtimecmp);
+    }
+    if (soft_line_) {
+      soft_line_->set_level((msip & 1) != 0);
+    }
+  }
 
   if (pin_awvalid && aw_ready()) {
     write_req_queue.push(
@@ -64,63 +87,6 @@ void AXIFullCLINT::calculate_next_address(BurstTransaction &req) {
   }
 }
 
-auto AXIFullCLINT::read_register(addr_t offset) const noexcept -> word_t {
-  switch (offset) {
-  case 0x0000:
-    return msip_;
-  case 0x4000:
-    return static_cast<uint32_t>(mtimecmp_ & 0xFFFFFFFF);
-  case 0x4004:
-    return static_cast<uint32_t>(mtimecmp_ >> 32);
-  case 0xBFF8:
-    return static_cast<uint32_t>(mtime_ & 0xFFFFFFFF);
-  case 0xBFFC:
-    return static_cast<uint32_t>(mtime_ >> 32);
-  default:
-    return 0;
-  }
-}
-
-void AXIFullCLINT::write_register(addr_t offset, word_t data,
-                                  byte_t strb) noexcept {
-  uint32_t mask = 0;
-  for (int i = 0; i < 4; ++i) {
-    if (strb & (1u << i)) {
-      mask |= (0xFF << (i * 8));
-    }
-  }
-
-  auto apply_mask = [&](uint32_t old_val) -> uint32_t {
-    return (old_val & ~mask) | (data & mask);
-  };
-
-  switch (offset) {
-  case 0x0000:
-    msip_ = apply_mask(msip_) & 1;
-    break;
-  case 0x4000: {
-    uint32_t lo = apply_mask(static_cast<uint32_t>(mtimecmp_));
-    mtimecmp_ = (mtimecmp_ & 0xFFFFFFFF00000000ull) | lo;
-    break;
-  }
-  case 0x4004: {
-    uint32_t hi = apply_mask(static_cast<uint32_t>(mtimecmp_ >> 32));
-    mtimecmp_ = (static_cast<uint64_t>(hi) << 32) | (mtimecmp_ & 0xFFFFFFFF);
-    break;
-  }
-  case 0xBFF8: {
-    uint32_t lo = apply_mask(static_cast<uint32_t>(mtime_));
-    mtime_ = (mtime_ & 0xFFFFFFFF00000000ull) | lo;
-    break;
-  }
-  case 0xBFFC: {
-    uint32_t hi = apply_mask(static_cast<uint32_t>(mtime_ >> 32));
-    mtime_ = (static_cast<uint64_t>(hi) << 32) | (mtime_ & 0xFFFFFFFF);
-    break;
-  }
-  }
-}
-
 void AXIFullCLINT::process_writes() {
   if (write_req_queue.empty() || write_data_queue.empty()) {
     return;
@@ -133,8 +99,18 @@ void AXIFullCLINT::process_writes() {
   const bool valid = owns_address(req.addr);
 
   if (valid) {
+    for (int i = 0; i < 4; ++i) {
+      if (wdata.strb & (1u << i)) {
+        allocator_->write_byte(
+            req.addr + i, static_cast<byte_t>((wdata.data >> (i * 8)) & 0xFF));
+      }
+    }
+
     addr_t offset = to_offset(req.addr);
-    write_register(offset, wdata.data, wdata.strb);
+    if (offset == 0x0000) {
+      word_t msip = allocator_->read_word(base_address() + 0x0000);
+      allocator_->write_word(base_address() + 0x0000, msip & 1);
+    }
   }
 
   req.beats_completed++;
@@ -156,11 +132,7 @@ void AXIFullCLINT::process_reads() {
   BurstTransaction &req = read_req_queue.front();
   const bool valid = owns_address(req.addr);
 
-  word_t data = 0;
-  if (valid) {
-    addr_t offset = to_offset(req.addr);
-    data = read_register(offset);
-  }
+  word_t data = valid ? allocator_->read_word(req.addr) : 0u;
 
   const bool last = (req.beats_completed == req.len);
   read_data_queue.push(
@@ -174,6 +146,51 @@ void AXIFullCLINT::process_reads() {
   }
 }
 
+void AXIFullCLINT::dump(addr_t start, size_t size) const noexcept {
+  const addr_t base = base_address();
+  const addr_t end = start + size;
+
+  auto overlaps = [&](addr_t reg_start, size_t reg_size) -> bool {
+    return reg_start < end && (reg_start + reg_size) > start;
+  };
+
+  bool printed_header = false;
+  auto print_header_once = [&]() {
+    if (!printed_header) {
+      HAL_INFO("--- CLINT Registers Dump [0x{:08X} - 0x{:08X}] ---", start,
+               end);
+      printed_header = true;
+    }
+  };
+
+  if (overlaps(base + 0x0000, 4)) {
+    print_header_once();
+    uint32_t msip = allocator_->read_word(base + 0x0000);
+    HAL_INFO("  MSIP     : 0x{:08x}", msip);
+  }
+
+  if (overlaps(base + 0x4000, 8)) {
+    print_header_once();
+    uint32_t mtimecmp_lo = allocator_->read_word(base + 0x4000);
+    uint32_t mtimecmp_hi = allocator_->read_word(base + 0x4004);
+    uint64_t mtimecmp =
+        (static_cast<uint64_t>(mtimecmp_hi) << 32) | mtimecmp_lo;
+    HAL_INFO("  MTIMECMP : 0x{:016x}", mtimecmp);
+  }
+
+  if (overlaps(base + 0xBFF8, 8)) {
+    print_header_once();
+    uint32_t mtime_lo = allocator_->read_word(base + 0xBFF8);
+    uint32_t mtime_hi = allocator_->read_word(base + 0xBFFC);
+    uint64_t mtime = (static_cast<uint64_t>(mtime_hi) << 32) | mtime_lo;
+    HAL_INFO("  MTIME    : 0x{:016x}", mtime);
+  }
+
+  if (printed_header) {
+    HAL_INFO("--------------------------------------------------");
+  }
+}
+
 } // namespace demu::hal::axi
 
-#endif
+#endif // defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)

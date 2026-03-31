@@ -1,8 +1,10 @@
 #pragma once
 
+#include "../../allocator.hh"
 #include "../../device.hh"
 #include "../../interrupt.hh"
 #include "./slave.hh"
+#include <memory>
 #include <queue>
 
 #if defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)
@@ -15,12 +17,15 @@ public:
   explicit AXIFullCLINT(const risc::DeviceDescriptor &desc,
                         InterruptLine *timer_line = nullptr,
                         InterruptLine *soft_line = nullptr)
-      : AXIFullSlave(desc), timer_line_(timer_line), soft_line_(soft_line) {}
+      : AXIFullSlave(desc),
+        allocator_(std::make_unique<MemoryAllocator>(desc.base(), desc.size())),
+        timer_line_(timer_line), soft_line_(soft_line) {}
 
   ~AXIFullCLINT() override = default;
 
   void reset() override;
   void clock_tick() override;
+  void dump(addr_t start, size_t size) const noexcept override;
 
   // AW
   void aw_valid(bool valid, uint32_t id, addr_t addr, uint8_t len, uint8_t size,
@@ -47,7 +52,7 @@ public:
     return write_data_queue.size() < 16;
   }
 
-  // w
+  // B
   void b_ready(bool ready) override { pin_bready = ready; }
   auto b_valid() const noexcept -> bool override {
     return !write_resp_queue.empty();
@@ -91,14 +96,15 @@ public:
     return r_valid() ? read_data_queue.front().last : false;
   }
 
+  // Bypass
+  [[nodiscard]] auto allocator() const noexcept -> MemoryAllocator * override {
+    return allocator_.get();
+  }
+
 private:
+  std::unique_ptr<MemoryAllocator> allocator_;
   InterruptLine *timer_line_;
   InterruptLine *soft_line_;
-
-  // CLINT Registers
-  uint32_t msip_{0};
-  uint64_t mtimecmp_{0xFFFFFFFFFFFFFFFFull};
-  uint64_t mtime_{0};
 
   // Cached Pin States
   bool pin_awvalid = false;
@@ -153,11 +159,8 @@ private:
   void process_writes();
   void process_reads();
   void calculate_next_address(BurstTransaction &req);
-
-  auto read_register(addr_t offset) const noexcept -> word_t;
-  void write_register(addr_t offset, word_t data, byte_t strb) noexcept;
 };
 
 } // namespace demu::hal::axi
 
-#endif
+#endif // defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)
