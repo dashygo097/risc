@@ -3,9 +3,8 @@ ENTRY(_start)
 
 MEMORY
 {
-    IMEM (rx)  : ORIGIN = 0x00000000, LENGTH = 4K
-    
-    DMEM (rw)  : ORIGIN = 0x80000000, LENGTH = 16K
+    IMEM (rx)  : ORIGIN = 0x00000000, LENGTH = 256K
+    DMEM (rw)  : ORIGIN = 0x80000000, LENGTH = 256K
 }
 
 SECTIONS
@@ -29,10 +28,12 @@ SECTIONS
     } > DMEM
 
     .bss : {
+        _sbss = .;
         *(.bss)
         *(.bss*)
         *(COMMON)
         . = ALIGN(4);
+        _ebss = .;
     } > DMEM
 
     /DISCARD/ : {
