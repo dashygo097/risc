@@ -1,4 +1,4 @@
-ASM_DIR    := asm
+SRC_DIR    := src
 ELF_DIR 	 := elf
 BIN_DIR    := bin
 HEX_DIR    := hex
@@ -24,14 +24,14 @@ MAGENTA := \033[1;35m
 CYAN    := \033[1;36m
 RESET   := \033[0m
 
-C_SOURCES := $(wildcard $(ASM_DIR)/*.c)
-ASM_SOURCES := $(wildcard $(ASM_DIR)/*.asm)
-S_SOURCES   := $(wildcard $(ASM_DIR)/*.S)
+C_SOURCES := $(wildcard $(SRC_DIR)/*.c)
+ASM_SOURCES := $(wildcard $(SRC_DIR)/*.asm)
+S_SOURCES   := $(wildcard $(SRC_DIR)/*.S)
 START_SRC := start.S
 
-C_TESTS   := $(patsubst $(ASM_DIR)/%.c,%,$(C_SOURCES))
-ASM_TESTS := $(patsubst $(ASM_DIR)/%.asm,%,$(ASM_SOURCES))
-S_TESTS   := $(patsubst $(ASM_DIR)/%.S,%,$(S_SOURCES))
+C_TESTS   := $(patsubst $(SRC_DIR)/%.c,%,$(C_SOURCES))
+ASM_TESTS := $(patsubst $(SRC_DIR)/%.asm,%,$(ASM_SOURCES))
+S_TESTS   := $(patsubst $(SRC_DIR)/%.S,%,$(S_SOURCES))
 
 ALL_TESTS := $(C_TESTS) $(ASM_TESTS) $(S_TESTS)
 
@@ -59,20 +59,20 @@ $(BIN_DIR):
 	@mkdir -p $(BIN_DIR)
 	@echo "$(CYAN)Created $(BIN_DIR) directory$(RESET)"
 
-$(ELF_DIR)/%.elf: $(ASM_DIR)/%.c $(LINKER_SCRIPT)
+$(ELF_DIR)/%.elf: $(SRC_DIR)/%.c $(LINKER_SCRIPT)
 	@echo "$(BLUE)Building $@$(RESET)"
 	$(CC) $(CFLAGS) -c $< -o $(BIN_DIR)/$*.o
 	$(CC) $(CFLAGS) -c $(START_SRC) -o $(BIN_DIR)/start.o
 	$(LD) $(LDFLAGS) $(BIN_DIR)/start.o $(BIN_DIR)/$*.o -o $@
 	@rm -f $(BIN_DIR)/$*.o
 
-$(ELF_DIR)/%.elf: $(ASM_DIR)/%.asm $(LINKER_SCRIPT)
+$(ELF_DIR)/%.elf: $(SRC_DIR)/%.asm $(LINKER_SCRIPT)
 	@echo "$(BLUE)Building $@$(RESET)"
 	$(AS) $(ASFLAGS) $< -o $(BIN_DIR)/$*.o
 	$(LD) $(LDFLAGS) $(BIN_DIR)/$*.o -o $@
 	@rm -f $(BIN_DIR)/$*.o
 
-$(ELF_DIR)/%.elf: $(ASM_DIR)/%.S $(LINKER_SCRIPT)
+$(ELF_DIR)/%.elf: $(SRC_DIR)/%.S $(LINKER_SCRIPT)
 	@echo "$(BLUE)Building $@$(RESET)"
 	$(AS) $(ASFLAGS) $< -o $(BIN_DIR)/$*.o
 	$(LD) $(LDFLAGS) $(BIN_DIR)/$*.o -o $@
@@ -124,7 +124,7 @@ help:
 	@echo "  make dump/test_addi.dump"
 	@echo ""
 	@echo "$(YELLOW)Directory Structure:$(RESET)"
-	@echo "  $(ASM_DIR)/          - Assembly source files (.asm, .S, .c)"
+	@echo "  $(SRC_DIR)/          - Source files (.asm, .S, .c)"
 	@echo "  $(ELF_DIR)/          - Generated ELF files"
 	@echo "  $(BIN_DIR)/          - Generated binaries (created automatically)"
 	@echo "  $(HEX_DIR)/          - Generated hex files"
