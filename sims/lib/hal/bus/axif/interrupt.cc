@@ -10,11 +10,11 @@ void AXIFullCLINT::reset() {
   allocator_->write_word(base_address() + 0x4000, 0xFFFFFFFF);
   allocator_->write_word(base_address() + 0x4004, 0xFFFFFFFF);
 
-  write_req_queue = std::queue<BurstTransaction>();
-  write_data_queue = std::queue<WriteData>();
-  write_resp_queue = std::queue<WriteResponse>();
-  read_req_queue = std::queue<BurstTransaction>();
-  read_data_queue = std::queue<ReadData>();
+  _write_req_queue = std::queue<BurstTransaction>();
+  _write_data_queue = std::queue<WriteData>();
+  _write_resp_queue = std::queue<WriteResponse>();
+  _read_req_queue = std::queue<BurstTransaction>();
+  _read_data_queue = std::queue<ReadData>();
 
   pin_awvalid = false;
   pin_wvalid = false;
@@ -60,21 +60,21 @@ void AXIFullCLINT::clock_tick() {
   }
 
   if (pin_awvalid && aw_ready()) {
-    write_req_queue.push(
+    _write_req_queue.push(
         {pin_awid, pin_awaddr, pin_awlen, pin_awsize, pin_awburst, 0});
   }
   if (pin_wvalid && w_ready()) {
-    write_data_queue.push({pin_wdata, pin_wstrb, pin_wlast});
+    _write_data_queue.push({pin_wdata, pin_wstrb, pin_wlast});
   }
   if (pin_bready && b_valid()) {
-    write_resp_queue.pop();
+    _write_resp_queue.pop();
   }
   if (pin_arvalid && ar_ready()) {
-    read_req_queue.push(
+    _read_req_queue.push(
         {pin_arid, pin_araddr, pin_arlen, pin_arsize, pin_arburst, 0});
   }
   if (pin_rready && r_valid()) {
-    read_data_queue.pop();
+    _read_data_queue.pop();
   }
 
   process_writes();
@@ -88,13 +88,13 @@ void AXIFullCLINT::calculate_next_address(BurstTransaction &req) {
 }
 
 void AXIFullCLINT::process_writes() {
-  if (write_req_queue.empty() || write_data_queue.empty()) {
+  if (_write_req_queue.empty() || _write_data_queue.empty()) {
     return;
   }
 
-  BurstTransaction &req = write_req_queue.front();
-  const WriteData wdata = write_data_queue.front();
-  write_data_queue.pop();
+  BurstTransaction &req = _write_req_queue.front();
+  const WriteData wdata = _write_data_queue.front();
+  _write_data_queue.pop();
 
   const bool valid = owns_address(req.addr);
 
@@ -117,32 +117,32 @@ void AXIFullCLINT::process_writes() {
   calculate_next_address(req);
 
   if (wdata.last || req.beats_completed > req.len) {
-    write_resp_queue.push(
+    _write_resp_queue.push(
         {req.id,
          static_cast<uint8_t>(valid ? 0 : 2)}); // OKAY (0) or SLVERR (2)
-    write_req_queue.pop();
+    _write_req_queue.pop();
   }
 }
 
 void AXIFullCLINT::process_reads() {
-  if (read_req_queue.empty() || read_data_queue.size() >= 16) {
+  if (_read_req_queue.empty()) {
     return;
   }
 
-  BurstTransaction &req = read_req_queue.front();
+  BurstTransaction &req = _read_req_queue.front();
   const bool valid = owns_address(req.addr);
 
   word_t data = valid ? allocator_->read_word(req.addr) : 0u;
 
   const bool last = (req.beats_completed == req.len);
-  read_data_queue.push(
+  _read_data_queue.push(
       {req.id, data, static_cast<uint8_t>(valid ? 0 : 2), last});
 
   req.beats_completed++;
   calculate_next_address(req);
 
   if (last) {
-    read_req_queue.pop();
+    _read_req_queue.pop();
   }
 }
 
