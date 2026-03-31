@@ -4,7 +4,7 @@ import arch.configs._
 import vopts.com.amba._
 import vopts.mem.cache._
 import chisel3._
-import chisel3.util.{ log2Ceil, Cat, Fill }
+import chisel3.util.{ log2Ceil, Cat }
 
 object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
   override def utils: BusBridgeUtilities = new BusBridgeUtilities {
@@ -26,11 +26,16 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val readBurstLen  = (wordsPerRespond - 1).U(8.W)
       val bytesPerWord  = p(XLen) / 8
 
-      val req_addr   = RegInit(0.U(p(XLen).W))
+      val req_addr = RegInit(0.U(p(XLen).W))
+
       val w_data_reg = RegInit(0.U(memory.req.bits.data.getWidth.W))
+      val w_strb_reg = RegInit(0.U(memory.req.bits.strb.getWidth.W))
 
       val w_data_vec = VecInit((0 until wordsPerRequest).map { i =>
         w_data_reg((i + 1) * p(XLen) - 1, i * p(XLen))
+      })
+      val w_strb_vec = VecInit((0 until wordsPerRequest).map { i =>
+        w_strb_reg((i + 1) * bytesPerWord - 1, i * bytesPerWord)
       })
 
       val active_write = RegInit(false.B)
@@ -55,6 +60,7 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
           aw_sent      := axi.aw.ready
           w_beat_count := 0.U
           w_data_reg   := memory.req.bits.data.asUInt
+          w_strb_reg   := memory.req.bits.strb // <-- NEW
         }.elsewhen(isRead) {
           active_read  := true.B
           ar_sent      := axi.ar.ready
@@ -76,7 +82,7 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         active_write := false.B
       }
 
-      // Combinatorial AW to save 1 cycle
+      // AW
       axi.aw.valid       := (is_new_req && isWrite) || (active_write && !aw_sent)
       axi.aw.bits.addr   := Mux(is_new_req, memory.req.bits.addr, req_addr)
       axi.aw.bits.prot   := 0.U
@@ -93,7 +99,7 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val w_in_bounds = w_beat_count < wordsPerRequest.U
       axi.w.valid     := active_write && w_in_bounds
       axi.w.bits.data := w_data_vec(Mux(w_in_bounds, w_beat_count, 0.U))
-      axi.w.bits.strb := Fill(p(XLen) / 8, 1.U)
+      axi.w.bits.strb := w_strb_vec(Mux(w_in_bounds, w_beat_count, 0.U))
       axi.w.bits.last := w_last
       axi.w.bits.id   := 0.U
       axi.w.bits.user := 0.U
@@ -193,11 +199,12 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         active_read := false.B
       }
 
-      axi.aw.valid := false.B
-      axi.aw.bits  := DontCare
-      axi.w.valid  := false.B
-      axi.w.bits   := DontCare
-      axi.b.ready  := false.B
+      axi.aw.valid    := false.B
+      axi.aw.bits     := DontCare
+      axi.w.valid     := false.B
+      axi.w.bits      := DontCare
+      axi.w.bits.strb := 0.U
+      axi.b.ready     := false.B
 
       axi.ar.valid       := is_new_req || (active_read && !ar_sent)
       axi.ar.bits.addr   := Mux(is_new_req, memory.req.bits.addr, req_addr)

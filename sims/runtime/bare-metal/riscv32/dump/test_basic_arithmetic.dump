@@ -1,0 +1,33 @@
+
+elf/test_basic_arithmetic.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	80000537          	lui	a0,0x80000
+   4:	06400093          	addi	ra,zero,100
+   8:	03200113          	addi	sp,zero,50
+   c:	002081b3          	add	gp,ra,sp
+  10:	40208233          	sub	tp,ra,sp
+  14:	0ff00293          	addi	t0,zero,255
+  18:	00f00313          	addi	t1,zero,15
+  1c:	0062f3b3          	and	t2,t0,t1
+  20:	0062e433          	or	s0,t0,t1
+  24:	0062c4b3          	xor	s1,t0,t1
+  28:	00100593          	addi	a1,zero,1
+  2c:	00400613          	addi	a2,zero,4
+  30:	00c596b3          	sll	a3,a1,a2
+  34:	02000713          	addi	a4,zero,32
+  38:	00200793          	addi	a5,zero,2
+  3c:	00f75833          	srl	a6,a4,a5
+  40:	ff000893          	addi	a7,zero,-16
+  44:	00200913          	addi	s2,zero,2
+  48:	4128d9b3          	sra	s3,a7,s2
+  4c:	00a00a13          	addi	s4,zero,10
+  50:	01400a93          	addi	s5,zero,20
+  54:	015a2b33          	slt	s6,s4,s5
+  58:	014aabb3          	slt	s7,s5,s4
+  5c:	fff00c13          	addi	s8,zero,-1
+  60:	00100c93          	addi	s9,zero,1
+  64:	018cbd33          	sltu	s10,s9,s8

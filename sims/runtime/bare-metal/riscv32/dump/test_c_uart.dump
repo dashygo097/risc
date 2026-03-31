@@ -1,0 +1,53 @@
+
+elf/test_c_uart.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	30001073          	csrrw	zero,mstatus,zero
+   4:	30401073          	csrrw	zero,mie,zero
+   8:	80004137          	lui	sp,0x80004
+   c:	00000413          	addi	s0,zero,0
+  10:	068000ef          	jal	ra,78 <main>
+  14:	0000006f          	jal	zero,14 <_start+0x14>
+
+00000018 <print_str>:
+  18:	fd010113          	addi	sp,sp,-48 # 80003fd0 <_ebss+0x3fd0>
+  1c:	02112623          	sw	ra,44(sp)
+  20:	02812423          	sw	s0,40(sp)
+  24:	03010413          	addi	s0,sp,48
+  28:	fca42e23          	sw	a0,-36(s0)
+  2c:	100007b7          	lui	a5,0x10000
+  30:	00478793          	addi	a5,a5,4 # 10000004 <main+0xfffff8c>
+  34:	fef42623          	sw	a5,-20(s0)
+  38:	01c0006f          	jal	zero,54 <print_str+0x3c>
+  3c:	fdc42783          	lw	a5,-36(s0)
+  40:	00178713          	addi	a4,a5,1
+  44:	fce42e23          	sw	a4,-36(s0)
+  48:	0007c703          	lbu	a4,0(a5)
+  4c:	fec42783          	lw	a5,-20(s0)
+  50:	00e78023          	sb	a4,0(a5)
+  54:	fdc42783          	lw	a5,-36(s0)
+  58:	0007c783          	lbu	a5,0(a5)
+  5c:	fe0790e3          	bne	a5,zero,3c <print_str+0x24>
+  60:	00000013          	addi	zero,zero,0
+  64:	00000013          	addi	zero,zero,0
+  68:	02c12083          	lw	ra,44(sp)
+  6c:	02812403          	lw	s0,40(sp)
+  70:	03010113          	addi	sp,sp,48
+  74:	00008067          	jalr	zero,0(ra)
+
+00000078 <main>:
+  78:	ff010113          	addi	sp,sp,-16
+  7c:	00112623          	sw	ra,12(sp)
+  80:	00812423          	sw	s0,8(sp)
+  84:	01010413          	addi	s0,sp,16
+  88:	0a800513          	addi	a0,zero,168
+  8c:	f8dff0ef          	jal	ra,18 <print_str>
+  90:	00000793          	addi	a5,zero,0
+  94:	00078513          	addi	a0,a5,0
+  98:	00c12083          	lw	ra,12(sp)
+  9c:	00812403          	lw	s0,8(sp)
+  a0:	01010113          	addi	sp,sp,16
+  a4:	00008067          	jalr	zero,0(ra)

@@ -1,0 +1,14 @@
+
+elf/test_basic_csr.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	80000537          	lui	a0,0x80000
+   4:	01200093          	addi	ra,zero,18
+   8:	30009073          	csrrw	zero,mstatus,ra
+   c:	30002173          	csrrs	sp,mstatus,zero
+  10:	3000d073          	csrrwi	zero,mstatus,1
+  14:	300021f3          	csrrs	gp,mstatus,zero
+  18:	b0002273          	csrrs	tp,mcycle,zero
