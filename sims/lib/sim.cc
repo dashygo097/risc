@@ -22,6 +22,9 @@ DemuSimulator::DemuSimulator(bool enabled_trace, int threads, int argc,
 
   device_manager_ = std::make_unique<hal::DeviceManager>();
 
+  timer_irq_ = std::make_unique<demu::hal::InterruptLine>();
+  soft_irq_ = std::make_unique<demu::hal::InterruptLine>();
+
   config_ = std::make_unique<RiscConfig>();
   config_->dump();
   config_->validate();
@@ -220,6 +223,7 @@ void DemuSimulator::clock_tick() {
   dut_->eval();
 
   device_manager_->clock_tick();
+  handle_interrupt();
   handle_cache_profiling();
 
   if (dut_->debug_reg_addr != 0) {
@@ -254,6 +258,11 @@ void DemuSimulator::clock_tick() {
     vcd_->dump(context_->time());
   }
 #endif
+}
+
+void DemuSimulator::handle_interrupt() {
+  dut_->irq_timer_irq = timer_irq_->get_level();
+  dut_->irq_soft_irq = soft_irq_->get_level();
 }
 
 void DemuSimulator::handle_cache_profiling() {

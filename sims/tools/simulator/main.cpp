@@ -50,7 +50,7 @@ protected:
     const auto *clint_r = config_->find_region("clint");
 
     device_manager_->register_device<demu::hal::axi::AXIFullCLINT>(
-        3, *clint_r, &timer_irq_, &soft_irq_);
+        3, *clint_r, timer_irq_.get(), soft_irq_.get());
 
     device_manager_->register_handler(
         3, std::make_unique<demu::hal::axi::AXIFullPortHandler>(
@@ -63,20 +63,11 @@ protected:
   };
 
   void on_init() override {}
-  void on_clock_tick() override {
-#if defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)
-    dut_->irq_timer_irq = timer_irq_.get_level();
-    dut_->irq_soft_irq = soft_irq_.get_level();
-#endif
-  }
+  void on_clock_tick() override {}
   void on_exit() override {}
   void on_reset() override {}
 
 private:
-#if defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)
-  demu::hal::InterruptLine timer_irq_;
-  demu::hal::InterruptLine soft_irq_;
-#endif
 };
 
 void print_usage(const char *prog) {

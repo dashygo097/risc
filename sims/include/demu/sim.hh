@@ -107,6 +107,9 @@ protected:
   std::unique_ptr<system_t> dut_;
   std::unique_ptr<hal::DeviceManager> device_manager_;
 
+  std::unique_ptr<demu::hal::InterruptLine> timer_irq_;
+  std::unique_ptr<demu::hal::InterruptLine> soft_irq_;
+
 #ifdef ENABLE_TRACE
   std::unique_ptr<VerilatedVcdC> vcd_;
 #endif
@@ -127,6 +130,7 @@ protected:
 
   // Internal simulation methods
   void clock_tick();
+  void handle_interrupt();
   void handle_cache_profiling();
 
   // Overridable hooks
