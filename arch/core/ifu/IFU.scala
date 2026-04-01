@@ -3,6 +3,13 @@ package arch.core.ifu
 import arch.configs._
 import vopts.mem.cache.CacheReadOnlyIO
 import chisel3._
+import chisel3.util._
+
+class FetchMeta(implicit p: Parameters) extends Bundle {
+  val pc              = UInt(p(XLen).W)
+  val bpu_pred_taken  = Bool()
+  val bpu_pred_target = UInt(p(XLen).W)
+}
 
 class Ifu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_ifu"
@@ -39,64 +46,50 @@ class Ifu(implicit p: Parameters) extends Module {
   val ibuffer = Module(new IBuffer)
   val pc      = RegInit(0.U(p(XLen).W))
 
+  val do_redirect       = take_trap || bru_taken || bru_not_taken
   val reset_ibuffer_reg = RegInit(false.B)
-  val imem_pending      = RegInit(false.B)
-  val imem_data         = RegInit(p(Bubble).value.U(p(ILen).W))
-  val imem_pc           = RegInit(0.U(p(XLen).W))
-  val imem_valid        = RegInit(false.B)
 
-  val bpu_pred_taken  = RegInit(false.B)
-  val bpu_pred_target = RegInit(0.U(p(XLen).W))
+  val inflight_reset = reset.asBool || do_redirect
+  val inflight_q     = withReset(inflight_reset) {
+    Module(new Queue(new FetchMeta, 4))
+  }
 
-  mem.req.valid     := !imem_pending && !ibuffer.full
+  fetch_pc          := pc
+  mem.req.valid     := inflight_q.io.enq.ready && !ibuffer.full
   mem.req.bits.addr := pc
-  mem.resp.ready    := true.B
 
-  fetch_pc := pc
+  inflight_q.io.enq.valid                := mem.req.fire
+  inflight_q.io.enq.bits.pc              := pc
+  inflight_q.io.enq.bits.bpu_pred_taken  := bpu_taken_in
+  inflight_q.io.enq.bits.bpu_pred_target := bpu_target_in
 
-  val icache_req_fire  = mem.req.valid && mem.req.ready
-  val icache_resp_fire = mem.resp.valid && mem.resp.ready
-
-  when(icache_req_fire) {
-    imem_pending    := true.B
-    imem_pc         := pc
-    imem_valid      := true.B
-    bpu_pred_taken  := bpu_taken_in
-    bpu_pred_target := bpu_target_in
+  when(take_trap && !lsu_busy) {
+    pc := trap_target
+  }.elsewhen(bru_taken && !lsu_busy) {
+    pc := bru_target
+  }.elsewhen(bru_not_taken && !lsu_busy) {
+    pc := bru_branch_pc + 4.U
+  }.elsewhen(mem.req.fire) {
+    pc := Mux(bpu_taken_in, bpu_target_in, pc + 4.U(p(XLen).W))
   }
 
-  val do_redirect = take_trap || bru_taken || bru_not_taken
+  // Handle Cache Responses
+  val valid_resp = mem.resp.valid && inflight_q.io.deq.valid
 
-  when(do_redirect) {
-    imem_valid     := false.B
-    bpu_pred_taken := false.B
-  }
-
-  when(icache_resp_fire) {
-    imem_data    := mem.resp.bits.data
-    imem_pending := false.B
-  }
-
-  when(reset_ibuffer_reg) {
-    imem_valid := false.B
-  }
-
-  when(do_redirect) {
-    reset_ibuffer_reg := true.B
-  }
-
-  when(ibuffer.empty && !imem_pending) {
-    reset_ibuffer_reg := false.B
-  }
-
-  ibuffer.enq.valid                := icache_resp_fire && imem_valid && !ibuffer.full
-  ibuffer.enq.bits.pc              := imem_pc
+  ibuffer.enq.valid                := valid_resp && !ibuffer.full
+  ibuffer.enq.bits.pc              := inflight_q.io.deq.bits.pc
   ibuffer.enq.bits.instr           := mem.resp.bits.data
-  ibuffer.enq.bits.bpu_pred_taken  := bpu_pred_taken
-  ibuffer.enq.bits.bpu_pred_target := bpu_pred_target
+  ibuffer.enq.bits.bpu_pred_taken  := inflight_q.io.deq.bits.bpu_pred_taken
+  ibuffer.enq.bits.bpu_pred_target := inflight_q.io.deq.bits.bpu_pred_target
+
+  inflight_q.io.deq.ready := mem.resp.fire && inflight_q.io.deq.valid
+  mem.resp.ready          := !inflight_q.io.deq.valid || !ibuffer.full
+
+  when(do_redirect)(reset_ibuffer_reg                               := true.B)
+  when(ibuffer.empty && !inflight_q.io.deq.valid)(reset_ibuffer_reg := false.B)
 
   val stall_cond = id_ex_stall || load_use_hazard
-  val flush_cond = (do_redirect || !imem_valid || reset_ibuffer_reg) && !lsu_busy
+  val flush_cond = (do_redirect || reset_ibuffer_reg) && !lsu_busy
 
   ibuffer.deq.ready := (!ibuffer.empty && !stall_cond && !flush_cond) || reset_ibuffer_reg
 
@@ -109,14 +102,4 @@ class Ifu(implicit p: Parameters) extends Module {
 
   ibuffer_deq_fire := ibuffer.deq.fire
   reset_ibuffer    := reset_ibuffer_reg
-
-  when(take_trap && !lsu_busy) {
-    pc := trap_target
-  }.elsewhen(bru_taken && !lsu_busy) {
-    pc := bru_target
-  }.elsewhen(bru_not_taken && !lsu_busy) {
-    pc := bru_branch_pc + 4.U
-  }.elsewhen(ibuffer.enq.fire) {
-    pc := Mux(bpu_pred_taken, bpu_pred_target, pc + 4.U(p(XLen).W))
-  }
 }
