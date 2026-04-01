@@ -1,24 +1,25 @@
 # start.S - Minimal RISC-V startup code
 .section .text.entry, "ax"
 .global _start
-.extern main
-.extern _sbss
-.extern _ebss
 
 _start:
     csrw mstatus, zero
     csrw mie, zero
 
-    lui sp, 0x80040
+    la sp, __stack 
     mv fp, zero
 
     la t0, _sbss
     la t1, _ebss
-    beq t0, t1, 2f
-1:  sb zero, 0(t0)
+
+    beq t0, t1, bss_clear_done
+
+bss_clear_loop: 
+    sb zero, 0(t0)
     addi t0, t0, 1
-    bltu t0, t1, 1b
-2:
+    bltu t0, t1, bss_clear_done 
+
+bss_clear_done:
     jal ra, main
 
 halt:

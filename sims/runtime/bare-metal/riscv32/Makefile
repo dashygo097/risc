@@ -14,7 +14,7 @@ CC      := $(CROSS_PREFIX)gcc
 
 CFLAGS := -march=rv32im_zicsr -mabi=ilp32 -mcmodel=medany -O2 -static -nostartfiles -nostdlib
 ASFLAGS := -march=rv32im_zicsr -mabi=ilp32
-LDFLAGS := -m elf32lriscv -T $(LINKER_SCRIPT)
+LDFLAGS := -m elf32lriscv -T $(LINKER_SCRIPT) 
 
 RED     := \033[1;31m
 GREEN   := \033[1;32m

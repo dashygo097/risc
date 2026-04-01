@@ -37,6 +37,8 @@ SECTIONS
         _ebss = .;
     } > DMEM
 
+    __stack = ORIGIN(DMEM) + LENGTH(DMEM);
+
     /DISCARD/ : {
         *(.comment)
         *(.eh_frame)
