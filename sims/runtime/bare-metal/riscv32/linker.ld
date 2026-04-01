@@ -10,6 +10,7 @@ MEMORY
 SECTIONS
 {
     .text : {
+        KEEP(*(.text.entry))
         *(.text)
         *(.text*)
         . = ALIGN(4);

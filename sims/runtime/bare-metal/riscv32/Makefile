@@ -12,7 +12,7 @@ OBJCOPY := $(CROSS_PREFIX)objcopy
 OBJDUMP := $(CROSS_PREFIX)objdump
 CC      := $(CROSS_PREFIX)gcc
 
-CFLAGS := -march=rv32im_zicsr -mabi=ilp32 -static -nostartfiles -nostdlib
+CFLAGS := -march=rv32im_zicsr -mabi=ilp32 -mcmodel=medany -O2 -static -nostartfiles -nostdlib
 ASFLAGS := -march=rv32im_zicsr -mabi=ilp32
 LDFLAGS := -m elf32lriscv -T $(LINKER_SCRIPT)
 

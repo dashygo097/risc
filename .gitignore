@@ -17,6 +17,7 @@ synth/
 *.ko
 *.obj
 *.elf
+*.bin
 
 # Libraries
 *.lib
