@@ -12,6 +12,11 @@ obj_dir/
 logs/
 synth/
 
+hex/
+elf/
+bin/
+dump/
+
 # Object files
 *.o
 *.ko
