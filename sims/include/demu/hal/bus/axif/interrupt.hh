@@ -12,6 +12,14 @@
 namespace demu::hal::axi {
 using namespace isa;
 
+enum ClintRegisters : addr_t {
+  CLINT_MSIP = 0x0000,
+  CLINT_MTIMECMP_LO = 0x4000,
+  CLINT_MTIMECMP_HI = 0x4004,
+  CLINT_MTIME_LO = 0xBFF8,
+  CLINT_MTIME_HI = 0x8FFC
+};
+
 class AXIFullCLINT final : public AXIFullSlave {
 public:
   explicit AXIFullCLINT(const risc::DeviceDescriptor &desc,
@@ -101,28 +109,28 @@ private:
   InterruptLine *soft_line_;
 
   // Cached Pin States
-  bool pin_awvalid = false;
-  uint32_t pin_awid = 0;
-  addr_t pin_awaddr = 0;
-  uint8_t pin_awlen = 0;
-  uint8_t pin_awsize = 0;
-  uint8_t pin_awburst = 0;
+  bool pin_awvalid{false};
+  uint32_t pin_awid{0};
+  addr_t pin_awaddr{0};
+  uint8_t pin_awlen{0};
+  uint8_t pin_awsize{0};
+  uint8_t pin_awburst{0};
 
-  bool pin_wvalid = false;
-  word_t pin_wdata = 0;
-  byte_t pin_wstrb = 0;
-  bool pin_wlast = false;
+  bool pin_wvalid{false};
+  word_t pin_wdata{0};
+  byte_t pin_wstrb{0};
+  bool pin_wlast{false};
 
-  bool pin_bready = false;
+  bool pin_bready{false};
 
-  bool pin_arvalid = false;
-  uint32_t pin_arid = 0;
-  addr_t pin_araddr = 0;
-  uint8_t pin_arlen = 0;
-  uint8_t pin_arsize = 0;
-  uint8_t pin_arburst = 0;
+  bool pin_arvalid{false};
+  uint32_t pin_arid{0};
+  addr_t pin_araddr{0};
+  uint8_t pin_arlen{0};
+  uint8_t pin_arsize{0};
+  uint8_t pin_arburst{0};
 
-  bool pin_rready = false;
+  bool pin_rready{false};
 
   struct BurstTransaction {
     uint32_t id;

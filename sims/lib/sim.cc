@@ -223,7 +223,10 @@ void DemuSimulator::clock_tick() {
   dut_->eval();
 
   device_manager_->clock_tick();
+
   handle_interrupt();
+  dut_->eval();
+
   handle_cache_profiling();
 
   if (dut_->debug_reg_addr != 0) {

@@ -112,7 +112,7 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
       (Register("misa", CSR_MISA.value, 0x40000100L, writable = false), NormalUpdate),
       (Register("mie", CSR_MIE.value, 0x0L), NormalUpdate),
       (Register("mtvec", CSR_MTVEC.value, 0x0L), NormalUpdate),
-      (Register("mscratch", CSR_MSCRATCH.value, 0x0L, writable = false), NormalUpdate),
+      (Register("mscratch", CSR_MSCRATCH.value, 0x0L), NormalUpdate),
       (Register("mepc", CSR_MEPC.value, 0x0L), NormalUpdate),
       (Register("mcause", CSR_MCAUSE.value, 0x0L), NormalUpdate),
       (

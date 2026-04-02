@@ -4,7 +4,6 @@
 #include "../../peripheral/sram/sram.hh"
 #include "./slave.hh"
 #include <queue>
-#include <string>
 
 namespace demu::hal::axi {
 

@@ -7,8 +7,8 @@ namespace demu::hal::axi {
 void AXIFullCLINT::reset() {
   allocator_->clear();
 
-  allocator_->write_word(base_address() + 0x4000, 0xFFFFFFFF);
-  allocator_->write_word(base_address() + 0x4004, 0xFFFFFFFF);
+  allocator_->write_word(base_address() + CLINT_MTIMECMP_LO, 0xFFFFFFFF);
+  allocator_->write_word(base_address() + CLINT_MTIMECMP_HI, 0xFFFFFFFF);
 
   _write_req_queue = std::queue<BurstTransaction>();
   _write_data_queue = std::queue<WriteData>();
@@ -33,23 +33,24 @@ void AXIFullCLINT::reset() {
 void AXIFullCLINT::clock_tick() {
   const addr_t base = base_address();
 
-  uint32_t mtime_lo = allocator_->read_word(base + 0xBFF8);
-  uint32_t mtime_hi = allocator_->read_word(base + 0xBFFC);
+  uint32_t mtime_lo = allocator_->read_word(base + CLINT_MTIME_LO);
+  uint32_t mtime_hi = allocator_->read_word(base + CLINT_MTIME_HI);
   uint64_t mtime = (static_cast<uint64_t>(mtime_hi) << 32) | mtime_lo;
 
   // RTC
   mtime++;
-  allocator_->write_word(base + 0xBFF8,
+  allocator_->write_word(base + CLINT_MTIME_LO,
                          static_cast<uint32_t>(mtime & 0xFFFFFFFF));
-  allocator_->write_word(base + 0xBFFC, static_cast<uint32_t>(mtime >> 32));
+  allocator_->write_word(base + CLINT_MTIME_HI,
+                         static_cast<uint32_t>(mtime >> 32));
 
   if (timer_line_ || soft_line_) {
-    uint32_t mtimecmp_lo = allocator_->read_word(base + 0x4000);
-    uint32_t mtimecmp_hi = allocator_->read_word(base + 0x4004);
+    uint32_t mtimecmp_lo = allocator_->read_word(base + CLINT_MTIMECMP_LO);
+    uint32_t mtimecmp_hi = allocator_->read_word(base + CLINT_MTIMECMP_HI);
     uint64_t mtimecmp =
         (static_cast<uint64_t>(mtimecmp_hi) << 32) | mtimecmp_lo;
 
-    uint32_t msip = allocator_->read_word(base + 0x0000);
+    uint32_t msip = allocator_->read_word(base + CLINT_MSIP);
 
     if (timer_line_) {
       timer_line_->set_level(mtime >= mtimecmp);
@@ -107,9 +108,9 @@ void AXIFullCLINT::process_writes() {
     }
 
     addr_t offset = to_offset(req.addr);
-    if (offset == 0x0000) {
-      word_t msip = allocator_->read_word(base_address() + 0x0000);
-      allocator_->write_word(base_address() + 0x0000, msip & 1);
+    if (offset == CLINT_MSIP) {
+      word_t msip = allocator_->read_word(base_address() + CLINT_MSIP);
+      allocator_->write_word(base_address() + CLINT_MSIP, msip & 1);
     }
   }
 
@@ -163,25 +164,25 @@ void AXIFullCLINT::dump(addr_t start, size_t size) const noexcept {
     }
   };
 
-  if (overlaps(base + 0x0000, 4)) {
+  if (overlaps(base + CLINT_MSIP, 4)) {
     print_header_once();
-    uint32_t msip = allocator_->read_word(base + 0x0000);
+    uint32_t msip = allocator_->read_word(base + CLINT_MSIP);
     HAL_INFO("  MSIP     : 0x{:08x}", msip);
   }
 
-  if (overlaps(base + 0x4000, 8)) {
+  if (overlaps(base + CLINT_MTIMECMP_LO, 8)) {
     print_header_once();
-    uint32_t mtimecmp_lo = allocator_->read_word(base + 0x4000);
-    uint32_t mtimecmp_hi = allocator_->read_word(base + 0x4004);
+    uint32_t mtimecmp_lo = allocator_->read_word(base + CLINT_MTIMECMP_LO);
+    uint32_t mtimecmp_hi = allocator_->read_word(base + CLINT_MTIMECMP_HI);
     uint64_t mtimecmp =
         (static_cast<uint64_t>(mtimecmp_hi) << 32) | mtimecmp_lo;
     HAL_INFO("  MTIMECMP : 0x{:016x}", mtimecmp);
   }
 
-  if (overlaps(base + 0xBFF8, 8)) {
+  if (overlaps(base + CLINT_MTIME_LO, 8)) {
     print_header_once();
-    uint32_t mtime_lo = allocator_->read_word(base + 0xBFF8);
-    uint32_t mtime_hi = allocator_->read_word(base + 0xBFFC);
+    uint32_t mtime_lo = allocator_->read_word(base + CLINT_MTIME_LO);
+    uint32_t mtime_hi = allocator_->read_word(base + CLINT_MTIME_HI);
     uint64_t mtime = (static_cast<uint64_t>(mtime_hi) << 32) | mtime_lo;
     HAL_INFO("  MTIME    : 0x{:016x}", mtime);
   }
