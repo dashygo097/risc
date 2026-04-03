@@ -176,7 +176,7 @@ void DemuSimulator::run(uint64_t max_cycles) {
                       .count();
 
   DEMU_INFO("Simulation completed!")
-  DEMU_INFO("  With {} cycles, {} instructions, IPC: {:.2f} "
+  DEMU_INFO("  With {} cycles, {} instructions, IPC: {:.3f} "
             "after {} ms",
             cycle_count(), instret_count(), ipc(), duration / 1000.0);
 

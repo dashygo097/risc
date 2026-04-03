@@ -1,13 +1,13 @@
-package arch.core.mul
+package arch.core.mult
 
 import arch.configs._
 import chisel3._
 
-class Mul(implicit p: Parameters) extends Module {
+class Mult(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA)}_multiplier"
 
-  val utils = MulUtilitiesFactory.getOrThrow(p(ISA))
-  val io    = IO(new MulIO)
+  val utils = MultUtilitiesFactory.getOrThrow(p(ISA))
+  val io    = IO(new MultIO)
 
   val mulImpl = utils.build
 

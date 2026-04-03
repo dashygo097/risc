@@ -9,11 +9,11 @@ import regfile._
 import lsu._
 import csr._
 import bpu._
+import mult._
 import pma._
 import pipeline._
 import arch.configs._
 import arch.core.ooo.{ FUInit, FURegistry, Scoreboard }
-import mul._
 import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
 import chisel3._
 import chisel3.util.{ log2Ceil, MuxLookup, MuxCase }
@@ -27,10 +27,10 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
   val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
-  private val FU_ALU = FUInit.ALU
-  private val FU_MUL = FUInit.MUL
-  private val FU_LSU = FUInit.LSU
-  private val FU_CSR = FUInit.CSR
+  private val FU_ALU  = FUInit.ALU
+  private val FU_MULT = FUInit.MULT
+  private val FU_LSU  = FUInit.LSU
+  private val FU_CSR  = FUInit.CSR
 
   val imem = IO(new CacheReadOnlyIO(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(ILen)))
   val dmem = IO(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen)))
@@ -45,7 +45,7 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   val imm_gen    = Module(new ImmGen)
   val alu        = Module(new Alu)
   val lsu        = Module(new Lsu)
-  val mul        = Module(new Mul)
+  val mult       = Module(new Mult)
   val scoreboard = Module(new Scoreboard)
 
   val csrfile: Option[CsrFile] =
@@ -97,10 +97,10 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
     .field("alu_sel2", alu_utils.sel2Width)
     .field("alu_fn", alu_utils.fnTypeWidth)
     .field("alu_mode", 1)
-    .field("mul_en", 1)
-    .field("mul_high", 1)
-    .field("mul_a_signed", 1)
-    .field("mul_b_signed", 1)
+    .field("mult_en", 1)
+    .field("mult_high", 1)
+    .field("mult_a_signed", 1)
+    .field("mult_b_signed", 1)
     .field("lsu", 1)
     .field("lsu_cmd", lsu_utils.cmdWidth)
     .field("trap_ret", 1)
@@ -187,16 +187,16 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   regfile.rs2_preg := rs2
 
   def forwardData(rs: UInt, regData: UInt): UInt = {
-    val ex_match      = id_ex("regwrite").asBool && (id_ex("rd") === rs) && (rs =/= 0.U)
-    val wb_match      = ex_wb("regwrite").asBool && (ex_wb("rd") === rs) && (rs =/= 0.U)
-    val ex_is_mul_fwd = id_ex("mul_en").asBool
-    val ex_is_alu_fwd = id_ex("alu").asBool && !ex_is_mul_fwd &&
+    val ex_match       = id_ex("regwrite").asBool && (id_ex("rd") === rs) && (rs =/= 0.U)
+    val wb_match       = ex_wb("regwrite").asBool && (ex_wb("rd") === rs) && (rs =/= 0.U)
+    val ex_is_mult_fwd = id_ex("mult_en").asBool
+    val ex_is_alu_fwd  = id_ex("alu").asBool && !ex_is_mult_fwd &&
       !id_ex("lsu").asBool && !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
     MuxCase(
       regData,
       Seq(
         (ex_match && ex_is_alu_fwd)                                        -> alu.result,
-        (ex_match && ex_is_mul_fwd && mul.io.done)                         -> mul.io.result,
+        (ex_match && ex_is_mult_fwd && mult.io.done)                       -> mult.io.result,
         (ex_match && (if (p(EnableCSR)) id_ex("csr").asBool else false.B)) ->
           csrfile.map(_.rd).getOrElse(0.U),
         wb_match                                                           -> ex_wb("wb_data")
@@ -218,7 +218,7 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
     ((id_ex("rd") === rs1) || (id_ex("rd") === rs2)) &&
     id_ex("rd") =/= 0.U
 
-  val mul_stall = WireDefault(false.B)
+  val mult_stall = WireDefault(false.B)
 
   val id_is_bubble = if_id("instr") === p(Bubble).value.U(p(ILen).W)
 
@@ -228,16 +228,16 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   val sb_fu_id = MuxCase(
     FU_ALU.U,
     Seq(
-      decoder.decoded.lsu    -> FU_LSU.U,
-      decoder.decoded.mul_en -> FU_MUL.U,
-      id_is_csr              -> FU_CSR.U
+      decoder.decoded.lsu     -> FU_LSU.U,
+      decoder.decoded.mult_en -> FU_MULT.U,
+      id_is_csr               -> FU_CSR.U
     )
   )
 
   val sb_issue_valid =
     !id_is_bubble &&
       !lsu.busy &&
-      !mul_stall &&
+      !mult_stall &&
       !take_trap &&
       !load_use_hazard &&
       decoder.decoded.regwrite
@@ -252,11 +252,11 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   sb_stall := sb_issue_valid && !scoreboard.io.issue_ready
 
   // ID/EX Pipeline Control
-  id_ex.stall := lsu.busy || mul_stall
+  id_ex.stall := lsu.busy || mult_stall
   id_ex.flush :=
     ((load_use_hazard || sb_stall ||
       ((bru_mispredict_taken || bru_mispredict_not_taken) && !bru.jump)) &&
-      !lsu.busy && !mul_stall) || take_trap
+      !lsu.busy && !mult_stall) || take_trap
 
   id_ex.drive("instr", if_id("instr"))
   id_ex.drive("pc", if_id("pc"))
@@ -274,10 +274,10 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   id_ex.drive("alu_sel2", decoder.decoded.alu_sel2)
   id_ex.drive("alu_fn", decoder.decoded.alu_fn)
   id_ex.drive("alu_mode", decoder.decoded.alu_mode)
-  id_ex.drive("mul_en", decoder.decoded.mul_en)
-  id_ex.drive("mul_high", decoder.decoded.mul_high)
-  id_ex.drive("mul_a_signed", decoder.decoded.mul_a_signed)
-  id_ex.drive("mul_b_signed", decoder.decoded.mul_b_signed)
+  id_ex.drive("mult_en", decoder.decoded.mult_en)
+  id_ex.drive("mult_high", decoder.decoded.mult_high)
+  id_ex.drive("mult_a_signed", decoder.decoded.mult_a_signed)
+  id_ex.drive("mult_b_signed", decoder.decoded.mult_b_signed)
   id_ex.drive("lsu", decoder.decoded.lsu)
   id_ex.drive("lsu_cmd", decoder.decoded.lsu_cmd)
   id_ex.drive("trap_ret", decoder.decoded.ret)
@@ -289,10 +289,10 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   // EX Stage
   val ex_is_real = id_ex("instr") =/= p(Bubble).value.U(p(ILen).W)
   val ex_is_alu  = id_ex("alu").asBool && !id_ex("lsu").asBool &&
-    !id_ex("mul_en").asBool && !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
+    !id_ex("mult_en").asBool && !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
   val ex_is_csr  = if (p(EnableCSR)) id_ex("csr").asBool else false.B
   val ex_is_lsu  = id_ex("lsu").asBool
-  val ex_is_mul  = id_ex("mul_en").asBool
+  val ex_is_mult = id_ex("mult_en").asBool
 
   val ex_rs1_data = id_ex("rs1_data")
   val ex_rs2_data = id_ex("rs2_data")
@@ -321,27 +321,27 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   alu.fnType := id_ex("alu_fn")
   alu.mode   := id_ex("alu_mode")
 
-  // MUL
-  val mul_req      = id_ex("mul_en").asBool
-  val mul_inflight = RegInit(false.B)
-  mul_stall := mul_req && !mul.io.done
-  val mul_fire = mul_req && !mul_inflight && !mul.io.done
+  // MULT
+  val mult_req      = id_ex("mult_en").asBool
+  val mult_inflight = RegInit(false.B)
+  mult_stall := mult_req && !mult.io.done
+  val mult_fire = mult_req && !mult_inflight && !mult.io.done
 
   when(id_ex.flush) {
-    mul_inflight := false.B
-  }.elsewhen(mul_fire) {
-    mul_inflight := true.B
-  }.elsewhen(mul.io.done) {
-    mul_inflight := false.B
+    mult_inflight := false.B
+  }.elsewhen(mult_fire) {
+    mult_inflight := true.B
+  }.elsewhen(mult.io.done) {
+    mult_inflight := false.B
   }
 
-  mul.io.en       := mul_fire
-  mul.io.kill     := id_ex.flush
-  mul.io.src1     := ex_rs1_data
-  mul.io.src2     := ex_rs2_data
-  mul.io.a_signed := id_ex("mul_a_signed").asBool
-  mul.io.b_signed := id_ex("mul_b_signed").asBool
-  mul.io.high     := id_ex("mul_high").asBool
+  mult.io.en       := mult_fire
+  mult.io.kill     := id_ex.flush
+  mult.io.src1     := ex_rs1_data
+  mult.io.src2     := ex_rs2_data
+  mult.io.a_signed := id_ex("mult_a_signed").asBool
+  mult.io.b_signed := id_ex("mult_b_signed").asBool
+  mult.io.high     := id_ex("mult_high").asBool
 
   // CSR
   csrfile.foreach { csr =>
@@ -386,7 +386,7 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
     alu.result,
     Seq(
       ex_is_csr   -> csrfile.map(_.rd).getOrElse(0.U),
-      ex_is_mul   -> mul.io.result,
+      ex_is_mult  -> mult.io.result,
       lsu_is_load -> lsu.rdata
     )
   )
@@ -408,10 +408,10 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
     scoreboard.io.fu_rd(i)   := id_ex("rd")
   }
 
-  scoreboard.io.fu_done(FU_ALU) := ex_is_alu && ex_is_real && !id_ex.stall
-  scoreboard.io.fu_done(FU_CSR) := ex_is_csr && ex_is_real && !id_ex.stall
-  scoreboard.io.fu_done(FU_MUL) := mul.io.done
-  scoreboard.io.fu_done(FU_LSU) := ex_is_lsu && lsu_completing
+  scoreboard.io.fu_done(FU_ALU)  := ex_is_alu && ex_is_real && !id_ex.stall
+  scoreboard.io.fu_done(FU_CSR)  := ex_is_csr && ex_is_real && !id_ex.stall
+  scoreboard.io.fu_done(FU_MULT) := mult.io.done
+  scoreboard.io.fu_done(FU_LSU)  := ex_is_lsu && lsu_completing
 
   // WB Stage
   regfile.write_preg := ex_wb("rd")

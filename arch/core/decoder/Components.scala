@@ -46,10 +46,10 @@ class DecodedOutput(implicit p: Parameters) extends Bundle {
   val csr_cmd = UInt(csr_utils.cmdWidth.W)
 
   // mul
-  val mul_en       = Bool()
-  val mul_high     = Bool()
-  val mul_a_signed = Bool()
-  val mul_b_signed = Bool()
+  val mult_en       = Bool()
+  val mult_high     = Bool()
+  val mult_a_signed = Bool()
+  val mult_b_signed = Bool()
 
   // system
   val ret = Bool()

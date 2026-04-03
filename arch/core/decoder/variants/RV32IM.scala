@@ -49,10 +49,10 @@ object RV32IMDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with
       sigs.csr      := decoder(12).asBool
       sigs.csr_cmd  := decoder(13)
 
-      sigs.mul_en       := decoder(14).asBool
-      sigs.mul_high     := decoder(15).asBool
-      sigs.mul_a_signed := decoder(16).asBool
-      sigs.mul_b_signed := decoder(17).asBool
+      sigs.mult_en       := decoder(14).asBool
+      sigs.mult_high     := decoder(15).asBool
+      sigs.mult_a_signed := decoder(16).asBool
+      sigs.mult_b_signed := decoder(17).asBool
 
       sigs.ret := decoder(18).asBool
 

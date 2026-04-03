@@ -5,8 +5,8 @@ object ALUDescriptor extends FUDescriptor {
   override def latency: FULatency = SingleCycle
 }
 
-object MULDescriptor extends FUDescriptor {
-  override def name: String       = "MUL"
+object MULTDescriptor extends FUDescriptor {
+  override def name: String       = "MULT"
   override def latency: FULatency = VariableLatency
 }
 
@@ -21,8 +21,8 @@ object CSRDescriptor extends FUDescriptor {
 }
 
 object FUInit {
-  val ALU = FURegistry.register(ALUDescriptor)
-  val MUL = FURegistry.register(MULDescriptor)
-  val LSU = FURegistry.register(LSUDescriptor)
-  val CSR = FURegistry.register(CSRDescriptor)
+  val ALU  = FURegistry.register(ALUDescriptor)
+  val MULT = FURegistry.register(MULTDescriptor)
+  val LSU  = FURegistry.register(LSUDescriptor)
+  val CSR  = FURegistry.register(CSRDescriptor)
 }

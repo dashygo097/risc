@@ -8,7 +8,7 @@ import core.decoder._
 import core.bru._
 import core.regfile._
 import core.alu._
-import core.mul._
+import core.mult._
 import core.lsu._
 import core.imm._
 import core.csr._
@@ -20,7 +20,7 @@ object MainCore extends App {
   BruInit
   RegfileInit
   AluInit
-  MulInit
+  MultInit
   LsuInit
   ImmInit
   CsrInit
@@ -40,7 +40,7 @@ object MainSystem extends App {
   BruInit
   RegfileInit
   AluInit
-  MulInit
+  MultInit
   LsuInit
   ImmInit
   CsrInit

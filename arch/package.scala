@@ -20,8 +20,8 @@ package object configs {
   object IsRegfileUseBypass extends Field[Boolean](true)
   object NumPhyRegs         extends Field[Int](64)
 
-  // Mul Parameters
-  object MulPipelineStages extends Field[Int](2)
+  // Mult Parameters
+  object MultPipelineStages extends Field[Int](2)
 
   // ROB Parameters
   object ROBSize extends Field[Int](16)
@@ -86,6 +86,9 @@ package object configs {
     IsRegfileUseBypass -> IsRegfileUseBypass(),
     NumPhyRegs         -> NumPhyRegs(),
 
+    // Mult
+    MultPipelineStages -> MultPipelineStages(),
+
     // ROB
     ROBSize -> ROBSize(),
 
@@ -106,6 +109,5 @@ package object configs {
     BusType                       -> BusType(),
     BusCrossbarFifoDepthPerClient -> BusCrossbarFifoDepthPerClient(),
     BusAddressMap                 -> BusAddressMap(),
-    MulPipelineStages             -> MulPipelineStages(),
   )
 }

@@ -1,10 +1,10 @@
-package arch.core.mul
+package arch.core.mult
 
 import arch.configs._
 import chisel3._
 import vopts.math.Multiplier
 
-class MulIO(implicit p: Parameters) extends Bundle {
+class MultIO(implicit p: Parameters) extends Bundle {
   val en   = Input(Bool())
   val kill = Input(Bool())
 
@@ -19,13 +19,13 @@ class MulIO(implicit p: Parameters) extends Bundle {
   val done   = Output(Bool())
 }
 
-trait MulUtilities extends Utilities {
+trait MultUtilities extends Utilities {
   def build: Multiplier
 }
 
-object MulUtilitiesFactory extends UtilitiesFactory[MulUtilities]("Mul")
+object MultUtilitiesFactory extends UtilitiesFactory[MultUtilities]("Mul")
 
-object MulInit {
-  val rv32iUtils  = RV32IMulUtilities
-  val rv32imUtils = RV32IMMulUtilities
+object MultInit {
+  val rv32iUtils  = RV32IMultUtilities
+  val rv32imUtils = RV32IMMultUtilities
 }
