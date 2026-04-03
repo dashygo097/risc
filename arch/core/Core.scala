@@ -186,26 +186,17 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   regfile.rs1_preg := rs1
   regfile.rs2_preg := rs2
 
-  // EX stage dispatcher
-  val ex_is_real = id_ex("instr") =/= p(Bubble).value.U(p(ILen).W)
-  val ex_is_alu  = id_ex("alu").asBool && !id_ex("lsu").asBool &&
-    !id_ex("mul_en").asBool && !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
-  val ex_is_csr  = if (p(EnableCSR)) id_ex("csr").asBool else false.B
-  val ex_is_lsu  = id_ex("lsu").asBool
-  val ex_is_mul  = id_ex("mul_en").asBool
-
-  // MUL stall placeholder
-  val mul_stall = WireDefault(false.B)
-
-  // Forwarding
   def forwardData(rs: UInt, regData: UInt): UInt = {
-    val ex_match = id_ex("regwrite").asBool && (id_ex("rd") === rs) && (rs =/= 0.U)
-    val wb_match = ex_wb("regwrite").asBool && (ex_wb("rd") === rs) && (rs =/= 0.U)
+    val ex_match      = id_ex("regwrite").asBool && (id_ex("rd") === rs) && (rs =/= 0.U)
+    val wb_match      = ex_wb("regwrite").asBool && (ex_wb("rd") === rs) && (rs =/= 0.U)
+    val ex_is_mul_fwd = id_ex("mul_en").asBool
+    val ex_is_alu_fwd = id_ex("alu").asBool && !ex_is_mul_fwd &&
+      !id_ex("lsu").asBool && !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
     MuxCase(
       regData,
       Seq(
-        (ex_match && ex_is_alu)                                            -> alu.result,
-        (ex_match && ex_is_mul && mul.io.done)                             -> mul.io.result,
+        (ex_match && ex_is_alu_fwd)                                        -> alu.result,
+        (ex_match && ex_is_mul_fwd && mul.io.done)                         -> mul.io.result,
         (ex_match && (if (p(EnableCSR)) id_ex("csr").asBool else false.B)) ->
           csrfile.map(_.rd).getOrElse(0.U),
         wb_match                                                           -> ex_wb("wb_data")
@@ -223,10 +214,11 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   bru.imm    := imm_gen.imm
   bru.brType := decoder.decoded.br_type
 
-  // Load-use hazard
   load_use_hazard := id_ex("lsu").asBool && lsu_utils.isRead(id_ex("lsu_cmd")) &&
     ((id_ex("rd") === rs1) || (id_ex("rd") === rs2)) &&
     id_ex("rd") =/= 0.U
+
+  val mul_stall = WireDefault(false.B)
 
   val id_is_bubble = if_id("instr") === p(Bubble).value.U(p(ILen).W)
 
@@ -295,6 +287,13 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   id_ex.driveOpt("csr_imm", imm_gen.csr_imm)
 
   // EX Stage
+  val ex_is_real = id_ex("instr") =/= p(Bubble).value.U(p(ILen).W)
+  val ex_is_alu  = id_ex("alu").asBool && !id_ex("lsu").asBool &&
+    !id_ex("mul_en").asBool && !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
+  val ex_is_csr  = if (p(EnableCSR)) id_ex("csr").asBool else false.B
+  val ex_is_lsu  = id_ex("lsu").asBool
+  val ex_is_mul  = id_ex("mul_en").asBool
+
   val ex_rs1_data = id_ex("rs1_data")
   val ex_rs2_data = id_ex("rs2_data")
 
@@ -316,13 +315,13 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
     )
   )
 
-  alu.en     := id_ex("alu").asBool && !ex_is_mul
+  alu.en     := id_ex("alu").asBool
   alu.src1   := alu_rs1_data
   alu.src2   := alu_rs2_data
   alu.fnType := id_ex("alu_fn")
   alu.mode   := id_ex("alu_mode")
 
-  // MUL state
+  // MUL
   val mul_req      = id_ex("mul_en").asBool
   val mul_inflight = RegInit(false.B)
   mul_stall := mul_req && !mul.io.done
@@ -384,9 +383,10 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   val lsu_is_load = ex_is_lsu && lsu_utils.isRead(id_ex("lsu_cmd"))
 
   val ex_wb_data = MuxCase(
-    Mux(ex_is_mul, mul.io.result, alu.result),
+    alu.result,
     Seq(
       ex_is_csr   -> csrfile.map(_.rd).getOrElse(0.U),
+      ex_is_mul   -> mul.io.result,
       lsu_is_load -> lsu.rdata
     )
   )
@@ -410,7 +410,7 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
 
   scoreboard.io.fu_done(FU_ALU) := ex_is_alu && ex_is_real && !id_ex.stall
   scoreboard.io.fu_done(FU_CSR) := ex_is_csr && ex_is_real && !id_ex.stall
-  scoreboard.io.fu_done(FU_MUL) := ex_is_mul && mul.io.done
+  scoreboard.io.fu_done(FU_MUL) := mul.io.done
   scoreboard.io.fu_done(FU_LSU) := ex_is_lsu && lsu_completing
 
   // WB Stage
