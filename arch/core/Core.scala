@@ -11,15 +11,14 @@ import csr._
 import bpu._
 import pma._
 import pipeline._
-import forwarding._
 import arch.configs._
-import arch.core.ooo.{ FUIds, Scoreboard }
+import arch.core.ooo.{ FUInit, FURegistry, Scoreboard }
 import mul._
 import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
 import chisel3._
 import chisel3.util.{ log2Ceil, MuxLookup, MuxCase }
 
-class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with AluConsts {
+class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   override def desiredName: String = s"${p(ISA)}_cpu"
 
   val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA))
@@ -28,19 +27,21 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA))
   val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA))
 
+  private val FU_ALU = FUInit.ALU
+  private val FU_MUL = FUInit.MUL
+  private val FU_LSU = FUInit.LSU
+  private val FU_CSR = FUInit.CSR
+
   val imem = IO(new CacheReadOnlyIO(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(ILen)))
   val dmem = IO(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen)))
   val mmio = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
   val irq  = IO(new CoreInterruptIO)
 
-  // Modules
   val bpu        = Module(new Bpu)
   val ifu        = Module(new Ifu)
   val decoder    = Module(new Decoder)
   val bru        = Module(new Bru)
   val regfile    = Module(new Regfile)
-  val id_fwd     = Module(new IDForwardingUnit)
-  val ex_fwd     = Module(new EXForwardingUnit)
   val imm_gen    = Module(new ImmGen)
   val alu        = Module(new Alu)
   val lsu        = Module(new Lsu)
@@ -71,7 +72,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
   )
 
-  // Pipeline registers
+  // Pipeline Registers
   val if_id = PipelineStageBuilder("if_id")
     .field("instr", p(ILen), p(Bubble).value.toLong)
     .field("pc", p(XLen))
@@ -113,32 +114,15 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     )
     .build()
 
-  val ex_mem = PipelineStageBuilder("ex_mem")
+  val ex_wb = PipelineStageBuilder("ex_wb")
     .field("instr", p(ILen), p(Bubble).value.toLong)
     .field("pc", p(XLen))
     .field("rd", log2Ceil(p(NumArchRegs)))
-    .field("alu_result", p(XLen))
-    .field("rs2_data", p(XLen))
     .field("regwrite", 1)
-    .field("lsu", 1)
-    .field("lsu_cmd", lsu_utils.cmdWidth)
-    .addFieldsWhen(p(EnableCSR))(
-      Seq(
-        PipelineField("csr", 1),
-        PipelineField("csr_rdata", p(XLen)),
-      )
-    )
+    .field("wb_data", p(XLen))
     .build()
 
-  val mem_wb = PipelineStageBuilder("mem_wb")
-    .field("instr", p(ILen), p(Bubble).value.toLong)
-    .field("pc", p(XLen), 0L)
-    .field("rd", log2Ceil(p(NumArchRegs)), 0L)
-    .field("regwrite", 1, 0L)
-    .field("wb_data", p(XLen), 0L)
-    .build()
-
-  // Control signals
+  // Control Signals
   val load_use_hazard = Wire(Bool())
   val sb_stall        = Wire(Bool())
 
@@ -202,34 +186,23 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   regfile.rs1_preg := rs1
   regfile.rs2_preg := rs2
 
-  id_fwd.id_rs1       := rs1
-  id_fwd.id_rs2       := rs2
-  id_fwd.ex_rd        := id_ex("rd")
-  id_fwd.ex_regwrite  := id_ex("regwrite").asBool
-  id_fwd.mem_rd       := ex_mem("rd")
-  id_fwd.mem_regwrite := ex_mem("regwrite").asBool
-  id_fwd.wb_rd        := mem_wb("rd")
-  id_fwd.wb_regwrite  := mem_wb("regwrite").asBool
-
-  val id_rs1_data = MuxLookup(id_fwd.forward_rs1, 0.U(p(XLen).W))(
-    Seq(
-      FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs1_data,
-      FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
-      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem("alu_result")),
-      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb("wb_data")
+  def forwardData(rs: UInt, regData: UInt): UInt = {
+    val ex_match = id_ex("regwrite").asBool && (id_ex("rd") === rs) && (rs =/= 0.U)
+    val wb_match = ex_wb("regwrite").asBool && (ex_wb("rd") === rs) && (rs =/= 0.U)
+    MuxCase(
+      regData,
+      Seq(
+        (ex_match && id_ex("alu").asBool)                                  -> alu.result,
+        (ex_match && (if (p(EnableCSR)) id_ex("csr").asBool else false.B)) ->
+          csrfile.map(_.rd).getOrElse(0.U),
+        wb_match                                                           -> ex_wb("wb_data")
+      )
     )
-  )
+  }
 
-  val id_rs2_data = MuxLookup(id_fwd.forward_rs2, 0.U(p(XLen).W))(
-    Seq(
-      FWD_SAFE.value.U(SZ_FWD.W) -> regfile.rs2_data,
-      FWD_EX.value.U(SZ_FWD.W)   -> alu.result,
-      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem("alu_result")),
-      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb("wb_data")
-    )
-  )
+  val id_rs1_data = forwardData(rs1, regfile.rs1_data)
+  val id_rs2_data = forwardData(rs2, regfile.rs2_data)
 
-  // BRU
   bru.en     := decoder.decoded.branch && !load_use_hazard && !sb_stall
   bru.pc     := if_id("pc")
   bru.src1   := id_rs1_data
@@ -237,7 +210,6 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   bru.imm    := imm_gen.imm
   bru.brType := decoder.decoded.br_type
 
-  // Load-use hazard
   load_use_hazard := id_ex("lsu").asBool && lsu_utils.isRead(id_ex("lsu_cmd")) &&
     ((id_ex("rd") === rs1) || (id_ex("rd") === rs2)) &&
     id_ex("rd") =/= 0.U
@@ -250,11 +222,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   val id_is_csr = if (p(EnableCSR)) decoder.decoded.csr else false.B
 
   val sb_fu_id = MuxCase(
-    FUIds.ALU.U,
+    FU_ALU.U,
     Seq(
-      decoder.decoded.lsu    -> FUIds.LSU.U,
-      decoder.decoded.mul_en -> FUIds.MUL.U,
-      id_is_csr              -> FUIds.CSR.U
+      decoder.decoded.lsu    -> FU_LSU.U,
+      decoder.decoded.mul_en -> FU_MUL.U,
+      id_is_csr              -> FU_CSR.U
     )
   )
 
@@ -275,33 +247,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
 
   sb_stall := sb_issue_valid && !scoreboard.io.issue_ready
 
-  // fu_done signals
-  val ex_is_real = id_ex("instr") =/= p(Bubble).value.U(p(ILen).W)
-
-  // ALU
-  scoreboard.io.fu_done(FUIds.ALU) :=
-    id_ex("alu").asBool && ex_is_real && !ex_mem.stall &&
-      !id_ex("lsu").asBool && !id_ex("mul_en").asBool &&
-      !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
-
-  // MUL
-  scoreboard.io.fu_done(FUIds.MUL) := mul.io.done
-
-  // LSU
-  val lsu_was_busy = RegNext(lsu.busy, false.B)
-  scoreboard.io.fu_done(FUIds.LSU) :=
-    ex_mem("lsu").asBool && lsu_was_busy && !lsu.busy
-
-  // CSR
-  scoreboard.io.fu_done(FUIds.CSR) :=
-    (if (p(EnableCSR)) id_ex("csr").asBool && ex_is_real && !ex_mem.stall else false.B)
-
-  scoreboard.io.fu_rd(FUIds.ALU) := id_ex("rd")
-  scoreboard.io.fu_rd(FUIds.MUL) := ex_mem("rd")
-  scoreboard.io.fu_rd(FUIds.LSU) := ex_mem("rd")
-  scoreboard.io.fu_rd(FUIds.CSR) := id_ex("rd")
-
-  // ID/EX pipeline control
+  // ID/EX Pipeline Control
   id_ex.stall := lsu.busy || mul_stall
   id_ex.flush :=
     ((load_use_hazard || sb_stall ||
@@ -337,29 +283,17 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   id_ex.driveOpt("csr_imm", imm_gen.csr_imm)
 
   // EX Stage
-  ex_fwd.ex_rs1       := id_ex("rs1")
-  ex_fwd.ex_rs2       := id_ex("rs2")
-  ex_fwd.mem_rd       := ex_mem("rd")
-  ex_fwd.mem_regwrite := ex_mem("regwrite").asBool
-  ex_fwd.wb_rd        := mem_wb("rd")
-  ex_fwd.wb_regwrite  := mem_wb("regwrite").asBool
+  val ex_is_real = id_ex("instr") =/= p(Bubble).value.U(p(ILen).W)
+  val ex_is_alu  = id_ex("alu").asBool && !id_ex("lsu").asBool &&
+    !id_ex("mul_en").asBool && !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
+  val ex_is_csr  = if (p(EnableCSR)) id_ex("csr").asBool else false.B
+  val ex_is_lsu  = id_ex("lsu").asBool
+  val ex_is_mul  = id_ex("mul_en").asBool
 
-  val ex_rs1_data = MuxLookup(ex_fwd.forward_rs1, 0.U(p(XLen).W))(
-    Seq(
-      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex("rs1_data"),
-      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem("alu_result")),
-      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb("wb_data")
-    )
-  )
+  val ex_rs1_data = id_ex("rs1_data")
+  val ex_rs2_data = id_ex("rs2_data")
 
-  val ex_rs2_data = MuxLookup(ex_fwd.forward_rs2, 0.U(p(XLen).W))(
-    Seq(
-      FWD_SAFE.value.U(SZ_FWD.W) -> id_ex("rs2_data"),
-      FWD_MEM.value.U(SZ_FWD.W)  -> Mux(lsu.mem_read, lsu.rdata, ex_mem("alu_result")),
-      FWD_WB.value.U(SZ_FWD.W)   -> mem_wb("wb_data")
-    )
-  )
-
+  // ALU
   val alu_rs1_data = MuxLookup(id_ex("alu_sel1"), 0.U(p(XLen).W))(
     Seq(
       A1_ZERO.value.U(SZ_A1.W) -> 0.U(p(XLen).W),
@@ -405,6 +339,7 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   mul.io.b_signed := id_ex("mul_b_signed").asBool
   mul.io.high     := id_ex("mul_high").asBool
 
+  // CSR
   csrfile.foreach { csr =>
     csr.en       := id_ex("csr").asBool && !take_trap
     csr.trap_ret := id_ex("trap_ret").asBool && !take_trap
@@ -415,28 +350,20 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
     csr.pc       := id_ex("pc")
   }
 
-  // EX/MEM pipeline
-  ex_mem.stall := mem_wb.stall || lsu.busy || (mul_inflight && !mul.io.done)
-  ex_mem.flush := mul_stall || take_trap
+  // LSU
+  val lsu_launched = RegInit(false.B)
+  when(!lsu.busy) {
+    lsu_launched := false.B
+  }.elsewhen(ex_is_lsu && !lsu_launched) {
+    lsu_launched := true.B
+  }
 
-  ex_mem.drive("instr", id_ex("instr"))
-  ex_mem.drive("pc", id_ex("pc"))
-  ex_mem.drive("rd", id_ex("rd"))
-  ex_mem.drive("alu_result", Mux(id_ex("mul_en").asBool, mul.io.result, alu.result))
-  ex_mem.drive("rs2_data", ex_rs2_data)
-  ex_mem.drive("regwrite", id_ex("regwrite"))
-  ex_mem.drive("lsu", id_ex("lsu"))
-  ex_mem.drive("lsu_cmd", id_ex("lsu_cmd"))
-  ex_mem.driveOpt("csr", id_ex("csr"))
-  ex_mem.driveOpt("csr_rdata", csrfile.get.rd)
+  lsu.en    := ex_is_lsu && !lsu_launched
+  lsu.cmd   := id_ex("lsu_cmd")
+  lsu.addr  := alu.result
+  lsu.wdata := ex_rs2_data
 
-  // MEM Stage
-  lsu.en    := ex_mem("lsu").asBool
-  lsu.cmd   := ex_mem("lsu_cmd")
-  lsu.addr  := ex_mem("alu_result")
-  lsu.wdata := ex_mem("rs2_data")
-
-  val (_, pma_readable, pma_writable, pma_cacheable) = PmaChecker(ex_mem("alu_result"))
+  val (_, pma_readable, pma_writable, pma_cacheable) = PmaChecker(alu.result)
   lsu.pma_readable  := pma_readable
   lsu.pma_writable  := pma_writable
   lsu.pma_cacheable := pma_cacheable
@@ -445,37 +372,49 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   mmio <> lsu.mmio
   dmem <> l1_dcache.lower
 
-  val l1_dcache_pending = RegInit(false.B)
-  when(!l1_dcache.upper.resp.bits.hit) {
-    l1_dcache_pending := true.B
-  }
+  // EX/WB
+  val lsu_was_busy   = RegNext(lsu.busy, false.B)
+  val lsu_completing = lsu_was_busy && !lsu.busy
 
-  val csrMuxArm: Seq[(Bool, UInt)] =
-    if (p(EnableCSR))
-      Seq(ex_mem("csr").asBool -> ex_mem("csr_rdata"))
-    else
-      Nil
+  val lsu_is_load = ex_is_lsu && lsu_utils.isRead(id_ex("lsu_cmd"))
 
-  val mem_wb_data = MuxCase(
-    ex_mem("alu_result"),
-    Seq(lsu.mem_read -> lsu.rdata) ++ csrMuxArm
+  val ex_wb_data = MuxCase(
+    alu.result,
+    Seq(
+      ex_is_csr   -> csrfile.map(_.rd).getOrElse(0.U),
+      ex_is_mul   -> mul.io.result,
+      lsu_is_load -> lsu.rdata
+    )
   )
 
-  // MEM/WB pipeline
-  mem_wb.stall := false.B
-  mem_wb.flush := lsu.busy
-  mem_wb.drive("instr", ex_mem("instr"))
-  mem_wb.drive("pc", ex_mem("pc"))
-  mem_wb.drive("rd", ex_mem("rd"))
-  mem_wb.drive("regwrite", ex_mem("regwrite"))
-  mem_wb.drive("wb_data", mem_wb_data)
+  val ex_completing = ex_is_real && !id_ex.stall
+
+  ex_wb.stall := false.B
+  ex_wb.flush := !ex_completing || take_trap
+
+  ex_wb.drive("instr", id_ex("instr"))
+  ex_wb.drive("pc", id_ex("pc"))
+  ex_wb.drive("rd", id_ex("rd"))
+  ex_wb.drive("regwrite", id_ex("regwrite"))
+  ex_wb.drive("wb_data", ex_wb_data)
+
+  // Scoreboard fu_done
+  for (i <- 0 until FURegistry.numFUs) {
+    scoreboard.io.fu_done(i) := false.B
+    scoreboard.io.fu_rd(i)   := id_ex("rd")
+  }
+
+  scoreboard.io.fu_done(FU_ALU) := ex_is_alu && ex_is_real && !id_ex.stall
+  scoreboard.io.fu_done(FU_CSR) := ex_is_csr && ex_is_real && !id_ex.stall
+  scoreboard.io.fu_done(FU_MUL) := mul.io.done
+  scoreboard.io.fu_done(FU_LSU) := ex_is_lsu && lsu_completing
 
   // WB Stage
-  regfile.write_preg := mem_wb("rd")
-  regfile.write_data := mem_wb("wb_data")
-  regfile.write_en   := mem_wb("regwrite").asBool
+  regfile.write_preg := ex_wb("rd")
+  regfile.write_data := ex_wb("wb_data")
+  regfile.write_en   := ex_wb("regwrite").asBool
 
-  val instret = mem_wb("instr") =/= p(Bubble).value.U(p(ILen).W)
+  val instret = ex_wb("instr") =/= p(Bubble).value.U(p(ILen).W)
 
   cycle_count   := cycle_count + 1.U
   instret_count := instret_count + Mux(instret, 1.U, 0.U)
@@ -517,11 +456,11 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   debug_cycle_count   := cycle_count
   debug_instret_count := instret_count
   debug_instret       := instret
-  debug_pc            := mem_wb("pc")
-  debug_instr         := mem_wb("instr")
-  debug_reg_addr      := mem_wb("rd")
-  debug_reg_we        := mem_wb("regwrite").asBool
-  debug_reg_data      := mem_wb("wb_data")
+  debug_pc            := ex_wb("pc")
+  debug_instr         := ex_wb("instr")
+  debug_reg_addr      := ex_wb("rd")
+  debug_reg_we        := ex_wb("regwrite").asBool
+  debug_reg_data      := ex_wb("wb_data")
 
   debug_branch_taken  := bru.taken
   debug_branch_source := bru.pc
@@ -534,8 +473,8 @@ class RiscCore(implicit p: Parameters) extends Module with ForwardingConsts with
   )
   debug_id_instr  := if_id("instr")
   debug_ex_instr  := id_ex("instr")
-  debug_mem_instr := ex_mem("instr")
-  debug_wb_instr  := mem_wb("instr")
+  debug_mem_instr := ex_wb("instr")
+  debug_wb_instr  := ex_wb("instr")
 
   debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
   debug_l1_icache_miss   := !l1_icache.upper.resp.bits.hit

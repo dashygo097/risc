@@ -9,9 +9,9 @@ class Scoreboard(implicit p: Parameters) extends Module {
 
   val io = IO(new ScoreboardIO)
 
-  private val NUM_FUS  = FUIds.NUM_FUS
+  private val NUM_FUS  = FURegistry.numFUs
   private val NUM_REGS = p(NumArchRegs)
-  private val NO_PROD  = NUM_FUS.U(4.W)
+  private val NO_PROD  = NUM_FUS.U(log2Ceil(NUM_FUS + 1).W)
 
   val fu_busy = RegInit(VecInit(Seq.fill(NUM_FUS)(false.B)))
   val fu_rd   = RegInit(VecInit(Seq.fill(NUM_FUS)(0.U(log2Ceil(NUM_REGS).W))))
