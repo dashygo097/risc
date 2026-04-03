@@ -34,10 +34,10 @@ object RV32IMDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with
     override def table: Array[(BitPat, List[BitPat])] = RV32IMDecoderUtilities.utils.table ++
       Array(
         // R-Type: Mul
-        enc("MUL")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_X, N, M_X, N, C_X, Y, N, Y, Y, N),
-        enc("MULH")   -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_X, N, M_X, N, C_X, Y, Y, Y, Y, N),
-        enc("MULHSU") -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_X, N, M_X, N, C_X, Y, Y, Y, N, N),
-        enc("MULHU")  -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_X, N, M_X, N, C_X, Y, Y, N, N, N),
+        enc("MUL")    -> List(Y, Y, IMM_X, N, BR_X, N, A1_X, A2_X, N, AFN_X, N, M_X, N, C_X, Y, N, Y, Y, N),
+        enc("MULH")   -> List(Y, Y, IMM_X, N, BR_X, N, A1_X, A2_X, N, AFN_X, N, M_X, N, C_X, Y, Y, Y, Y, N),
+        enc("MULHSU") -> List(Y, Y, IMM_X, N, BR_X, N, A1_X, A2_X, N, AFN_X, N, M_X, N, C_X, Y, Y, Y, N, N),
+        enc("MULHU")  -> List(Y, Y, IMM_X, N, BR_X, N, A1_X, A2_X, N, AFN_X, N, M_X, N, C_X, Y, Y, N, N, N),
       )
   }
 
