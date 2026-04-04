@@ -254,8 +254,7 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   // ID/EX Pipeline Control
   id_ex.stall := lsu.busy || mult_stall
   id_ex.flush :=
-    ((load_use_hazard || sb_stall ||
-      ((bru_mispredict_taken || bru_mispredict_not_taken) && !bru.jump)) &&
+    ((load_use_hazard || sb_stall) &&
       !lsu.busy && !mult_stall) || take_trap
 
   id_ex.drive("instr", if_id("instr"))
@@ -344,6 +343,8 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   mult.io.high     := id_ex("mult_high").asBool
 
   // CSR
+  val id_is_real = if_id("instr") =/= p(Bubble).value.U(p(ILen).W)
+
   csrfile.foreach { csr =>
     csr.en       := id_ex("csr").asBool && !take_trap
     csr.trap_ret := id_ex("trap_ret").asBool && !take_trap
@@ -351,7 +352,7 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
     csr.addr     := id_ex("csr_addr")
     csr.src      := ex_rs1_data
     csr.imm      := id_ex("csr_imm")
-    csr.pc       := id_ex("pc")
+    csr.pc       := Mux(ex_is_real, id_ex("pc"), Mux(id_is_real, if_id("pc"), ifu.if_pc))
   }
 
   // LSU
