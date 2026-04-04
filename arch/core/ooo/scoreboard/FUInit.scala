@@ -1,5 +1,7 @@
 package arch.core.ooo
 
+import arch.configs._
+
 object ALUDescriptor extends FUDescriptor {
   override def name: String       = "ALU"
   override def latency: FULatency = SingleCycle
@@ -7,7 +9,7 @@ object ALUDescriptor extends FUDescriptor {
 
 object MULTDescriptor extends FUDescriptor {
   override def name: String       = "MULT"
-  override def latency: FULatency = VariableLatency
+  override def latency: FULatency = FixedLatency(p(MultPipelineStages))
 }
 
 object LSUDescriptor extends FUDescriptor {
