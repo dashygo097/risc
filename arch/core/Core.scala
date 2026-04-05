@@ -4,75 +4,66 @@ import ifu._
 import decoder._
 import imm._
 import bru._
-import alu._
 import regfile._
-import lsu._
-import csr._
 import bpu._
-import mult._
-import pma._
-import pipeline._
+import arch.core.pipeline._
+import arch.core.csr.CoreInterruptIO
 import arch.configs._
-import arch.core.ooo.{ FUInit, FURegistry, Scoreboard }
+import arch.core.ooo._
 import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
 import chisel3._
-import chisel3.util.{ log2Ceil, MuxLookup, MuxCase }
+import chisel3.util.{ log2Ceil, MuxCase, RRArbiter }
 
-class RiscCore(implicit p: Parameters) extends Module with AluConsts {
+class RiscCore(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_cpu"
-
-  val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA).name)
-  val bru_utils     = BruUtilitiesFactory.getOrThrow(p(ISA).name)
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA).name)
-  val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA).name)
-  val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA).name)
-
-  private val FU_ALU  = FUInit.ALU
-  private val FU_MULT = FUInit.MULT
-  private val FU_LSU  = FUInit.LSU
-  private val FU_CSR  = FUInit.CSR
 
   val imem = IO(new CacheReadOnlyIO(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(ILen)))
   val dmem = IO(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen)))
   val mmio = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
   val irq  = IO(new CoreInterruptIO)
 
-  val bpu        = Module(new Bpu)
-  val ifu        = Module(new Ifu)
-  val decoder    = Module(new Decoder)
-  val bru        = Module(new Bru)
-  val regfile    = Module(new Regfile)
-  val imm_gen    = Module(new ImmGen)
-  val alu        = Module(new Alu)
-  val lsu        = Module(new Lsu)
-  val mult       = Module(new Mult)
-  val scoreboard = Module(new Scoreboard)
+  // Submodules
+  val bpu       = Module(new Bpu)
+  val ifu       = Module(new Ifu)
+  val decoder   = Module(new Decoder)
+  val bru       = Module(new Bru)
+  val regfile   = Module(new Regfile)
+  val imm_gen   = Module(new ImmGen)
+  val l1_icache = Module(new SetAssociativeCacheReadOnly(UInt(p(XLen).W), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy)))
+  val l1_dcache = Module(new SetAssociativeCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
-  val csrfile: Option[CsrFile] =
-    if (p(EnableCSR)) Some(Module(new CsrFile)) else None
+  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA).name)
 
-  val l1_icache = Module(
-    new SetAssociativeCacheReadOnly(
-      UInt(p(XLen).W),
-      p(XLen),
-      p(L1ICacheLineSize) / (p(XLen) / 8),
-      p(L1ICacheSets),
-      p(L1ICacheWays),
-      p(L1ICacheReplPolicy)
-    )
-  )
-  val l1_dcache = Module(
-    new SetAssociativeCache(
-      UInt(p(XLen).W),
-      p(XLen),
-      p(L1DCacheLineSize) / (p(XLen) / 8),
-      p(L1DCacheSets),
-      p(L1DCacheWays),
-      p(L1DCacheReplPolicy)
-    )
-  )
+  val scheduler = Scheduler()
+  val numFUs    = p(FunctionalUnits).size
 
-  // Pipeline Registers
+  val alu_fu  = Module(new AluFU)
+  val mult_fu = Module(new MultFU)
+  val lsu_fu  = Module(new LsuFU)
+  val csr_fu  = Module(new CsrFU)
+
+  l1_dcache.upper <> lsu_fu.mem
+  mmio <> lsu_fu.mmio
+  dmem <> l1_dcache.lower
+
+  val fuMap = p(FunctionalUnits).map(_.name).map {
+    case "ALU_0"  => alu_fu.io
+    case "MULT_0" => mult_fu.io
+    case "LSU_0"  => lsu_fu.io
+    case "CSR"    => csr_fu.io
+  }
+
+  for (i <- 0 until numFUs)
+    fuMap(i).req <> scheduler.fu_reqs(i)
+
+  // Fetch & Decode (Frontend)
+  imem <> l1_icache.lower
+  ifu.mem <> l1_icache.upper
+
+  bpu.query_pc      := ifu.fetch_pc
+  ifu.bpu_taken_in  := bpu.taken
+  ifu.bpu_target_in := bpu.target
+
   val if_id = PipelineStageBuilder("if_id")
     .field("instr", p(ILen), p(Bubble).value.toLong)
     .field("pc", p(XLen))
@@ -80,360 +71,118 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
     .field("bpu_pred_target", p(XLen))
     .build()
 
-  val id_ex = PipelineStageBuilder("id_ex")
-    .field("instr", p(ILen), p(Bubble).value.toLong)
-    .field("pc", p(XLen))
-    .field("rd", log2Ceil(p(NumArchRegs)))
-    .field("rs1", log2Ceil(p(NumArchRegs)))
-    .field("rs1_data", p(XLen))
-    .field("rs2", log2Ceil(p(NumArchRegs)))
-    .field("rs2_data", p(XLen))
-    .field("imm", p(XLen))
-    .field("regwrite", 1)
-    .field("branch", 1)
-    .field("br_type", bru_utils.branchTypeWidth)
-    .field("alu", 1)
-    .field("alu_sel1", alu_utils.sel1Width)
-    .field("alu_sel2", alu_utils.sel2Width)
-    .field("alu_fn", alu_utils.fnTypeWidth)
-    .field("alu_mode", 1)
-    .field("mult_en", 1)
-    .field("mult_high", 1)
-    .field("mult_a_signed", 1)
-    .field("mult_b_signed", 1)
-    .field("lsu", 1)
-    .field("lsu_cmd", lsu_utils.cmdWidth)
-    .field("trap_ret", 1)
-    .addFieldsWhen(p(EnableCSR))(
-      Seq(
-        PipelineField("csr", 1),
-        PipelineField("csr_cmd", csr_utils.cmdWidth),
-        PipelineField("csr_addr", csr_utils.addrWidth),
-        PipelineField("csr_imm", p(XLen)),
-      )
-    )
-    .build()
+  val take_trap   = csr_fu.trap_request
+  val trap_target = Mux(take_trap, csr_fu.trap_target, csr_fu.trap_ret_tgt)
 
-  val ex_wb = PipelineStageBuilder("ex_wb")
-    .field("instr", p(ILen), p(Bubble).value.toLong)
-    .field("pc", p(XLen))
-    .field("rd", log2Ceil(p(NumArchRegs)))
-    .field("regwrite", 1)
-    .field("wb_data", p(XLen))
-    .build()
-
-  // Control Signals
-  val load_use_hazard = Wire(Bool())
-  val sb_stall        = Wire(Bool())
-
-  val take_trap     = csrfile.map(_.trap_request).getOrElse(false.B)
-  val trap_addr     = csrfile.map(_.trap_target).getOrElse(0.U(p(XLen).W))
-  val take_trap_ret = id_ex("trap_ret").asBool && !id_ex.stall && !take_trap
-  val trap_ret_addr = csrfile.map(_.trap_ret_target).getOrElse(0.U(p(XLen).W))
-
-  val cycle_count   = RegInit(0.U(64.W))
-  val instret_count = RegInit(0.U(64.W))
-
-  // IF Stage
-  imem <> l1_icache.lower
-  ifu.mem <> l1_icache.upper
-
-  bpu.query_pc := ifu.fetch_pc
-
-  ifu.bpu_taken_in  := bpu.taken
-  ifu.bpu_target_in := bpu.target
-
-  val bpu_correct_taken        = if_id("bpu_pred_taken").asBool &&
-    (bru.target === if_id("bpu_pred_target"))
-  val bru_mispredict_taken     = bru.taken && !bpu_correct_taken
-  val bru_mispredict_not_taken = bru.en && !bru.taken && if_id("bpu_pred_taken").asBool
-
-  ifu.bru_taken       := bru_mispredict_taken
+  ifu.take_trap       := take_trap || decoder.decoded.ret
+  ifu.trap_target     := trap_target
+  ifu.bru_taken       := bru.taken
   ifu.bru_target      := bru.target
-  ifu.bru_not_taken   := bru_mispredict_not_taken
+  ifu.bru_not_taken   := !bru.taken && if_id("bpu_pred_taken").asBool
   ifu.bru_branch_pc   := if_id("pc")
-  ifu.id_ex_stall     := id_ex.stall
-  ifu.load_use_hazard := load_use_hazard
-  ifu.lsu_busy        := lsu.busy
+  ifu.id_ex_stall     := !scheduler.dis_reqs(0).ready
+  ifu.load_use_hazard := false.B
+  ifu.lsu_busy        := false.B
 
-  ifu.take_trap   := take_trap || take_trap_ret
-  ifu.trap_target := Mux(take_trap, trap_addr, trap_ret_addr)
-
-  bpu.update.valid  := bru.en
-  bpu.update.pc     := if_id("pc")
-  bpu.update.target := bru.target
-  bpu.update.taken  := bru.taken
-
-  if_id.stall := ifu.if_id_stall || sb_stall
-  if_id.flush := ifu.if_id_flush && !sb_stall
+  val flush_all = take_trap || bru.taken
+  if_id.stall := !scheduler.dis_reqs(0).ready
+  if_id.flush := flush_all || ifu.if_id_flush
 
   if_id.drive("instr", ifu.if_instr)
   if_id.drive("pc", ifu.if_pc)
   if_id.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
   if_id.drive("bpu_pred_target", ifu.if_bpu_pred_target)
 
-  // ID Stage
-  decoder.instr := if_id("instr")
-
+  decoder.instr   := if_id("instr")
   imm_gen.instr   := if_id("instr")
   imm_gen.immType := decoder.decoded.imm_type
 
-  val rs1      = regfile_utils.getRs1(if_id("instr"))
-  val rs2      = regfile_utils.getRs2(if_id("instr"))
-  val rd       = regfile_utils.getRd(if_id("instr"))
-  val csr_addr = csr_utils.getAddr(if_id("instr"))
+  val rs1 = regfile_utils.getRs1(if_id("instr"))
+  val rs2 = regfile_utils.getRs2(if_id("instr"))
+  val rd  = regfile_utils.getRd(if_id("instr"))
 
   regfile.rs1_preg := rs1
   regfile.rs2_preg := rs2
 
-  def forwardData(rs: UInt, regData: UInt): UInt = {
-    val ex_match       = id_ex("regwrite").asBool && (id_ex("rd") === rs) && (rs =/= 0.U)
-    val wb_match       = ex_wb("regwrite").asBool && (ex_wb("rd") === rs) && (rs =/= 0.U)
-    val ex_is_mult_fwd = id_ex("mult_en").asBool
-    val ex_is_alu_fwd  = id_ex("alu").asBool && !ex_is_mult_fwd &&
-      !id_ex("lsu").asBool && !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
-    MuxCase(
-      regData,
-      Seq(
-        (ex_match && ex_is_alu_fwd)                                        -> alu.result,
-        (ex_match && ex_is_mult_fwd && mult.io.done)                       -> mult.io.result,
-        (ex_match && (if (p(EnableCSR)) id_ex("csr").asBool else false.B)) ->
-          csrfile.map(_.rd).getOrElse(0.U),
-        wb_match                                                           -> ex_wb("wb_data")
-      )
-    )
-  }
-
-  val id_rs1_data = forwardData(rs1, regfile.rs1_data)
-  val id_rs2_data = forwardData(rs2, regfile.rs2_data)
-
-  bru.en     := decoder.decoded.branch && !load_use_hazard && !sb_stall
+  bru.en     := decoder.decoded.branch && scheduler.dis_reqs(0).ready
   bru.pc     := if_id("pc")
-  bru.src1   := id_rs1_data
-  bru.src2   := id_rs2_data
+  bru.src1   := regfile.rs1_data
+  bru.src2   := regfile.rs2_data
   bru.imm    := imm_gen.imm
   bru.brType := decoder.decoded.br_type
 
-  load_use_hazard := id_ex("lsu").asBool && lsu_utils.isRead(id_ex("lsu_cmd")) &&
-    ((id_ex("rd") === rs1) || (id_ex("rd") === rs2)) &&
-    id_ex("rd") =/= 0.U
+  bpu.update.valid  := bru.en
+  bpu.update.pc     := if_id("pc")
+  bpu.update.target := bru.target
+  bpu.update.taken  := bru.taken
 
-  val mult_stall = WireDefault(false.B)
+  // Dispatch to Scheduler
+  val fuNames = p(FunctionalUnits).map(_.name)
+  val aluId   = fuNames.indexOf("ALU_0").U
+  val multId  = fuNames.indexOf("MULT_0").U
+  val lsuId   = fuNames.indexOf("LSU_0").U
+  val csrId   = fuNames.indexOf("CSR").U
 
-  val id_is_bubble = if_id("instr") === p(Bubble).value.U(p(ILen).W)
-
-  // Scoreboard
-  val id_is_csr = if (p(EnableCSR)) decoder.decoded.csr else false.B
-
-  val sb_fu_id = MuxCase(
-    FU_ALU.U,
+  val target_fu_id = MuxCase(
+    aluId,
     Seq(
-      decoder.decoded.lsu     -> FU_LSU.U,
-      decoder.decoded.mult_en -> FU_MULT.U,
-      id_is_csr               -> FU_CSR.U
+      decoder.decoded.lsu     -> lsuId,
+      decoder.decoded.mult_en -> multId,
+      decoder.decoded.csr     -> csrId
     )
   )
 
-  val sb_issue_valid =
-    !id_is_bubble &&
-      !lsu.busy &&
-      !mult_stall &&
-      !take_trap &&
-      !load_use_hazard &&
-      decoder.decoded.regwrite
+  val is_bubble = if_id("instr") === p(Bubble).value.U(p(ILen).W)
 
-  scoreboard.io.issue_valid := sb_issue_valid
-  scoreboard.io.issue_instr := if_id("instr")
-  scoreboard.io.issue_rd    := rd
-  scoreboard.io.issue_rs1   := rs1
-  scoreboard.io.issue_rs2   := rs2
-  scoreboard.io.issue_fu_id := sb_fu_id
+  val dis0 = scheduler.dis_reqs(0)
 
-  sb_stall := sb_issue_valid && !scoreboard.io.issue_ready
+  dis0.valid := !is_bubble && !take_trap
 
-  // ID/EX Pipeline Control
-  id_ex.stall := lsu.busy || mult_stall
-  id_ex.flush :=
-    ((load_use_hazard || sb_stall) &&
-      !lsu.busy && !mult_stall) || take_trap
+  dis0.bits.pc       := if_id("pc")
+  dis0.bits.instr    := if_id("instr")
+  dis0.bits.fu_id    := target_fu_id
+  dis0.bits.rs1      := rs1
+  dis0.bits.rs2      := rs2
+  dis0.bits.rd       := Mux(decoder.decoded.regwrite, rd, 0.U)
+  dis0.bits.rs1_data := regfile.rs1_data
+  dis0.bits.rs2_data := regfile.rs2_data
+  dis0.bits.rob_tag  := 0.U
 
-  id_ex.drive("instr", if_id("instr"))
-  id_ex.drive("pc", if_id("pc"))
-  id_ex.drive("rd", rd)
-  id_ex.drive("rs1", rs1)
-  id_ex.drive("rs1_data", id_rs1_data)
-  id_ex.drive("rs2", rs2)
-  id_ex.drive("rs2_data", id_rs2_data)
-  id_ex.drive("imm", imm_gen.imm)
-  id_ex.drive("regwrite", decoder.decoded.regwrite)
-  id_ex.drive("branch", decoder.decoded.branch)
-  id_ex.drive("br_type", decoder.decoded.br_type)
-  id_ex.drive("alu", decoder.decoded.alu)
-  id_ex.drive("alu_sel1", decoder.decoded.alu_sel1)
-  id_ex.drive("alu_sel2", decoder.decoded.alu_sel2)
-  id_ex.drive("alu_fn", decoder.decoded.alu_fn)
-  id_ex.drive("alu_mode", decoder.decoded.alu_mode)
-  id_ex.drive("mult_en", decoder.decoded.mult_en)
-  id_ex.drive("mult_high", decoder.decoded.mult_high)
-  id_ex.drive("mult_a_signed", decoder.decoded.mult_a_signed)
-  id_ex.drive("mult_b_signed", decoder.decoded.mult_b_signed)
-  id_ex.drive("lsu", decoder.decoded.lsu)
-  id_ex.drive("lsu_cmd", decoder.decoded.lsu_cmd)
-  id_ex.drive("trap_ret", decoder.decoded.ret)
-  id_ex.driveOpt("csr", decoder.decoded.csr)
-  id_ex.driveOpt("csr_cmd", decoder.decoded.csr_cmd)
-  id_ex.driveOpt("csr_addr", csr_addr)
-  id_ex.driveOpt("csr_imm", imm_gen.csr_imm)
-
-  // EX Stage
-  val ex_is_real = id_ex("instr") =/= p(Bubble).value.U(p(ILen).W)
-  val ex_is_alu  = id_ex("alu").asBool && !id_ex("lsu").asBool &&
-    !id_ex("mult_en").asBool && !(if (p(EnableCSR)) id_ex("csr").asBool else false.B)
-  val ex_is_csr  = if (p(EnableCSR)) id_ex("csr").asBool else false.B
-  val ex_is_lsu  = id_ex("lsu").asBool
-  val ex_is_mult = id_ex("mult_en").asBool
-
-  val ex_rs1_data = id_ex("rs1_data")
-  val ex_rs2_data = id_ex("rs2_data")
-
-  // ALU
-  val alu_rs1_data = MuxLookup(id_ex("alu_sel1"), 0.U(p(XLen).W))(
-    Seq(
-      A1_ZERO.value.U(SZ_A1.W) -> 0.U(p(XLen).W),
-      A1_RS1.value.U(SZ_A1.W)  -> ex_rs1_data,
-      A1_PC.value.U(SZ_A1.W)   -> id_ex("pc")
-    )
-  )
-
-  val alu_rs2_data = MuxLookup(id_ex("alu_sel2"), 0.U(p(XLen).W))(
-    Seq(
-      A2_ZERO.value.U(SZ_A2.W)   -> 0.U(p(XLen).W),
-      A2_RS2.value.U(SZ_A2.W)    -> ex_rs2_data,
-      A2_IMM.value.U(SZ_A2.W)    -> id_ex("imm"),
-      A2_PCSTEP.value.U(SZ_A2.W) -> p(IAlign).U(p(XLen).W)
-    )
-  )
-
-  alu.en     := id_ex("alu").asBool
-  alu.src1   := alu_rs1_data
-  alu.src2   := alu_rs2_data
-  alu.fnType := id_ex("alu_fn")
-  alu.mode   := id_ex("alu_mode")
-
-  // MULT
-  val mult_req      = id_ex("mult_en").asBool
-  val mult_inflight = RegInit(false.B)
-  mult_stall := mult_req && !mult.io.done
-  val mult_fire = mult_req && !mult_inflight && !mult.io.done
-
-  when(id_ex.flush) {
-    mult_inflight := false.B
-  }.elsewhen(mult_fire) {
-    mult_inflight := true.B
-  }.elsewhen(mult.io.done) {
-    mult_inflight := false.B
+  val issueWidth = 1
+  for (w <- 1 until issueWidth) {
+    scheduler.dis_reqs(w).valid := false.B
+    scheduler.dis_reqs(w).bits  := 0.U.asTypeOf(new MicroOp)
   }
 
-  mult.io.en       := mult_fire
-  mult.io.kill     := id_ex.flush
-  mult.io.src1     := ex_rs1_data
-  mult.io.src2     := ex_rs2_data
-  mult.io.a_signed := id_ex("mult_a_signed").asBool
-  mult.io.b_signed := id_ex("mult_b_signed").asBool
-  mult.io.high     := id_ex("mult_high").asBool
+  // Common Writeback Arbiter
+  val wb_arbiter = Module(new RRArbiter(new FunctionalUnitResp, numFUs))
+  for (i <- 0 until numFUs) {
+    wb_arbiter.io.in(i) <> fuMap(i).resp
+    fuMap(i).flush := take_trap
 
-  // CSR
-  val id_is_real = if_id("instr") =/= p(Bubble).value.U(p(ILen).W)
-
-  csrfile.foreach { csr =>
-    csr.en       := id_ex("csr").asBool && !take_trap
-    csr.trap_ret := id_ex("trap_ret").asBool && !take_trap
-    csr.cmd      := id_ex("csr_cmd")
-    csr.addr     := id_ex("csr_addr")
-    csr.src      := ex_rs1_data
-    csr.imm      := id_ex("csr_imm")
-    csr.pc       := Mux(ex_is_real, id_ex("pc"), Mux(id_is_real, if_id("pc"), ifu.if_pc))
+    scheduler.fu_done(i).valid := wb_arbiter.io.in(i).fire
+    scheduler.fu_done(i).bits  := wb_arbiter.io.in(i).bits
   }
 
-  // LSU
-  val lsu_launched = RegInit(false.B)
-  when(!lsu.busy) {
-    lsu_launched := false.B
-  }.elsewhen(ex_is_lsu && !lsu_launched) {
-    lsu_launched := true.B
-  }
+  wb_arbiter.io.out.ready := true.B
+  val wb_resp = wb_arbiter.io.out.bits
+  val wb_fire = wb_arbiter.io.out.fire
 
-  lsu.en    := ex_is_lsu && !lsu_launched
-  lsu.cmd   := id_ex("lsu_cmd")
-  lsu.addr  := alu.result
-  lsu.wdata := ex_rs2_data
+  regfile.write_en   := wb_fire && (wb_resp.rd =/= 0.U)
+  regfile.write_preg := wb_resp.rd
+  regfile.write_data := wb_resp.result
 
-  val (_, pma_readable, pma_writable, pma_cacheable) = PmaChecker(alu.result)
-  lsu.pma_readable  := pma_readable
-  lsu.pma_writable  := pma_writable
-  lsu.pma_cacheable := pma_cacheable
-
-  l1_dcache.upper <> lsu.mem
-  mmio <> lsu.mmio
-  dmem <> l1_dcache.lower
-
-  // EX/WB
-  val lsu_was_busy   = RegNext(lsu.busy, false.B)
-  val lsu_completing = lsu_was_busy && !lsu.busy
-
-  val lsu_is_load = ex_is_lsu && lsu_utils.isRead(id_ex("lsu_cmd"))
-
-  val ex_wb_data = MuxCase(
-    alu.result,
-    Seq(
-      ex_is_csr   -> csrfile.map(_.rd).getOrElse(0.U),
-      ex_is_mult  -> mult.io.result,
-      lsu_is_load -> lsu.rdata
-    )
-  )
-
-  val ex_completing = ex_is_real && !id_ex.stall
-
-  ex_wb.stall := false.B
-  ex_wb.flush := !ex_completing || take_trap
-
-  ex_wb.drive("instr", id_ex("instr"))
-  ex_wb.drive("pc", id_ex("pc"))
-  ex_wb.drive("rd", id_ex("rd"))
-  ex_wb.drive("regwrite", id_ex("regwrite"))
-  ex_wb.drive("wb_data", ex_wb_data)
-
-  // Scoreboard fu_done
-  for (i <- 0 until FURegistry.numFUs) {
-    scoreboard.io.fu_done(i) := false.B
-    scoreboard.io.fu_rd(i)   := id_ex("rd")
-  }
-
-  scoreboard.io.fu_done(FU_ALU)  := ex_is_alu && ex_is_real && !id_ex.stall
-  scoreboard.io.fu_done(FU_CSR)  := ex_is_csr && ex_is_real && !id_ex.stall
-  scoreboard.io.fu_done(FU_MULT) := mult.io.done
-  scoreboard.io.fu_done(FU_LSU)  := ex_is_lsu && lsu_completing
-
-  // WB Stage
-  regfile.write_preg := ex_wb("rd")
-  regfile.write_data := ex_wb("wb_data")
-  regfile.write_en   := ex_wb("regwrite").asBool
-
-  val instret = ex_wb("instr") =/= p(Bubble).value.U(p(ILen).W)
-
+  // System Registers / Cycle Counters
+  val cycle_count   = RegInit(0.U(64.W))
+  val instret_count = RegInit(0.U(64.W))
   cycle_count   := cycle_count + 1.U
-  instret_count := instret_count + Mux(instret, 1.U, 0.U)
+  instret_count := instret_count + Mux(wb_fire, 1.U, 0.U)
 
-  csrfile.foreach { csr =>
-    csr.extraInputIO("cycle")   := cycle_count
-    csr.extraInputIO("instret") := instret_count
+  csr_fu.cycle   := cycle_count
+  csr_fu.instret := instret_count
+  csr_fu.irq     := irq
 
-    if (csr.extraInputIO.contains("timer_irq")) csr.extraInputIO("timer_irq") := irq.timer_irq
-    if (csr.extraInputIO.contains("soft_irq")) csr.extraInputIO("soft_irq")   := irq.soft_irq
-    if (csr.extraInputIO.contains("ext_irq")) csr.extraInputIO("ext_irq")     := irq.ext_irq
-  }
-
-  // Debug IOs
+  // 6. Debug IOs
   val debug_cycle_count   = IO(Output(UInt(64.W)))
   val debug_instret_count = IO(Output(UInt(64.W)))
   val debug_instret       = IO(Output(Bool()))
@@ -443,27 +192,27 @@ class RiscCore(implicit p: Parameters) extends Module with AluConsts {
   val debug_reg_addr      = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
   val debug_reg_data      = IO(Output(UInt(p(XLen).W)))
 
+  debug_cycle_count   := cycle_count
+  debug_instret_count := instret_count
+  debug_instret       := wb_fire
+  debug_pc            := wb_resp.pc
+  debug_instr         := wb_resp.instr
+  debug_reg_we        := regfile.write_en
+  debug_reg_addr      := regfile.write_preg
+  debug_reg_data      := regfile.write_data
+
   val debug_branch_taken  = IO(Output(Bool()))
   val debug_branch_source = IO(Output(UInt(p(XLen).W)))
   val debug_branch_target = IO(Output(UInt(p(XLen).W)))
+
+  debug_branch_taken  := bru.taken
+  debug_branch_source := bru.pc
+  debug_branch_target := bru.target
 
   val debug_l1_icache_access = IO(Output(Bool()))
   val debug_l1_icache_miss   = IO(Output(Bool()))
   val debug_l1_dcache_access = IO(Output(Bool()))
   val debug_l1_dcache_miss   = IO(Output(Bool()))
-
-  debug_cycle_count   := cycle_count
-  debug_instret_count := instret_count
-  debug_instret       := instret
-  debug_pc            := ex_wb("pc")
-  debug_instr         := ex_wb("instr")
-  debug_reg_addr      := ex_wb("rd")
-  debug_reg_we        := ex_wb("regwrite").asBool
-  debug_reg_data      := ex_wb("wb_data")
-
-  debug_branch_taken  := bru.taken
-  debug_branch_source := bru.pc
-  debug_branch_target := bru.target
 
   debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
   debug_l1_icache_miss   := !l1_icache.upper.resp.bits.hit

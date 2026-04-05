@@ -5,12 +5,10 @@ import chisel3._
 import chisel3.util.log2Ceil
 
 class MicroOp(implicit p: Parameters) extends Bundle {
-  val valid = Bool()
-  val pc    = UInt(p(XLen).W)
-  val instr = UInt(p(ILen).W)
+  val pc       = UInt(p(XLen).W)
+  val instr    = UInt(p(ILen).W)
 
-  val fu_id  = UInt(log2Ceil(p(FunctionalUnits).size).W)
-  val opCode = UInt(12.W)
+  val fu_id    = UInt(log2Ceil(p(FunctionalUnits).size).W)
 
   val rs1      = UInt(log2Ceil(p(NumArchRegs)).W)
   val rs2      = UInt(log2Ceil(p(NumArchRegs)).W)
@@ -18,5 +16,5 @@ class MicroOp(implicit p: Parameters) extends Bundle {
   val rs1_data = UInt(p(XLen).W)
   val rs2_data = UInt(p(XLen).W)
 
-  val rob_tag = UInt(log2Ceil(p(ROBSize)).W)
+  val rob_tag  = UInt(log2Ceil(p(ROBSize)).W)
 }

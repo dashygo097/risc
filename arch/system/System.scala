@@ -9,7 +9,7 @@ import chisel3._
 import chisel3.util.log2Ceil
 
 class RiscSystem(implicit p: Parameters) extends Module {
-  override def desiredName: String = s"${p(ISA)}_system"
+  override def desiredName: String = s"${p(ISA).name}_system"
 
   val bridge_utils   = BusBridgeUtilitiesFactory.getOrThrow(p(BusType))
   val crossbar_utils = BusCrossbarUtilitiesFactory.getOrThrow(p(BusType))
