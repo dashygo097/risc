@@ -23,7 +23,7 @@ package object configs {
 
   // Scheduler Parameters
   object ScheduleType extends Field[String]("scoreboard")
-  object IssueWidth   extends Field[Int](1) // NOTE: IssueWidth > 1 case: need testing
+  object IssueWidth   extends Field[Int](2) // NOTE: IssueWidth > 1 case: need testing
   object FunctionalUnits
       extends Field[Seq[FunctionalUnitDescriptor]](
         Seq(
@@ -36,9 +36,6 @@ package object configs {
 
   // Mult Parameters
   object MultPipelineStages extends Field[Int](2)
-
-  // Csr Parameters
-  object EnableCSR extends Field[Boolean](true)
 
   // ROB Parameters
   object ROBSize extends Field[Int](16)
@@ -107,9 +104,6 @@ package object configs {
 
     // Mult
     MultPipelineStages -> MultPipelineStages(),
-
-    // CSR
-    EnableCSR -> EnableCSR(),
 
     // ROB
     ROBSize -> ROBSize(),

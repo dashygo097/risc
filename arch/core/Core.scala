@@ -6,10 +6,13 @@ import imm._
 import bru._
 import regfile._
 import bpu._
-import arch.core.pipeline._
-import arch.core.csr.CoreInterruptIO
+import csr._
+import lsu._
+import alu._
+import mult._
+import pipeline._
+import ooo._
 import arch.configs._
-import arch.core.ooo._
 import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
 import chisel3._
 import chisel3.util.{ log2Ceil, MuxCase, RRArbiter }
@@ -34,7 +37,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA).name)
 
   // Scheduler Initialization
-  val scheduler = SchedulerFactory()
+  val scheduler = Scheduler()
   val numFUs    = p(FunctionalUnits).size
 
   val alu_fu  = Module(new AluFU)

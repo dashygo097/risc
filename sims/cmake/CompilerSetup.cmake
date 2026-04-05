@@ -3,8 +3,20 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "No build type set — defaulting to Release")
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  add_compile_options(-O3 -march=native -mtune=native -fomit-frame-pointer)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+  add_compile_options(-O2 -march=native -g -fno-omit-frame-pointer)
+else()
+  add_compile_options(-O0 -g)
+endif()
+
 
 if(USE_CCACHE)
   find_program(CCACHE_PROGRAM ccache)
