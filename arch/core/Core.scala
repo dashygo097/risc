@@ -60,8 +60,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     }
   }
 
-  val lsu_fu = lsu_module.getOrElse(throw new Exception("LSU Unit is missing from configuration!"))
-  val csr_fu = csr_module.getOrElse(throw new Exception("CSR Unit is missing from configuration!"))
+  val lsu_fu = lsu_module.getOrElse(throw new Exception("LSU Unit is mandatory but missing from configuration!"))
 
   // System IO Wiring
   l1_dcache.upper <> lsu_fu.mem
@@ -98,8 +97,8 @@ class RiscCore(implicit p: Parameters) extends Module {
   regfile.rs1_preg := rs1
   regfile.rs2_preg := rs2
 
-  val take_trap   = csr_fu.trap_request
-  val trap_target = Mux(take_trap, csr_fu.trap_target, csr_fu.trap_ret_tgt)
+  val take_trap   = csr_module.map(_.trap_request).getOrElse(false.B)
+  val trap_target = csr_module.map(csr => Mux(take_trap, csr.trap_target, csr.trap_ret_tgt)).getOrElse(0.U(p(XLen).W))
 
   val is_bubble = if_id("instr") === p(Bubble).value.U(p(ILen).W)
   val sb_ready  = scheduler.dis_reqs(0).ready
@@ -144,13 +143,13 @@ class RiscCore(implicit p: Parameters) extends Module {
   if_id.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
   if_id.drive("bpu_pred_target", ifu.if_bpu_pred_target)
 
-  // Scoreboard Dispatch Array & Routing
+  // Scoreboard Dispatch Array & Routing Safely Resolving Missing FUs
   val fuTypes = p(FunctionalUnits).map(_.`type`)
 
-  val aluId  = fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_ALU).U
-  val multId = fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_MULT).U
-  val lsuId  = fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_LSU).U
-  val csrId  = fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_CSR).U
+  val aluId  = math.max(0, fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_ALU)).U
+  val lsuId  = math.max(0, fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_LSU)).U
+  val multId = math.max(0, fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_MULT)).U
+  val csrId  = math.max(0, fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_CSR)).U
 
   val target_fu_id = MuxCase(
     aluId,
@@ -204,9 +203,12 @@ class RiscCore(implicit p: Parameters) extends Module {
   cycle_count   := cycle_count + 1.U
   instret_count := instret_count + Mux(wb_fire, 1.U, 0.U)
 
-  csr_fu.cycle   := cycle_count
-  csr_fu.instret := instret_count
-  csr_fu.irq     := irq
+  // Optional CSR IO wiring
+  csr_module.foreach { csr =>
+    csr.cycle   := cycle_count
+    csr.instret := instret_count
+    csr.irq     := irq
+  }
 
   // Debug IOs
   val debug_cycle_count   = IO(Output(UInt(64.W)))
