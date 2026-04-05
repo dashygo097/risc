@@ -6,8 +6,8 @@ import imm._
 import bru._
 import regfile._
 import bpu._
-import pipeline._
-import csr._
+import arch.core.pipeline._
+import arch.core.csr.CoreInterruptIO
 import arch.configs._
 import arch.core.ooo._
 import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
@@ -33,6 +33,7 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA).name)
 
+  // Scheduler Initialization
   val scheduler = SchedulerFactory()
   val numFUs    = p(FunctionalUnits).size
 
@@ -55,6 +56,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   for (i <- 0 until numFUs)
     fuMap(i).req <> scheduler.fu_reqs(i)
 
+  // Fetch Stage
   imem <> l1_icache.lower
   ifu.mem <> l1_icache.upper
 
@@ -69,28 +71,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     .field("bpu_pred_target", p(XLen))
     .build()
 
-  val take_trap   = csr_fu.trap_request
-  val trap_target = Mux(take_trap, csr_fu.trap_target, csr_fu.trap_ret_tgt)
-
-  ifu.take_trap       := take_trap || decoder.decoded.ret
-  ifu.trap_target     := trap_target
-  ifu.bru_taken       := bru.taken
-  ifu.bru_target      := bru.target
-  ifu.bru_not_taken   := !bru.taken && if_id("bpu_pred_taken").asBool
-  ifu.bru_branch_pc   := if_id("pc")
-  ifu.id_ex_stall     := !scheduler.dis_reqs(0).ready
-  ifu.load_use_hazard := false.B
-  ifu.lsu_busy        := false.B
-
-  val flush_all = take_trap || bru.taken
-  if_id.stall := !scheduler.dis_reqs(0).ready
-  if_id.flush := flush_all || ifu.if_id_flush
-
-  if_id.drive("instr", ifu.if_instr)
-  if_id.drive("pc", ifu.if_pc)
-  if_id.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
-  if_id.drive("bpu_pred_target", ifu.if_bpu_pred_target)
-
+  // Decode & Dispatch Stage
   decoder.instr   := if_id("instr")
   imm_gen.instr   := if_id("instr")
   imm_gen.immType := decoder.decoded.imm_type
@@ -102,7 +83,17 @@ class RiscCore(implicit p: Parameters) extends Module {
   regfile.rs1_preg := rs1
   regfile.rs2_preg := rs2
 
-  bru.en     := decoder.decoded.branch && scheduler.dis_reqs(0).ready
+  val take_trap   = csr_fu.trap_request
+  val trap_target = Mux(take_trap, csr_fu.trap_target, csr_fu.trap_ret_tgt)
+
+  val is_bubble = if_id("instr") === p(Bubble).value.U(p(ILen).W)
+  val sb_ready  = scheduler.dis_reqs(0).ready
+
+  // Only fire events if the instruction successfully dispatches to the scoreboard
+  val dispatch_fire = !is_bubble && !take_trap && sb_ready
+
+  // Branch Unit Logic
+  bru.en     := decoder.decoded.branch && dispatch_fire
   bru.pc     := if_id("pc")
   bru.src1   := regfile.rs1_data
   bru.src2   := regfile.rs2_data
@@ -114,6 +105,32 @@ class RiscCore(implicit p: Parameters) extends Module {
   bpu.update.target := bru.target
   bpu.update.taken  := bru.taken
 
+  val bpu_correct_taken        = if_id("bpu_pred_taken").asBool && (bru.target === if_id("bpu_pred_target"))
+  val bru_mispredict_taken     = bru.taken && !bpu_correct_taken
+  val bru_mispredict_not_taken = bru.en && !bru.taken && if_id("bpu_pred_taken").asBool
+
+  ifu.bru_taken     := bru_mispredict_taken
+  ifu.bru_target    := bru.target
+  ifu.bru_not_taken := bru_mispredict_not_taken
+  ifu.bru_branch_pc := if_id("pc")
+
+  val take_trap_ret = decoder.decoded.ret && dispatch_fire
+  ifu.take_trap   := take_trap || take_trap_ret
+  ifu.trap_target := trap_target
+
+  ifu.id_ex_stall     := !sb_ready
+  ifu.load_use_hazard := false.B
+  ifu.lsu_busy        := false.B
+
+  if_id.stall := ifu.if_id_stall || !sb_ready
+  if_id.flush := ifu.if_id_flush || take_trap || take_trap_ret
+
+  if_id.drive("instr", ifu.if_instr)
+  if_id.drive("pc", ifu.if_pc)
+  if_id.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
+  if_id.drive("bpu_pred_target", ifu.if_bpu_pred_target)
+
+  // Scoreboard Dispatch Array
   val fuNames = p(FunctionalUnits).map(_.name)
   val aluId   = fuNames.indexOf("ALU_0").U
   val multId  = fuNames.indexOf("MULT_0").U
@@ -128,8 +145,6 @@ class RiscCore(implicit p: Parameters) extends Module {
       decoder.decoded.csr     -> csrId
     )
   )
-
-  val is_bubble = if_id("instr") === p(Bubble).value.U(p(ILen).W)
 
   val dis0 = scheduler.dis_reqs(0)
   dis0.valid         := !is_bubble && !take_trap
@@ -149,12 +164,13 @@ class RiscCore(implicit p: Parameters) extends Module {
     scheduler.dis_reqs(w).bits  := 0.U.asTypeOf(new MicroOp)
   }
 
-  scheduler.flush := take_trap
+  scheduler.flush := take_trap || take_trap_ret
 
+  // Common Writeback Arbiter
   val wb_arbiter = Module(new RRArbiter(new FunctionalUnitResp, numFUs))
   for (i <- 0 until numFUs) {
     wb_arbiter.io.in(i) <> fuMap(i).resp
-    fuMap(i).flush := take_trap
+    fuMap(i).flush := take_trap || take_trap_ret
 
     scheduler.fu_done(i).valid := wb_arbiter.io.in(i).fire
     scheduler.fu_done(i).bits  := wb_arbiter.io.in(i).bits
@@ -168,6 +184,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   regfile.write_preg := wb_resp.rd
   regfile.write_data := wb_resp.result
 
+  // System Registers / Cycle Counters
   val cycle_count   = RegInit(0.U(64.W))
   val instret_count = RegInit(0.U(64.W))
   cycle_count   := cycle_count + 1.U
@@ -177,6 +194,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   csr_fu.instret := instret_count
   csr_fu.irq     := irq
 
+  // Debug IOs
   val debug_cycle_count   = IO(Output(UInt(64.W)))
   val debug_instret_count = IO(Output(UInt(64.W)))
   val debug_instret       = IO(Output(Bool()))
