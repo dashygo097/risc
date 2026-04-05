@@ -12,7 +12,7 @@ abstract class Scheduler(implicit p: Parameters) extends Module {
   val flush = IO(Input(Bool()))
 }
 
-object SchedulerFactory {
+object Scheduler {
   def apply()(implicit p: Parameters): Scheduler =
     p(ScheduleType) match {
       case "scoreboard" => Module(new Scoreboard)

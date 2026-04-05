@@ -32,6 +32,8 @@ else()
     message(FATAL_ERROR "Unsupported ISA: ${ISA_TARGET}. Supported ISAs: rv32i, rv32im")
   endif()
 
+  add_compile_definitions(NUM_THREADS)
+
   if(ENABLE_TRACE)
     list(APPEND VERILATOR_ARGS --trace)
     add_definitions(-DENABLE_TRACE)

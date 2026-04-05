@@ -17,10 +17,12 @@ verilate(demu
     -Wno-UNOPTFLAT
     -Wno-DECLFILENAME
     -Wno-PINCONNECTEMPTY
+    -j 0
     --top-module ${ISA_TARGET}_system
     -CFLAGS "-Wno-unused-variable -Wno-bool-operation -Wno-parentheses-equality"
   PREFIX V${ISA_TARGET}_system
   TRACE_THREADS 2
+  THREADS ${NUM_THREADS}
 )
 
 target_include_directories(demu PUBLIC
