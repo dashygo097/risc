@@ -158,8 +158,8 @@ class RiscCore(implicit p: Parameters) extends Module {
   dis0.bits.rs2_data := regfile.rs2_data
   dis0.bits.rob_tag  := 0.U
 
-  val issueWidth = 1
-  for (w <- 1 until issueWidth) {
+  val p(IssueWidth) = 1
+  for (w <- 1 until p(IssueWidth)) {
     scheduler.dis_reqs(w).valid := false.B
     scheduler.dis_reqs(w).bits  := 0.U.asTypeOf(new MicroOp)
   }

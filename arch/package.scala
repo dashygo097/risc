@@ -23,7 +23,7 @@ package object configs {
 
   // Scheduler Parameters
   object ScheduleType extends Field[String]("scoreboard")
-  object IssueWidth   extends Field[Int](2)
+  object IssueWidth   extends Field[Int](1) // NOTE: IssueWidth > 1 case: need testing
   object FunctionalUnits
       extends Field[Seq[FunctionalUnitDescriptor]](
         Seq(

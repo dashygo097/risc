@@ -9,19 +9,19 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   override def desiredName: String = s"${p(ISA).name}_superscalar_scoreboard"
 
   private val NUM_REGS = p(NumArchRegs)
-  private val NO_PROD  = numFUs.U(log2Ceil(numFUs + 1).W)
+  private val NO_PROD  = p(FunctionalUnits).size.U(log2Ceil(p(FunctionalUnits).size + 1).W)
 
   val reg_prod = RegInit(VecInit(Seq.fill(NUM_REGS)(NO_PROD)))
-  val fu_busy  = RegInit(VecInit(Seq.fill(numFUs)(false.B)))
+  val fu_busy  = RegInit(VecInit(Seq.fill(p(FunctionalUnits).size)(false.B)))
 
-  val lane_can_issue = Wire(Vec(issueWidth, Bool()))
+  val lane_can_issue = Wire(Vec(p(IssueWidth), Bool()))
 
   when(flush) {
     fu_busy.foreach(_ := false.B)
     reg_prod.foreach(_ := NO_PROD)
   }.otherwise {
     // Completion Routing
-    for (i <- 0 until numFUs) {
+    for (i <- 0 until p(FunctionalUnits).size) {
       val done = fu_done(i)
       when(done.valid) {
         fu_busy(i) := false.B
@@ -32,7 +32,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     }
 
     // Issue Logic State Updates
-    for (w <- 0 until issueWidth) {
+    for (w <- 0 until p(IssueWidth)) {
       val req = dis_reqs(w).bits
       when(lane_can_issue(w)) {
         fu_busy(req.fu_id) := true.B
@@ -44,7 +44,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   }
 
   // Issue Evaluation
-  for (w <- 0 until issueWidth) {
+  for (w <- 0 until p(IssueWidth)) {
     val req        = dis_reqs(w).bits
     val valid      = dis_reqs(w).valid
     val is_zero_rd = req.rd === 0.U
@@ -64,11 +64,11 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   }
 
   // Routing requests to FUs
-  for (i <- 0 until numFUs) {
+  for (i <- 0 until p(FunctionalUnits).size) {
     fu_reqs(i).valid := false.B
     fu_reqs(i).bits  := 0.U.asTypeOf(new MicroOp) // Default empty
 
-    for (w <- 0 until issueWidth)
+    for (w <- 0 until p(IssueWidth))
       when(lane_can_issue(w) && dis_reqs(w).bits.fu_id === i.U) {
         fu_reqs(i).valid := true.B
         fu_reqs(i).bits  := dis_reqs(w).bits
