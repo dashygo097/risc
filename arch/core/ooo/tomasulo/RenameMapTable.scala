@@ -2,7 +2,7 @@ package arch.core.ooo
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.log2Ceil
 
 class RenameMapTable(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_rename_map_table"

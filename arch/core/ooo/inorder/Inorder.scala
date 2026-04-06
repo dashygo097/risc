@@ -1,10 +1,8 @@
 package arch.core.ooo
 
-import chisel3._
-import chisel3.util._
 import arch.configs._
-import arch.core.ooo._
-import arch.configs.proto.FunctionalUnitType._
+import chisel3._
+import chisel3.util.PriorityEncoder
 
 class Inorder(implicit p: Parameters) extends Scheduler {
   override def desiredName: String = s"${p(ISA).name}_in_order"
@@ -12,7 +10,7 @@ class Inorder(implicit p: Parameters) extends Scheduler {
   val numRegs = p(NumArchRegs)
   val numFUs  = p(FunctionalUnits).size
 
-  // 1. Register Scoreboard (Locking)
+  // Register Scoreboard (Locking)
   val reg_pending = RegInit(VecInit(Seq.fill(numRegs)(false.B)))
 
   val clear_masks = Wire(Vec(numFUs, Vec(numRegs, Bool())))
@@ -34,7 +32,7 @@ class Inorder(implicit p: Parameters) extends Scheduler {
     req.bits  := 0.U.asTypeOf(new MicroOp)
   }
 
-  // 2. Dispatch Logic
+  // Dispatch Logic
   for (w <- 0 until p(IssueWidth)) {
     val dis_req = dis_reqs(w)
     val op      = dis_req.bits
@@ -80,13 +78,12 @@ class Inorder(implicit p: Parameters) extends Scheduler {
     }
   }
 
-  // 3. State Update
+  // State Update
   val next_reg_pending = Wire(Vec(numRegs, Bool()))
   for (r <- 0 until numRegs) {
     val cleared           = (0 until numFUs).map(i => clear_masks(i)(r)).foldLeft(false.B)(_ || _)
     val issued_this_cycle = temp_reg_pending(p(IssueWidth))(r) && !reg_pending(r)
 
-    // Priority: If issued this cycle, lock it. Otherwise, apply clears.
     next_reg_pending(r) := Mux(issued_this_cycle, true.B, Mux(cleared, false.B, temp_reg_pending(p(IssueWidth))(r)))
   }
 
