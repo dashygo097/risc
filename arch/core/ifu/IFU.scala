@@ -26,8 +26,8 @@ class Ifu(implicit p: Parameters) extends Module {
 
   val fetch_pc = IO(Output(UInt(p(XLen).W)))
 
-  val if_id_stall        = IO(Output(Bool()))
-  val if_id_flush        = IO(Output(Bool()))
+  val fronend_stall      = IO(Output(Bool()))
+  val fronend_flush      = IO(Output(Bool()))
   val if_instr           = IO(Output(UInt(p(ILen).W)))
   val if_pc              = IO(Output(UInt(p(XLen).W)))
   val if_bpu_pred_taken  = IO(Output(Bool()))
@@ -100,8 +100,8 @@ class Ifu(implicit p: Parameters) extends Module {
 
   ibuffer.deq.ready := (!ibuffer.empty && !stall_cond && !flush_cond) || reset_ibuffer_reg
 
-  if_id_stall        := stall_cond
-  if_id_flush        := flush_cond
+  fronend_stall      := stall_cond
+  fronend_flush      := flush_cond
   if_instr           := Mux(ibuffer.deq.fire, ibuffer.deq.bits.instr, p(Bubble).value.U(p(ILen).W))
   if_pc              := Mux(ibuffer.deq.fire, ibuffer.deq.bits.pc, 0.U(p(XLen).W))
   if_bpu_pred_taken  := Mux(ibuffer.deq.fire, ibuffer.deq.bits.bpu_pred_taken, false.B)
