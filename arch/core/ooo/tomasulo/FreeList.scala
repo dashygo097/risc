@@ -2,7 +2,7 @@ package arch.core.ooo
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ PriorityEncoder, log2Ceil }
 
 class FreeList(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_free_list"

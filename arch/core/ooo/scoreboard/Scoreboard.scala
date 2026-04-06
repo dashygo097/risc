@@ -3,7 +3,7 @@ package arch.core.ooo
 import arch.configs._
 import arch.core.ooo.{ MicroOp, Scheduler }
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ PriorityEncoder, log2Ceil, Mux1H }
 
 class ScoreboardEntry(implicit p: Parameters) extends Bundle {
   val valid    = Bool()
