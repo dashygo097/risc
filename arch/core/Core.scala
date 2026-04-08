@@ -16,7 +16,7 @@ import arch.configs._
 import arch.configs.proto.FunctionalUnitType._
 import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
 import chisel3._
-import chisel3.util.{ log2Ceil, MuxCase, RRArbiter }
+import chisel3.util.{ log2Ceil, MuxCase, Mux1H, RRArbiter }
 
 class RiscCore(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_cpu"
@@ -39,39 +39,29 @@ class RiscCore(implicit p: Parameters) extends Module {
   val scheduler = Scheduler()
   val rob       = Module(new ReorderBuffer)
 
-  var lsu_module: Option[LsuFU] = None
-  var csr_module: Option[CsrFU] = None
-  var bru_module: Option[BruFU] = None
-
-  val fuMap = p(FunctionalUnits).map { fuDesc =>
+  val fus = p(FunctionalUnits).map { fuDesc =>
     fuDesc.`type` match {
-      case FUNCTIONAL_UNIT_TYPE_ALU  => Module(new AluFU).io
-      case FUNCTIONAL_UNIT_TYPE_MULT => Module(new MultFU).io
-      case FUNCTIONAL_UNIT_TYPE_BRU  =>
-        val bru = Module(new BruFU)
-        bru_module = Some(bru)
-        bru.io
-      case FUNCTIONAL_UNIT_TYPE_LSU  =>
-        val lsu = Module(new LsuFU)
-        lsu_module = Some(lsu)
-        lsu.io
-      case FUNCTIONAL_UNIT_TYPE_CSR  =>
-        val csr = Module(new CsrFU)
-        csr_module = Some(csr)
-        csr.io
+      case FUNCTIONAL_UNIT_TYPE_ALU  => Module(new AluFU())
+      case FUNCTIONAL_UNIT_TYPE_MULT => Module(new MultFU())
+      case FUNCTIONAL_UNIT_TYPE_BRU  => Module(new BruFU())
+      case FUNCTIONAL_UNIT_TYPE_LSU  => Module(new LsuFU())
+      case FUNCTIONAL_UNIT_TYPE_CSR  => Module(new CsrFU())
       case _                         => throw new Exception(s"Unknown FunctionalUnitType: ${fuDesc.`type`}")
     }
   }
 
-  val lsu_fu = lsu_module.getOrElse(throw new Exception("LSU Unit is mandatory but missing from configuration!"))
-  val bru_fu = bru_module.getOrElse(throw new Exception("BRU Unit is mandatory but missing from configuration!"))
+  val lsus = fus.collect { case l: LsuFU => l }
+  val csrs = fus.collect { case c: CsrFU => c }
+  val brus = fus.collect { case b: BruFU => b }
+
+  val lsu_fu = lsus.headOption.getOrElse(throw new Exception("LSU Unit is mandatory but missing from configuration!"))
 
   l1_dcache.upper <> lsu_fu.mem
   mmio <> lsu_fu.mmio
   dmem <> l1_dcache.lower
 
-  for (i <- 0 until p(FunctionalUnits).size)
-    fuMap(i).req <> scheduler.fu_reqs(i)
+  val wb_arbiter = Module(new RRArbiter(new FunctionalUnitResp, fus.size))
+  val fuFireMap  = fus.zipWithIndex.map { case (fu, i) => fu -> wb_arbiter.io.in(i).fire }.toMap
 
   val if_id = PipelineStageBuilder("if_id")
     .field("instr", p(ILen), p(Bubble).value.toLong)
@@ -80,14 +70,14 @@ class RiscCore(implicit p: Parameters) extends Module {
     .field("bpu_pred_target", p(XLen))
     .build()
 
-  csr_module.foreach { csr =>
+  csrs.foreach { csr =>
     csr.arch_pc := Mux(rob.io.empty, if_id("pc"), rob.io.commit_pc)
   }
 
   val commit_fire = rob.io.commit_valid
 
-  val async_trap_req = csr_module.map(c => c.trap_request && !c.is_busy).getOrElse(false.B)
-  val async_trap_tgt = csr_module.map(_.trap_target).getOrElse(0.U)
+  val async_trap_req = if (csrs.nonEmpty) csrs.map(c => c.trap_request && !c.is_busy).foldLeft(false.B)(_ || _) else false.B
+  val async_trap_tgt = if (csrs.nonEmpty) Mux1H(csrs.map(c => (c.trap_request && !c.is_busy) -> c.trap_target)) else 0.U(p(XLen).W)
 
   val global_flush = (commit_fire && rob.io.commit_flush_pipeline) || async_trap_req
   val redirect_pc  = Mux(async_trap_req, async_trap_tgt, rob.io.commit_flush_target)
@@ -148,21 +138,16 @@ class RiscCore(implicit p: Parameters) extends Module {
   if_id.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
   if_id.drive("bpu_pred_target", ifu.if_bpu_pred_target)
 
-  val fuTypes = p(FunctionalUnits).map(_.`type`)
-
-  val aluId  = math.max(0, fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_ALU)).U
-  val lsuId  = math.max(0, fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_LSU)).U
-  val multId = math.max(0, fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_MULT)).U
-  val csrId  = math.max(0, fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_CSR)).U
-  val bruId  = math.max(0, fuTypes.indexOf(FUNCTIONAL_UNIT_TYPE_BRU)).U
+  def getFuId(t: arch.configs.proto.FunctionalUnitType): UInt =
+    math.max(0, p(FunctionalUnits).indexWhere(_.`type` == t)).U
 
   val target_fu_id = MuxCase(
-    aluId,
+    getFuId(FUNCTIONAL_UNIT_TYPE_ALU),
     Seq(
-      decoder.decoded.lsu                          -> lsuId,
-      decoder.decoded.mult_en                      -> multId,
-      (decoder.decoded.csr || decoder.decoded.ret) -> csrId,
-      decoder.decoded.branch                       -> bruId
+      decoder.decoded.lsu                          -> getFuId(FUNCTIONAL_UNIT_TYPE_LSU),
+      decoder.decoded.mult_en                      -> getFuId(FUNCTIONAL_UNIT_TYPE_MULT),
+      (decoder.decoded.csr || decoder.decoded.ret) -> getFuId(FUNCTIONAL_UNIT_TYPE_CSR),
+      decoder.decoded.branch                       -> getFuId(FUNCTIONAL_UNIT_TYPE_BRU)
     )
   )
 
@@ -196,10 +181,10 @@ class RiscCore(implicit p: Parameters) extends Module {
   scheduler.flush := global_flush
   rob.io.flush    := global_flush
 
-  val wb_arbiter = Module(new RRArbiter(new FunctionalUnitResp, p(FunctionalUnits).size))
-  for (i <- 0 until p(FunctionalUnits).size) {
-    wb_arbiter.io.in(i) <> fuMap(i).resp
-    fuMap(i).flush := global_flush
+  for ((fu, i) <- fus.zipWithIndex) {
+    fu.io.req <> scheduler.fu_reqs(i)
+    wb_arbiter.io.in(i) <> fu.io.resp
+    fu.io.flush := global_flush
 
     scheduler.fu_done(i).valid := wb_arbiter.io.in(i).fire
     scheduler.fu_done(i).bits  := wb_arbiter.io.in(i).bits
@@ -209,22 +194,25 @@ class RiscCore(implicit p: Parameters) extends Module {
   val wb_resp = wb_arbiter.io.out.bits
   val wb_fire = wb_arbiter.io.out.fire
 
-  val csrIdx    = p(FunctionalUnits).indexWhere(_.`type` == FUNCTIONAL_UNIT_TYPE_CSR)
-  val is_csr_wb = if (csrIdx >= 0) wb_arbiter.io.in(csrIdx).fire else false.B
+  def muxBru[T <: Data](default: T)(extract: BruFU => T): T =
+    if (brus.nonEmpty) Mux1H(brus.map(b => fuFireMap(b) -> extract(b))) else default
 
-  val bruIdx    = p(FunctionalUnits).indexWhere(_.`type` == FUNCTIONAL_UNIT_TYPE_BRU)
-  val is_bru_wb = if (bruIdx >= 0) wb_arbiter.io.in(bruIdx).fire else false.B
+  def muxCsr[T <: Data](default: T)(extract: CsrFU => T): T =
+    if (csrs.nonEmpty) Mux1H(csrs.map(c => fuFireMap(c) -> extract(c))) else default
+
+  val is_bru_wb = if (brus.nonEmpty) brus.map(fuFireMap).foldLeft(false.B)(_ || _) else false.B
+  val is_csr_wb = if (csrs.nonEmpty) csrs.map(fuFireMap).foldLeft(false.B)(_ || _) else false.B
 
   rob.io.wb_valid         := wb_fire
   rob.io.wb_rob_tag       := wb_resp.rob_tag
   rob.io.wb_data          := wb_resp.result
   rob.io.wb_is_bru        := is_bru_wb
-  rob.io.wb_actual_taken  := bru_module.map(_.actual_taken).getOrElse(false.B)
-  rob.io.wb_actual_target := bru_module.map(_.actual_target).getOrElse(0.U)
-  rob.io.wb_trap_req      := csr_module.map(c => is_csr_wb && c.trap_request).getOrElse(false.B)
-  rob.io.wb_trap_target   := csr_module.map(_.trap_target).getOrElse(0.U)
-  rob.io.wb_trap_ret      := csr_module.map(c => is_csr_wb && c.trap_ret).getOrElse(false.B)
-  rob.io.wb_trap_ret_tgt  := csr_module.map(_.trap_ret_tgt).getOrElse(0.U)
+  rob.io.wb_actual_taken  := muxBru(false.B)(_.actual_taken)
+  rob.io.wb_actual_target := muxBru(0.U(p(XLen).W))(_.actual_target)
+  rob.io.wb_trap_req      := muxCsr(false.B)(_.trap_request)
+  rob.io.wb_trap_target   := muxCsr(0.U(p(XLen).W))(_.trap_target)
+  rob.io.wb_trap_ret      := muxCsr(false.B)(_.trap_ret)
+  rob.io.wb_trap_ret_tgt  := muxCsr(0.U(p(XLen).W))(_.trap_ret_tgt)
 
   rob.io.read_rob_tag := 0.U
   rob.io.commit_pop   := commit_fire
@@ -238,7 +226,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   cycle_count   := cycle_count + 1.U
   instret_count := instret_count + Mux(commit_fire, 1.U, 0.U)
 
-  csr_module.foreach { csr =>
+  csrs.foreach { csr =>
     csr.cycle         := cycle_count
     csr.instret       := instret_count
     csr.irq.timer_irq := RegNext(irq.timer_irq, false.B)

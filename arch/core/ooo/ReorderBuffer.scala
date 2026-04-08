@@ -4,6 +4,24 @@ import arch.configs._
 import chisel3._
 import chisel3.util._
 
+class ROBEntry extends Bundle {
+  val valid          = Bool()
+  val ready          = Bool()
+  val pc             = UInt(p(XLen).W)
+  val instr          = UInt(p(ILen).W)
+  val rd             = UInt(log2Ceil(p(NumArchRegs)).W)
+  val data           = UInt(p(XLen).W)
+  val pd             = UInt(log2Ceil(p(NumPhyRegs)).W)
+  val old_pd         = UInt(log2Ceil(p(NumPhyRegs)).W)
+  val is_branch      = Bool()
+  val pred_taken     = Bool()
+  val pred_target    = UInt(p(XLen).W)
+  val actual_taken   = Bool()
+  val actual_target  = UInt(p(XLen).W)
+  val flush_pipeline = Bool()
+  val flush_target   = UInt(p(XLen).W)
+}
+
 class ReorderBuffer(implicit p: Parameters) extends Module {
   override def desiredName: String = "UniversalROB"
 
@@ -20,16 +38,16 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     val enq_ready           = Output(Bool())
     val rob_tag             = Output(UInt(log2Ceil(p(ROBSize)).W))
 
-    val wb_valid          = Input(Bool())
-    val wb_rob_tag        = Input(UInt(log2Ceil(p(ROBSize)).W))
-    val wb_data           = Input(UInt(p(XLen).W))
-    val wb_is_bru         = Input(Bool())
-    val wb_actual_taken   = Input(Bool())
-    val wb_actual_target  = Input(UInt(p(XLen).W))
-    val wb_trap_req       = Input(Bool())
-    val wb_trap_target    = Input(UInt(p(XLen).W))
-    val wb_trap_ret       = Input(Bool())
-    val wb_trap_ret_tgt   = Input(UInt(p(XLen).W))
+    val wb_valid         = Input(Bool())
+    val wb_rob_tag       = Input(UInt(log2Ceil(p(ROBSize)).W))
+    val wb_data          = Input(UInt(p(XLen).W))
+    val wb_is_bru        = Input(Bool())
+    val wb_actual_taken  = Input(Bool())
+    val wb_actual_target = Input(UInt(p(XLen).W))
+    val wb_trap_req      = Input(Bool())
+    val wb_trap_target   = Input(UInt(p(XLen).W))
+    val wb_trap_ret      = Input(Bool())
+    val wb_trap_ret_tgt  = Input(UInt(p(XLen).W))
 
     val read_rob_tag = Input(UInt(log2Ceil(p(ROBSize)).W))
     val read_pd      = Output(UInt(log2Ceil(p(NumPhyRegs)).W))
@@ -61,24 +79,6 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     val empty = Output(Bool())
     val flush = Input(Bool())
   })
-
-  class ROBEntry extends Bundle {
-    val valid          = Bool()
-    val ready          = Bool()
-    val pc             = UInt(p(XLen).W)
-    val instr          = UInt(p(ILen).W)
-    val rd             = UInt(log2Ceil(p(NumArchRegs)).W)
-    val data           = UInt(p(XLen).W)
-    val pd             = UInt(log2Ceil(p(NumPhyRegs)).W)
-    val old_pd         = UInt(log2Ceil(p(NumPhyRegs)).W)
-    val is_branch      = Bool()
-    val pred_taken     = Bool()
-    val pred_target    = UInt(p(XLen).W)
-    val actual_taken   = Bool()
-    val actual_target  = UInt(p(XLen).W)
-    val flush_pipeline = Bool()
-    val flush_target   = UInt(p(XLen).W)
-  }
 
   val buffer = RegInit(VecInit(Seq.fill(p(ROBSize))(0.U.asTypeOf(new ROBEntry))))
 
@@ -118,10 +118,10 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     val wb_entry = buffer(io.wb_rob_tag)
     wb_entry.ready := true.B
     wb_entry.data  := io.wb_data
-    
+
     val is_mispredict = io.wb_is_bru && (
-      (io.wb_actual_taken =/= wb_entry.pred_taken) || 
-      (io.wb_actual_taken && io.wb_actual_target =/= wb_entry.pred_target)
+      (io.wb_actual_taken =/= wb_entry.pred_taken) ||
+        (io.wb_actual_taken && io.wb_actual_target =/= wb_entry.pred_target)
     )
 
     when(io.wb_is_bru) {
@@ -130,10 +130,13 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     }
 
     wb_entry.flush_pipeline := is_mispredict || io.wb_trap_req || io.wb_trap_ret
-    wb_entry.flush_target   := MuxCase(io.wb_actual_target, Seq(
-      io.wb_trap_req -> io.wb_trap_target,
-      io.wb_trap_ret -> io.wb_trap_ret_tgt
-    ))
+    wb_entry.flush_target   := MuxCase(
+      io.wb_actual_target,
+      Seq(
+        io.wb_trap_req -> io.wb_trap_target,
+        io.wb_trap_ret -> io.wb_trap_ret_tgt
+      )
+    )
   }
 
   val head_entry = buffer(head)
@@ -157,9 +160,9 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   }
 
   when(io.flush) {
-    head       := 0.U
-    tail       := 0.U
-    maybe_full := false.B
+    head                                          := 0.U
+    tail                                          := 0.U
+    maybe_full                                    := false.B
     for (i <- 0 until p(ROBSize)) buffer(i).valid := false.B
   }
 
