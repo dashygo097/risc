@@ -1,5 +1,5 @@
-ackage arch.core.bru
-S
+package arch.core.bru
+
 import arch.core.ooo._
 import arch.core.decoder._
 import arch.core.imm._
