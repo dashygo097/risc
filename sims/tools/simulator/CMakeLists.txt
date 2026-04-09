@@ -1,6 +1,5 @@
 add_executable(${ISA_TARGET}_verilated)
 
-# Simulator sources
 target_sources(${ISA_TARGET}_verilated PRIVATE main.cpp)
 
 target_link_libraries(${ISA_TARGET}_verilated PRIVATE demu Threads::Threads)
