@@ -41,11 +41,11 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val fus = p(FunctionalUnits).map { fuDesc =>
     fuDesc.`type` match {
-      case FUNCTIONAL_UNIT_TYPE_ALU  => Module(new AluFU())
-      case FUNCTIONAL_UNIT_TYPE_MULT => Module(new MultFU())
-      case FUNCTIONAL_UNIT_TYPE_BRU  => Module(new BruFU())
-      case FUNCTIONAL_UNIT_TYPE_LSU  => Module(new LsuFU())
-      case FUNCTIONAL_UNIT_TYPE_CSR  => Module(new CsrFU())
+      case FUNCTIONAL_UNIT_TYPE_ALU  => Module(new AluFU)
+      case FUNCTIONAL_UNIT_TYPE_MULT => Module(new MultFU)
+      case FUNCTIONAL_UNIT_TYPE_BRU  => Module(new BruFU)
+      case FUNCTIONAL_UNIT_TYPE_LSU  => Module(new LsuFU)
+      case FUNCTIONAL_UNIT_TYPE_CSR  => Module(new CsrFU)
       case _                         => throw new Exception(s"Unknown FunctionalUnitType: ${fuDesc.`type`}")
     }
   }
@@ -89,6 +89,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   ifu.bpu_taken_in  := bpu.taken
   ifu.bpu_target_in := bpu.target
 
+  // ALL branches and traps use the single unified global_flush from the ROB!
   ifu.take_trap     := global_flush
   ifu.trap_target   := redirect_pc
   ifu.bru_taken     := false.B
@@ -121,6 +122,7 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val dispatch_fire = !is_bubble && scheduler.dis_reqs(0).ready && rob.io.enq_ready && !csr_hazard
 
+  // BPU is only updated in-order by the ROB when a branch commits!
   bpu.update.valid  := commit_fire && rob.io.commit_is_branch
   bpu.update.pc     := rob.io.commit_pc
   bpu.update.target := rob.io.commit_bpu_actual_target
