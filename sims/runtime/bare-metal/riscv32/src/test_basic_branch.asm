@@ -1,7 +1,7 @@
-.globl _start
-_start:
-    lui x10, 0x80000
+.section .text.entry, "ax"
+.globl main
 
+main:
     addi x3, x0, 0        # Initialize x3 = 0
     addi x6, x0, 0        # Initialize x6 = 0
     addi x9, x0, 0        # Initialize x9 = 0
@@ -59,3 +59,5 @@ test5:
     addi x15, x0, 90      # x15 = 90
     bge x14, x15, end # Should branch (100 >= 90)
     addi x16, x16, -1     # FAIL: Should NOT execute
+
+    j . 

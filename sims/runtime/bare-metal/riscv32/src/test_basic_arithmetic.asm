@@ -1,9 +1,7 @@
-.section .text
-.globl _start
+.section .text.entry, "ax"
+.globl main 
 
-_start:
-    lui x10, 0x80000
-    
+main:
     addi x1, x0, 100      # x1 = 100
     addi x2, x0, 50       # x2 = 50
     
@@ -39,3 +37,6 @@ _start:
     addi x24, x0, -1      # x24 = 0xFFFFFFFF
     addi x25, x0, 1       # x25 = 1
     sltu x26, x25, x24    # x26 = 1 (1 < 0xFFFFFFFF unsigned)
+
+    j .
+

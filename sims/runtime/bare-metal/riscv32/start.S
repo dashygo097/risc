@@ -1,6 +1,6 @@
 # start.S - Minimal RISC-V startup code
 .section .text.entry, "ax"
-.global _start
+.globl _start
 
 _start:
     csrw mstatus, zero

@@ -13,8 +13,8 @@ MemoryAllocator::MemoryAllocator(addr_t base_addr, size_t size)
 }
 
 // Helpers
-auto MemoryAllocator::load_binary(const std::string &filename,
-                                  addr_t load_offset) -> bool {
+auto MemoryAllocator::load_binary(const std::string &filename, addr_t load_addr)
+    -> bool {
   std::ifstream file(filename, std::ios::binary | std::ios::ate);
   if (!file.is_open()) {
     HAL_ERROR("Failed to open binary file: {}", filename);
@@ -24,19 +24,29 @@ auto MemoryAllocator::load_binary(const std::string &filename,
   const auto size = static_cast<size_t>(file.tellg());
   file.seekg(0, std::ios::beg);
 
-  if (load_offset + size > memory_.size()) {
-    HAL_ERROR("Binary file ({}) too large for memory (Size: {}, Available: {})",
-              filename, size, memory_.size() - load_offset);
+  if (!is_valid_addr(load_addr)) {
+    HAL_ERROR("Load address 0x{:08x} is not valid for allocator (Base: "
+              "0x{:08x}, Size: {})",
+              load_addr, base_addr_, memory_.size());
     return false;
   }
 
-  if (!file.read(reinterpret_cast<char *>(memory_.data() + load_offset),
-                 size)) {
+  const addr_t offset = to_offset(load_addr);
+
+  if (offset + size > memory_.size()) {
+    HAL_ERROR("Binary file ({}) too large for memory (Size: {}, Available: {})",
+              filename, size, memory_.size() - offset);
+    return false;
+  }
+
+  if (!file.read(reinterpret_cast<char *>(memory_.data() + offset), size)) {
     HAL_ERROR("Read error while loading binary: {}", filename);
     return false;
   }
-  HAL_INFO("Loaded '{}' ({} bytes) at offset 0x{:08x}", filename, size,
-           load_offset);
+
+  HAL_INFO("Loaded '{}' ({} bytes) at physical address 0x{:08x} (internal "
+           "offset 0x{:0x})",
+           filename, size, load_addr, offset);
   return true;
 }
 

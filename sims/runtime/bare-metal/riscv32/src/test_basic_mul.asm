@@ -1,9 +1,9 @@
-.section .text
-.globl _start
+.section .text.entry, "ax"
+.globl main
 
-_start:
+main:
     # base address for optional stores
-    lui x20, 0x80000
+    la x20, __dmem_base 
 
     addi x1,  x0, 3
     addi x2,  x0, 5
@@ -80,3 +80,4 @@ fail:
     j end
 
 end:
+    j .

@@ -1,8 +1,7 @@
-.globl _start
+.section .text.entry, "ax"
+.globl main
 
-_start:
-    lui x10, 0x80000
-
+main:
     addi x1, x0, 0x12
     csrw 0x300, x1      # Write to mstatus
     csrr x2, 0x300      # Read from mstatus
@@ -10,3 +9,5 @@ _start:
     csrr x3, 0x300      # Read from mstatus
 
     csrr x4, 0xB00      # Read from mcycle
+
+    j .

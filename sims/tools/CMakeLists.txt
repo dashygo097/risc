@@ -1,6 +1,7 @@
 # Apps
 add_subdirectory(simulator)
 add_subdirectory(debugger)
+add_subdirectory(difftest)
 
 # Configuration 
 print_info("Configuration: \n" "92" "0")

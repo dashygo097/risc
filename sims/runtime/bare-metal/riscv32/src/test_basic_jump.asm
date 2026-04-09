@@ -1,8 +1,8 @@
-.section .text
-.globl _start
+.section .text.entry, "ax"
+.globl main
 
-_start:
-    lui x10, 0x80000
+main:
+    la x10, __dmem_base 
 
     addi x2, x0, 0      # Initialize x2 to 0
     addi x5, x0, 0      # Initialize x5 to 0
@@ -21,3 +21,5 @@ label1:
 
 label2:
     addi x5, x5, 1     # x5 = 1 (success)
+
+    j .

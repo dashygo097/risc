@@ -7,6 +7,11 @@ import chisel3._
 class Ifu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_ifu"
 
+  val imem_pc_init = p(BusAddressMap)
+    .find(_.name == "imem")
+    .map(_.base)
+    .getOrElse(throw new Exception("Error: 'imem' region not found in BusAddressMap!"))
+
   val mem = IO(new CacheReadOnlyIO(UInt(p(XLen).W), p(XLen)))
 
   val bru_taken       = IO(Input(Bool()))
@@ -37,13 +42,15 @@ class Ifu(implicit p: Parameters) extends Module {
   val reset_ibuffer    = IO(Output(Bool()))
 
   val ibuffer = Module(new IBuffer)
-  val pc      = RegInit(0.U(p(XLen).W))
+
+  val pc = RegInit(imem_pc_init.U(p(XLen).W))
 
   val reset_ibuffer_reg = RegInit(false.B)
   val imem_pending      = RegInit(false.B)
   val imem_data         = RegInit(p(Bubble).value.U(p(ILen).W))
-  val imem_pc           = RegInit(0.U(p(XLen).W))
-  val imem_valid        = RegInit(false.B)
+
+  val imem_pc    = RegInit(imem_pc_init.U(p(XLen).W))
+  val imem_valid = RegInit(false.B)
 
   val bpu_pred_taken  = RegInit(false.B)
   val bpu_pred_target = RegInit(0.U(p(XLen).W))

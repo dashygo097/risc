@@ -1,8 +1,8 @@
-.section .text
-.globl _start
+.section .text.entry, "ax"
+.globl main
 
-_start:
-    lui x10, 0x80000
+main:
+    la x10, __dmem_base 
 
     addi x7, x0, 0  # initialize x7 to 0
     addi x11, x0, 0 #  initialize x11 to 0
@@ -36,3 +36,4 @@ branch_not_taken:
     addi x11, x11, -1 # failure
 
 end:
+    j . 

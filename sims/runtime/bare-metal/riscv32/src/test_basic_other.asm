@@ -1,10 +1,11 @@
-.section .text
-.globl _start
+.section .text.entry, "ax"
+.globl main
 
-_start:
-    lui x10, 0x80000
+main:
+    la x10, __dmem_base 
 
     # AUIPC
     la x1, label1   # Load address of label1 into x1
 
 label1:
+    j .

@@ -1,5 +1,5 @@
-.section .text
-.globl _start
+.section .text.entry, "ax"
+.globl main
 
 # --- Exact CLINT Register Addresses ---
 .equ CLINT_MSIP,        0x20000000
@@ -8,7 +8,7 @@
 .equ CLINT_MTIME_LO,    0x2000BFF8
 .equ CLINT_MTIME_HI,    0x2000BFFC
 
-_start:
+main:
     # -------------------------------------------------------------------------
     # 1. Setup Trap Vector (mtvec)
     # -------------------------------------------------------------------------
@@ -34,6 +34,8 @@ _start:
     li x6, CLINT_MSIP
     li x7, 1
     sw x7, 0(x6)              # Write 1 to 0x20000000
+
+    j .
 
 wait_for_soft_irq:
     # CPU should instantly trap to trap_handler.
