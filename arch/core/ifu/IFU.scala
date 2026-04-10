@@ -1,19 +1,17 @@
 package arch.core.ifu
 
 import arch.configs._
-import vopts.mem.cache.CacheReadOnlyIO
 import chisel3._
+import vopts.mem.cache.CacheReadOnlyIO
 
 class Ifu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_ifu"
 
   val mem = IO(new CacheReadOnlyIO(UInt(p(XLen).W), p(XLen)))
 
-  val bru_taken       = IO(Input(Bool()))
-  val bru_target      = IO(Input(UInt(p(XLen).W)))
-  val stall           = IO(Input(Bool()))
-  val load_use_hazard = IO(Input(Bool()))
-  val lsu_busy        = IO(Input(Bool()))
+  val bru_taken  = IO(Input(Bool()))
+  val bru_target = IO(Input(UInt(p(XLen).W)))
+  val lsu_busy   = IO(Input(Bool()))
 
   val bpu_taken_in  = IO(Input(Bool()))
   val bpu_target_in = IO(Input(UInt(p(XLen).W)))
@@ -26,13 +24,15 @@ class Ifu(implicit p: Parameters) extends Module {
 
   val fetch_pc = IO(Output(UInt(p(XLen).W)))
 
-  val fronend_stall = IO(Output(Bool()))
   val fronend_flush = IO(Output(Bool()))
 
   val if_instr           = IO(Output(Vec(p(IssueWidth), UInt(p(ILen).W))))
   val if_pc              = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
   val if_bpu_pred_taken  = IO(Output(Vec(p(IssueWidth), Bool())))
   val if_bpu_pred_target = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
+  val if_valid           = IO(Output(Vec(p(IssueWidth), Bool())))
+
+  val dispatch_fire = IO(Input(Vec(p(IssueWidth), Bool())))
 
   val reset_ibuffer = IO(Output(Bool()))
 
@@ -99,18 +99,18 @@ class Ifu(implicit p: Parameters) extends Module {
   ibuffer.enq.bits.bpu_pred_taken  := bpu_pred_taken
   ibuffer.enq.bits.bpu_pred_target := bpu_pred_target
 
-  val stall_cond = stall || load_use_hazard
   val flush_cond = (do_redirect || !imem_valid || reset_ibuffer_reg) && !lsu_busy
 
   for (w <- 0 until p(IssueWidth)) {
-    ibuffer.deq(w).ready  := !stall_cond && !flush_cond
-    if_instr(w)           := Mux(ibuffer.deq(w).fire, ibuffer.deq(w).bits.instr, p(Bubble).value.U(p(ILen).W))
-    if_pc(w)              := Mux(ibuffer.deq(w).fire, ibuffer.deq(w).bits.pc, 0.U(p(XLen).W))
-    if_bpu_pred_taken(w)  := Mux(ibuffer.deq(w).fire, ibuffer.deq(w).bits.bpu_pred_taken, false.B)
-    if_bpu_pred_target(w) := Mux(ibuffer.deq(w).fire, ibuffer.deq(w).bits.bpu_pred_target, 0.U(p(XLen).W))
+    ibuffer.deq(w).ready := dispatch_fire(w)
+
+    if_valid(w)           := ibuffer.deq(w).valid && !flush_cond
+    if_instr(w)           := Mux(if_valid(w), ibuffer.deq(w).bits.instr, p(Bubble).value.U(p(ILen).W))
+    if_pc(w)              := Mux(if_valid(w), ibuffer.deq(w).bits.pc, 0.U(p(XLen).W))
+    if_bpu_pred_taken(w)  := Mux(if_valid(w), ibuffer.deq(w).bits.bpu_pred_taken, false.B)
+    if_bpu_pred_target(w) := Mux(if_valid(w), ibuffer.deq(w).bits.bpu_pred_target, 0.U(p(XLen).W))
   }
 
-  fronend_stall := stall_cond
   fronend_flush := flush_cond
   reset_ibuffer := reset_ibuffer_reg
 

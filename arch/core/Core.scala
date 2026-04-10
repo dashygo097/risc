@@ -60,17 +60,8 @@ class RiscCore(implicit p: Parameters) extends Module {
   mmio <> lsu_fu.mmio
   dmem <> l1_dcache.lower
 
-  val frontends = Seq.tabulate(p(IssueWidth)) { i =>
-    PipelineStageBuilder(s"frontend_$i")
-      .field("instr", p(ILen), p(Bubble).value.toLong)
-      .field("pc", p(XLen))
-      .field("bpu_pred_taken", 1)
-      .field("bpu_pred_target", p(XLen))
-      .build()
-  }
-
   csrs.foreach { csr =>
-    csr.arch_pc := Mux(rob.io.empty, frontends(0)("pc"), rob.io.commit(0).pc)
+    csr.arch_pc := Mux(rob.io.empty, ifu.if_pc(0), rob.io.commit(0).pc)
   }
 
   val commit_pops = rob.io.commit.map(_.pop)
@@ -99,21 +90,24 @@ class RiscCore(implicit p: Parameters) extends Module {
   ifu.bru_not_taken := false.B
   ifu.bru_branch_pc := 0.U
 
-  val any_blocked = WireInit(false.B)
-  var csr_active  = !rob.io.empty
-
   val rs1s = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
   val rs2s = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
   val rds  = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
 
+  val is_bubble = Wire(Vec(p(IssueWidth), Bool()))
+  val is_csr    = Wire(Vec(p(IssueWidth), Bool()))
+  val hazard    = Wire(Vec(p(IssueWidth), Bool()))
+
+  var csr_active = !rob.io.empty
+
   for (w <- 0 until p(IssueWidth)) {
-    decoders(w).instr   := frontends(w)("instr")
-    imm_gens(w).instr   := frontends(w)("instr")
+    decoders(w).instr   := ifu.if_instr(w)
+    imm_gens(w).instr   := ifu.if_instr(w)
     imm_gens(w).immType := decoders(w).decoded.imm_type
 
-    rs1s(w) := regfile_utils.getRs1(frontends(w)("instr"))
-    rs2s(w) := regfile_utils.getRs2(frontends(w)("instr"))
-    rds(w)  := regfile_utils.getRd(frontends(w)("instr"))
+    rs1s(w) := regfile_utils.getRs1(ifu.if_instr(w))
+    rs2s(w) := regfile_utils.getRs2(ifu.if_instr(w))
+    rds(w)  := regfile_utils.getRd(ifu.if_instr(w))
 
     regfile.rs1_preg(w) := rs1s(w)
     regfile.rs2_preg(w) := rs2s(w)
@@ -121,23 +115,35 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.rs1_addr(w) := rs1s(w)
     rob.io.rs2_addr(w) := rs2s(w)
 
-    val is_bubble = frontends(w)("instr") === p(Bubble).value.U(p(ILen).W)
-    val is_csr    = decoders(w).decoded.csr || decoders(w).decoded.ret
-    val hazard    = is_csr && (csr_active || w.U > 0.U)
+    is_bubble(w) := ifu.if_instr(w) === p(Bubble).value.U(p(ILen).W)
+    is_csr(w)    := decoders(w).decoded.csr || decoders(w).decoded.ret
+    hazard(w)    := is_csr(w) && (csr_active || w.U > 0.U)
 
-    val ready = is_bubble || (scheduler.dis_reqs(w).ready && rob.io.enq(w).ready && !hazard)
-    when(!ready)(any_blocked := true.B)
-
-    if (w > 0) when(is_csr) { csr_active = true.B }
+    if (w > 0) when(is_csr(w)) { csr_active = true.B }
   }
 
-  val group_dispatch_fire = !any_blocked && !global_flush
-  val dispatch_fire       = Wire(Vec(p(IssueWidth), Bool()))
+  val valid_reqs = Wire(Vec(p(IssueWidth), Bool()))
+  val dis_ready  = Wire(Vec(p(IssueWidth), Bool()))
+  val fire       = Wire(Vec(p(IssueWidth), Bool()))
+  val lane_valid = Wire(Vec(p(IssueWidth), Bool()))
+  val ifu_fire   = Wire(Vec(p(IssueWidth), Bool()))
 
   for (w <- 0 until p(IssueWidth)) {
-    val is_bubble = frontends(w)("instr") === p(Bubble).value.U(p(ILen).W)
-    dispatch_fire(w) := group_dispatch_fire && !is_bubble
+    valid_reqs(w) := ifu.if_valid(w) && !is_bubble(w) && !hazard(w) && !global_flush
+    dis_ready(w)  := scheduler.dis_reqs(w).ready && rob.io.enq(w).ready
+
+    if (w == 0) {
+      lane_valid(w) := valid_reqs(w)
+      fire(w)       := lane_valid(w) && dis_ready(w)
+      ifu_fire(w)   := ifu.if_valid(w) && (is_bubble(w) || global_flush || fire(w))
+    } else {
+      lane_valid(w) := valid_reqs(w) && fire(w - 1)
+      fire(w)       := lane_valid(w) && dis_ready(w)
+      ifu_fire(w)   := ifu.if_valid(w) && (is_bubble(w) || global_flush || fire(w)) && ifu_fire(w - 1)
+    }
   }
+
+  ifu.dispatch_fire := ifu_fire
 
   val bpu_update_valid  = WireDefault(false.B)
   val bpu_update_pc     = WireDefault(0.U(p(XLen).W))
@@ -157,22 +163,12 @@ class RiscCore(implicit p: Parameters) extends Module {
   bpu.update.target := bpu_update_target
   bpu.update.taken  := bpu_update_taken
 
-  ifu.stall           := any_blocked
-  ifu.load_use_hazard := false.B
-  ifu.lsu_busy        := false.B
+  ifu.lsu_busy := false.B
 
   def getFuId(t: proto.FunctionalUnitType): UInt =
     math.max(0, p(FunctionalUnits).indexWhere(_.`type` == t)).U
 
   for (w <- 0 until p(IssueWidth)) {
-    frontends(w).stall := ifu.fronend_stall || any_blocked
-    frontends(w).flush := ifu.fronend_flush || global_flush
-
-    frontends(w).drive("instr", ifu.if_instr(w))
-    frontends(w).drive("pc", ifu.if_pc(w))
-    frontends(w).drive("bpu_pred_taken", ifu.if_bpu_pred_taken(w))
-    frontends(w).drive("bpu_pred_target", ifu.if_bpu_pred_target(w))
-
     val target_fu_id = MuxCase(
       getFuId(FUNCTIONAL_UNIT_TYPE_ALU),
       Seq(
@@ -183,23 +179,23 @@ class RiscCore(implicit p: Parameters) extends Module {
       )
     )
 
-    rob.io.enq(w).valid           := dispatch_fire(w)
-    rob.io.enq(w).pc              := frontends(w)("pc")
-    rob.io.enq(w).instr           := frontends(w)("instr")
+    rob.io.enq(w).valid           := fire(w)
+    rob.io.enq(w).pc              := ifu.if_pc(w)
+    rob.io.enq(w).instr           := ifu.if_instr(w)
     rob.io.enq(w).rd              := Mux(decoders(w).decoded.regwrite, rds(w), 0.U)
     rob.io.enq(w).pd              := 0.U
     rob.io.enq(w).old_pd          := 0.U
     rob.io.enq(w).is_branch       := decoders(w).decoded.branch
-    rob.io.enq(w).bpu_pred_taken  := frontends(w)("bpu_pred_taken").asBool
-    rob.io.enq(w).bpu_pred_target := frontends(w)("bpu_pred_target")
+    rob.io.enq(w).bpu_pred_taken  := ifu.if_bpu_pred_taken(w)
+    rob.io.enq(w).bpu_pred_target := ifu.if_bpu_pred_target(w)
 
     val rs1_bypassed = Mux(rob.io.rs1_bypass(w).valid, rob.io.rs1_bypass(w).data, regfile.rs1_data(w))
     val rs2_bypassed = Mux(rob.io.rs2_bypass(w).valid, rob.io.rs2_bypass(w).data, regfile.rs2_data(w))
 
     val dis = scheduler.dis_reqs(w)
-    dis.valid         := dispatch_fire(w)
-    dis.bits.pc       := frontends(w)("pc")
-    dis.bits.instr    := frontends(w)("instr")
+    dis.valid         := fire(w)
+    dis.bits.pc       := ifu.if_pc(w)
+    dis.bits.instr    := ifu.if_instr(w)
     dis.bits.fu_id    := target_fu_id
     dis.bits.rs1      := rs1s(w)
     dis.bits.rs2      := rs2s(w)

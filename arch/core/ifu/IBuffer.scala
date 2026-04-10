@@ -34,12 +34,12 @@ class IBuffer(implicit p: Parameters) extends Module {
 
   for (w <- 0 until p(IssueWidth)) {
     deq(w).valid := count > w.U
-    val idx = if (w == 0) head else (head + w.U) % p(IBufferSize).U
+    val idx = if (w == 0) head else ((head + w.U) % p(IBufferSize).U)(log2Ceil(p(IBufferSize)) - 1, 0)
     deq(w).bits := buffer(idx)
   }
 
-  head  := (head + deq_count)     % p(IBufferSize).U
-  tail  := (tail + do_enq.asUInt) % p(IBufferSize).U
+  head  := ((head + deq_count)     % p(IBufferSize).U)(log2Ceil(p(IBufferSize)) - 1, 0)
+  tail  := ((tail + do_enq.asUInt) % p(IBufferSize).U)(log2Ceil(p(IBufferSize)) - 1, 0)
   count := count + do_enq.asUInt - deq_count
 
   when(flush) {

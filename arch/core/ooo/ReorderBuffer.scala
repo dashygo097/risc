@@ -105,11 +105,11 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   val enq_offsets = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(ROBSize)).W)))
   enq_offsets(0)   := 0.U
   for (w <- 1 until p(IssueWidth))
-    enq_offsets(w) := enq_offsets(w - 1) + enq_valids(w - 1).asUInt
+    enq_offsets(w) := (enq_offsets(w - 1) + enq_valids(w - 1).asUInt)(log2Ceil(p(ROBSize)) - 1, 0)
 
   for (w <- 0 until p(IssueWidth)) {
     io.enq(w).ready := available_slots > w.U
-    val idx = (tail + enq_offsets(w)) % p(ROBSize).U
+    val idx = ((tail + enq_offsets(w)) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
     io.enq(w).rob_tag := idx
 
     when(io.enq(w).valid) {
@@ -159,8 +159,10 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   var stop_commit      = false.B
   var commit_valid_acc = true.B
   for (w <- 0 until p(IssueWidth)) {
-    val idx         = (head + w.U) % p(ROBSize).U
-    val committable = (count > w.U) && buffer(idx).valid && buffer(idx).ready && !stop_commit && commit_valid_acc
+    val idx = ((head + w.U) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
+
+    val is_lane_0   = if (w == 0) true.B else false.B
+    val committable = is_lane_0 && (count > w.U) && buffer(idx).valid && buffer(idx).ready && !stop_commit && commit_valid_acc
 
     io.commit(w).valid             := committable
     io.commit(w).pc                := buffer(idx).pc
@@ -186,8 +188,8 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   val commit_pops  = io.commit.map(_.pop)
   val commit_count = PopCount(commit_pops)
 
-  head  := (head + commit_count) % p(ROBSize).U
-  tail  := (tail + enq_count)    % p(ROBSize).U
+  head  := ((head + commit_count) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
+  tail  := ((tail + enq_count)    % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
   count := count + enq_count - commit_count
 
   when(io.flush) {
@@ -204,7 +206,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     val valid_out = WireDefault(false.B)
     val data_out  = WireDefault(0.U(p(XLen).W))
     for (d <- p(ROBSize) to 1 by -1) {
-      val idx   = (tail + p(ROBSize).U - d.U) % p(ROBSize).U
+      val idx   = ((tail + p(ROBSize).U - d.U) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
       val entry = buffer(idx)
       when(entry.valid && entry.rd === rs && rs =/= 0.U) {
         when(entry.ready) {
