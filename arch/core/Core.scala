@@ -171,8 +171,6 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   var csr_active = !rob.io.empty
 
-  val uncompleted_lsus = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
-
   for (w <- 0 until p(IssueWidth)) {
     decoders(w).instr   := ifu.if_instr(w)
     imm_gens(w).instr   := ifu.if_instr(w)
@@ -193,9 +191,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     is_lsu(w)    := decoders(w).decoded.lsu
 
     val csr_haz = is_csr(w) && (csr_active || w.U > 0.U)
-    val lsu_haz = is_lsu(w) && (uncompleted_lsus > 0.U || w.U > 0.U)
-
-    hazard(w) := csr_haz || lsu_haz
+    hazard(w) := csr_haz
 
     if (w > 0) {
       val next_csr = WireDefault(csr_active)
@@ -246,16 +242,19 @@ class RiscCore(implicit p: Parameters) extends Module {
   val struct_hazard = Wire(Vec(p(IssueWidth), Bool()))
   val target_fu_id  = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(FunctionalUnits).size).W)))
 
+  val alu_rr = RegInit(0.U(log2Ceil(aluIds.length + 1).W))
+  val lsu_rr = RegInit(0.U(log2Ceil(lsuIds.length + 1).W))
+
+  def getId(used: UInt, ids: Seq[UInt], rr: UInt = 0.U): UInt =
+    if (ids.isEmpty) 0.U
+    else MuxLookup((used + rr) % ids.length.U, ids.head)(ids.zipWithIndex.map { case (id, idx) => idx.U -> id })
+
   for (w <- 0 until p(IssueWidth)) {
     val alu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_ALU && !struct_hazard(i)))
     val lsu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_LSU && !struct_hazard(i)))
     val mult_used = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_MULT && !struct_hazard(i)))
     val bru_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_BRU && !struct_hazard(i)))
     val csr_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_CSR && !struct_hazard(i)))
-
-    def getId(used: UInt, ids: Seq[UInt]): UInt =
-      if (ids.isEmpty) 0.U
-      else MuxLookup(used, ids.head)(ids.zipWithIndex.map { case (id, idx) => idx.U -> id })
 
     struct_hazard(w) := MuxCase(
       false.B,
@@ -269,12 +268,12 @@ class RiscCore(implicit p: Parameters) extends Module {
     )
 
     target_fu_id(w) := MuxCase(
-      getId(alu_used, aluIds),
+      getId(alu_used, aluIds, alu_rr),
       Seq(
-        (inst_type(w) === TYPE_LSU)  -> getId(lsu_used, lsuIds),
-        (inst_type(w) === TYPE_MULT) -> getId(mult_used, multIds),
-        (inst_type(w) === TYPE_BRU)  -> getId(bru_used, bruIds),
-        (inst_type(w) === TYPE_CSR)  -> getId(csr_used, csrIds)
+        (inst_type(w) === TYPE_LSU)  -> getId(lsu_used, lsuIds, lsu_rr),
+        (inst_type(w) === TYPE_MULT) -> getId(mult_used, multIds, 0.U),
+        (inst_type(w) === TYPE_BRU)  -> getId(bru_used, bruIds, 0.U),
+        (inst_type(w) === TYPE_CSR)  -> getId(csr_used, csrIds, 0.U)
       )
     )
   }
@@ -303,14 +302,11 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   ifu.dispatch_fire := ifu_fire
 
-  val lsu_dispatched = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && is_lsu(w)))
-  val lsu_wb         = PopCount(lsuIds.map(id => rob.io.wb(id).valid))
+  val alu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === TYPE_ALU))
+  val lsu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === TYPE_LSU))
 
-  when(global_flush) {
-    uncompleted_lsus := 0.U
-  }.otherwise {
-    uncompleted_lsus := uncompleted_lsus + lsu_dispatched - lsu_wb
-  }
+  if (aluIds.nonEmpty) alu_rr := (alu_rr + alu_disp) % aluIds.length.U
+  if (lsuIds.nonEmpty) lsu_rr := (lsu_rr + lsu_disp) % lsuIds.length.U
 
   val bpu_update_valid  = WireDefault(false.B)
   val bpu_update_pc     = WireDefault(0.U(p(XLen).W))
