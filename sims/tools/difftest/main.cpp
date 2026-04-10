@@ -12,7 +12,7 @@ using namespace demu::isa;
 
 class DemuSimulatorDiff final : public demu::DemuSimulator {
 public:
-  uint32_t entry_point_ = config_->find_region("imem")->base();
+  uint32_t entry_point_ = config_->ifu().reset_vector();
 
   explicit DemuSimulatorDiff(
       std::unique_ptr<demu::difftest::IRefModel> ref_model,

@@ -16,6 +16,7 @@ package object configs {
 
   // Ifu Parameters
   object IBufferSize extends Field[Int](8)
+  object ResetVector extends Field[Long](0x80000000L)
 
   // Regfile Parameters
   object IsRegfileUseBypass extends Field[Boolean](true)
@@ -93,6 +94,7 @@ package object configs {
 
     // IFU
     IBufferSize -> IBufferSize(),
+    ResetVector -> ResetVector(),
 
     // Regfile
     IsRegfileUseBypass -> IsRegfileUseBypass(),

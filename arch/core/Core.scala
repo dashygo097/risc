@@ -63,7 +63,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   val wb_arbiter = Module(new RRArbiter(new FunctionalUnitResp, fus.size))
   val fuFireMap  = fus.zipWithIndex.map { case (fu, i) => fu -> wb_arbiter.io.in(i).fire }.toMap
 
-  val if_id = PipelineStageBuilder("if_id")
+  val frontend = PipelineStageBuilder("frontend")
     .field("instr", p(ILen), p(Bubble).value.toLong)
     .field("pc", p(XLen))
     .field("bpu_pred_taken", 1)
@@ -71,7 +71,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     .build()
 
   csrs.foreach { csr =>
-    csr.arch_pc := Mux(rob.io.empty, if_id("pc"), rob.io.commit_pc)
+    csr.arch_pc := Mux(rob.io.empty, frontend("pc"), rob.io.commit_pc)
   }
 
   val commit_fire = rob.io.commit_valid
@@ -89,7 +89,6 @@ class RiscCore(implicit p: Parameters) extends Module {
   ifu.bpu_taken_in  := bpu.taken
   ifu.bpu_target_in := bpu.target
 
-  // ALL branches and traps use the single unified global_flush from the ROB!
   ifu.take_trap     := global_flush
   ifu.trap_target   := redirect_pc
   ifu.bru_taken     := false.B
@@ -97,13 +96,13 @@ class RiscCore(implicit p: Parameters) extends Module {
   ifu.bru_not_taken := false.B
   ifu.bru_branch_pc := 0.U
 
-  decoder.instr   := if_id("instr")
-  imm_gen.instr   := if_id("instr")
+  decoder.instr   := frontend("instr")
+  imm_gen.instr   := frontend("instr")
   imm_gen.immType := decoder.decoded.imm_type
 
-  val rs1 = regfile_utils.getRs1(if_id("instr"))
-  val rs2 = regfile_utils.getRs2(if_id("instr"))
-  val rd  = regfile_utils.getRd(if_id("instr"))
+  val rs1 = regfile_utils.getRs1(frontend("instr"))
+  val rs2 = regfile_utils.getRs2(frontend("instr"))
+  val rd  = regfile_utils.getRd(frontend("instr"))
 
   regfile.rs1_preg := rs1
   regfile.rs2_preg := rs2
@@ -113,7 +112,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   val rs1_bypassed = Mux(rob.io.rs1_bypass_valid, rob.io.rs1_bypass_data, regfile.rs1_data)
   val rs2_bypassed = Mux(rob.io.rs2_bypass_valid, rob.io.rs2_bypass_data, regfile.rs2_data)
 
-  val is_bubble = if_id("instr") === p(Bubble).value.U(p(ILen).W)
+  val is_bubble = frontend("instr") === p(Bubble).value.U(p(ILen).W)
 
   val csr_hazard = (decoder.decoded.csr || decoder.decoded.ret) && !rob.io.empty
 
@@ -122,25 +121,24 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val dispatch_fire = !is_bubble && scheduler.dis_reqs(0).ready && rob.io.enq_ready && !csr_hazard
 
-  // BPU is only updated in-order by the ROB when a branch commits!
   bpu.update.valid  := commit_fire && rob.io.commit_is_branch
   bpu.update.pc     := rob.io.commit_pc
   bpu.update.target := rob.io.commit_bpu_actual_target
   bpu.update.taken  := rob.io.commit_bpu_actual_taken
 
-  ifu.id_ex_stall     := !sb_ready || !rob_ready || csr_hazard
+  ifu.stall           := !sb_ready || !rob_ready || csr_hazard
   ifu.load_use_hazard := false.B
   ifu.lsu_busy        := false.B
 
-  if_id.stall := ifu.fronend_stall || !sb_ready || !rob_ready || csr_hazard
-  if_id.flush := ifu.fronend_flush || global_flush
+  frontend.stall := ifu.fronend_stall || !sb_ready || !rob_ready || csr_hazard
+  frontend.flush := ifu.fronend_flush || global_flush
 
-  if_id.drive("instr", ifu.if_instr)
-  if_id.drive("pc", ifu.if_pc)
-  if_id.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
-  if_id.drive("bpu_pred_target", ifu.if_bpu_pred_target)
+  frontend.drive("instr", ifu.if_instr)
+  frontend.drive("pc", ifu.if_pc)
+  frontend.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
+  frontend.drive("bpu_pred_target", ifu.if_bpu_pred_target)
 
-  def getFuId(t: arch.configs.proto.FunctionalUnitType): UInt =
+  def getFuId(t: proto.FunctionalUnitType): UInt =
     math.max(0, p(FunctionalUnits).indexWhere(_.`type` == t)).U
 
   val target_fu_id = MuxCase(
@@ -154,19 +152,20 @@ class RiscCore(implicit p: Parameters) extends Module {
   )
 
   rob.io.enq_valid           := dispatch_fire
-  rob.io.enq_pc              := if_id("pc")
-  rob.io.enq_instr           := if_id("instr")
+  rob.io.enq_pc              := frontend("pc")
+  rob.io.enq_instr           := frontend("instr")
   rob.io.enq_rd              := Mux(decoder.decoded.regwrite, rd, 0.U)
   rob.io.enq_pd              := 0.U
   rob.io.enq_old_pd          := 0.U
   rob.io.enq_is_branch       := decoder.decoded.branch
-  rob.io.enq_bpu_pred_taken  := if_id("bpu_pred_taken").asBool
-  rob.io.enq_bpu_pred_target := if_id("bpu_pred_target")
+  rob.io.enq_bpu_pred_taken  := frontend("bpu_pred_taken").asBool
+  rob.io.enq_bpu_pred_target := frontend("bpu_pred_target")
 
+  // NOTE: Single issue only for now
   val dis0 = scheduler.dis_reqs(0)
   dis0.valid         := dispatch_fire
-  dis0.bits.pc       := if_id("pc")
-  dis0.bits.instr    := if_id("instr")
+  dis0.bits.pc       := frontend("pc")
+  dis0.bits.instr    := frontend("instr")
   dis0.bits.fu_id    := target_fu_id
   dis0.bits.rs1      := rs1
   dis0.bits.rs2      := rs2

@@ -23,7 +23,7 @@ class ROBEntry extends Bundle {
 }
 
 class ReorderBuffer(implicit p: Parameters) extends Module {
-  override def desiredName: String = "UniversalROB"
+  override def desiredName: String = s"${p(ISA).name}_rob"
 
   val io = IO(new Bundle {
     val enq_valid           = Input(Bool())
