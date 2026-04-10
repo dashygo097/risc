@@ -123,10 +123,9 @@ class RiscCore(implicit p: Parameters) extends Module {
   val commit_fire = commit_pops.reduce(_ || _)
 
   val is_flush = Wire(Vec(p(IssueWidth), Bool()))
-  for (w <- 0 until p(IssueWidth)) {
+  for (w <- 0 until p(IssueWidth))
     is_flush(w) := rob.io.commit(w).pop && rob.io.commit(w).flush_pipeline
-  }
-  
+
   val commit_flush_pipeline = is_flush.reduce(_ || _)
   val commit_flush_target   = Mux1H(is_flush.zipWithIndex.map { case (f, w) => f -> rob.io.commit(w).flush_target })
 
@@ -155,15 +154,24 @@ class RiscCore(implicit p: Parameters) extends Module {
   ifu.bru_not_taken := false.B
   ifu.bru_branch_pc := 0.U
 
+  val aluIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_ALU).map(_._2.U)
+  val multIds = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_MULT).map(_._2.U)
+  val lsuIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_LSU).map(_._2.U)
+  val bruIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_BRU).map(_._2.U)
+  val csrIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_CSR).map(_._2.U)
+
   val rs1s = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
   val rs2s = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
   val rds  = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
 
   val is_bubble = Wire(Vec(p(IssueWidth), Bool()))
   val is_csr    = Wire(Vec(p(IssueWidth), Bool()))
+  val is_lsu    = Wire(Vec(p(IssueWidth), Bool()))
   val hazard    = Wire(Vec(p(IssueWidth), Bool()))
 
   var csr_active = !rob.io.empty
+
+  val uncompleted_lsus = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
 
   for (w <- 0 until p(IssueWidth)) {
     decoders(w).instr   := ifu.if_instr(w)
@@ -182,16 +190,19 @@ class RiscCore(implicit p: Parameters) extends Module {
 
     is_bubble(w) := ifu.if_instr(w) === p(Bubble).value.U(p(ILen).W)
     is_csr(w)    := decoders(w).decoded.csr || decoders(w).decoded.ret
-    hazard(w)    := is_csr(w) && (csr_active || w.U > 0.U)
+    is_lsu(w)    := decoders(w).decoded.lsu
 
-    if (w > 0) when(is_csr(w)) { csr_active = true.B }
+    val csr_haz = is_csr(w) && (csr_active || w.U > 0.U)
+    val lsu_haz = is_lsu(w) && (uncompleted_lsus > 0.U || w.U > 0.U)
+
+    hazard(w) := csr_haz || lsu_haz
+
+    if (w > 0) {
+      val next_csr = WireDefault(csr_active)
+      when(is_csr(w) && !is_bubble(w))(next_csr := true.B)
+      csr_active = next_csr
+    }
   }
-
-  val aluIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_ALU).map(_._2.U)
-  val multIds = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_MULT).map(_._2.U)
-  val lsuIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_LSU).map(_._2.U)
-  val bruIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_BRU).map(_._2.U)
-  val csrIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_CSR).map(_._2.U)
 
   val wants_to_issue = Wire(Vec(p(IssueWidth), Bool()))
   val inst_type      = Wire(Vec(p(IssueWidth), UInt(3.W)))
@@ -213,7 +224,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     inst_type(w) := MuxCase(
       TYPE_ALU,
       Seq(
-        decoders(w).decoded.lsu                              -> TYPE_LSU,
+        is_lsu(w)                                            -> TYPE_LSU,
         decoders(w).decoded.mult_en                          -> TYPE_MULT,
         decoders(w).decoded.branch                           -> TYPE_BRU,
         (decoders(w).decoded.csr || decoders(w).decoded.ret) -> TYPE_CSR
@@ -225,7 +236,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   intra_hazard(0) := false.B
   for (w <- 1 until p(IssueWidth)) {
     val conflicts = (0 until w).map { v =>
-      val rd_v = Mux(decoders(v).decoded.regwrite, rds(v), 0.U)
+      val rd_v       = Mux(decoders(v).decoded.regwrite, rds(v), 0.U)
       val is_issuing = wants_to_issue(v)
       is_issuing && rd_v =/= 0.U && (rs1s(w) === rd_v || rs2s(w) === rd_v)
     }
@@ -292,6 +303,15 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   ifu.dispatch_fire := ifu_fire
 
+  val lsu_dispatched = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && is_lsu(w)))
+  val lsu_wb         = PopCount(lsuIds.map(id => rob.io.wb(id).valid))
+
+  when(global_flush) {
+    uncompleted_lsus := 0.U
+  }.otherwise {
+    uncompleted_lsus := uncompleted_lsus + lsu_dispatched - lsu_wb
+  }
+
   val bpu_update_valid  = WireDefault(false.B)
   val bpu_update_pc     = WireDefault(0.U(p(XLen).W))
   val bpu_update_target = WireDefault(0.U(p(XLen).W))
@@ -320,6 +340,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.enq(w).pd              := 0.U
     rob.io.enq(w).old_pd          := 0.U
     rob.io.enq(w).is_branch       := decoders(w).decoded.branch
+    rob.io.enq(w).is_lsu          := is_lsu(w)
     rob.io.enq(w).bpu_pred_taken  := ifu.if_bpu_pred_taken(w)
     rob.io.enq(w).bpu_pred_target := ifu.if_bpu_pred_target(w)
 
