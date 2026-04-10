@@ -16,7 +16,7 @@ import arch.configs._
 import arch.configs.proto.FunctionalUnitType._
 import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
 import chisel3._
-import chisel3.util.{ log2Ceil, MuxCase, Mux1H, RRArbiter }
+import chisel3.util.{ log2Ceil, MuxCase, Mux1H, PopCount }
 
 class RiscCore(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_cpu"
@@ -28,9 +28,9 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val bpu       = Module(new Bpu)
   val ifu       = Module(new Ifu)
-  val decoder   = Module(new Decoder)
+  val decoders  = Seq.fill(p(IssueWidth))(Module(new Decoder))
   val regfile   = Module(new Regfile)
-  val imm_gen   = Module(new ImmGen)
+  val imm_gens  = Seq.fill(p(IssueWidth))(Module(new ImmGen))
   val l1_icache = Module(new SetAssociativeCacheReadOnly(UInt(p(XLen).W), p(XLen), p(L1ICacheLineSize) / (p(XLen) / 8), p(L1ICacheSets), p(L1ICacheWays), p(L1ICacheReplPolicy)))
   val l1_dcache = Module(new SetAssociativeCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
@@ -60,27 +60,30 @@ class RiscCore(implicit p: Parameters) extends Module {
   mmio <> lsu_fu.mmio
   dmem <> l1_dcache.lower
 
-  val wb_arbiter = Module(new RRArbiter(new FunctionalUnitResp, fus.size))
-  val fuFireMap  = fus.zipWithIndex.map { case (fu, i) => fu -> wb_arbiter.io.in(i).fire }.toMap
-
-  val frontend = PipelineStageBuilder("frontend")
-    .field("instr", p(ILen), p(Bubble).value.toLong)
-    .field("pc", p(XLen))
-    .field("bpu_pred_taken", 1)
-    .field("bpu_pred_target", p(XLen))
-    .build()
-
-  csrs.foreach { csr =>
-    csr.arch_pc := Mux(rob.io.empty, frontend("pc"), rob.io.commit_pc)
+  val frontends = Seq.tabulate(p(IssueWidth)) { i =>
+    PipelineStageBuilder(s"frontend_$i")
+      .field("instr", p(ILen), p(Bubble).value.toLong)
+      .field("pc", p(XLen))
+      .field("bpu_pred_taken", 1)
+      .field("bpu_pred_target", p(XLen))
+      .build()
   }
 
-  val commit_fire = rob.io.commit_valid
+  csrs.foreach { csr =>
+    csr.arch_pc := Mux(rob.io.empty, frontends(0)("pc"), rob.io.commit(0).pc)
+  }
+
+  val commit_pops = rob.io.commit.map(_.pop)
+  val commit_fire = commit_pops.reduce(_ || _)
+
+  val commit_flush_pipeline = rob.io.commit.map(c => c.pop && c.flush_pipeline).reduce(_ || _)
+  val commit_flush_target   = Mux1H(rob.io.commit.map(c => (c.pop && c.flush_pipeline) -> c.flush_target))
 
   val async_trap_req = if (csrs.nonEmpty) csrs.map(c => c.trap_request && !c.is_busy).foldLeft(false.B)(_ || _) else false.B
   val async_trap_tgt = if (csrs.nonEmpty) Mux1H(csrs.map(c => (c.trap_request && !c.is_busy) -> c.trap_target)) else 0.U(p(XLen).W)
 
-  val global_flush = (commit_fire && rob.io.commit_flush_pipeline) || async_trap_req
-  val redirect_pc  = Mux(async_trap_req, async_trap_tgt, rob.io.commit_flush_target)
+  val global_flush = commit_flush_pipeline || async_trap_req
+  val redirect_pc  = Mux(async_trap_req, async_trap_tgt, commit_flush_target)
 
   imem <> l1_icache.lower
   ifu.mem <> l1_icache.upper
@@ -96,87 +99,114 @@ class RiscCore(implicit p: Parameters) extends Module {
   ifu.bru_not_taken := false.B
   ifu.bru_branch_pc := 0.U
 
-  decoder.instr   := frontend("instr")
-  imm_gen.instr   := frontend("instr")
-  imm_gen.immType := decoder.decoded.imm_type
+  val any_blocked = WireInit(false.B)
+  var csr_active  = !rob.io.empty
 
-  val rs1 = regfile_utils.getRs1(frontend("instr"))
-  val rs2 = regfile_utils.getRs2(frontend("instr"))
-  val rd  = regfile_utils.getRd(frontend("instr"))
+  val rs1s = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
+  val rs2s = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
+  val rds  = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
 
-  regfile.rs1_preg := rs1
-  regfile.rs2_preg := rs2
+  for (w <- 0 until p(IssueWidth)) {
+    decoders(w).instr   := frontends(w)("instr")
+    imm_gens(w).instr   := frontends(w)("instr")
+    imm_gens(w).immType := decoders(w).decoded.imm_type
 
-  rob.io.rs1_addr := rs1
-  rob.io.rs2_addr := rs2
-  val rs1_bypassed = Mux(rob.io.rs1_bypass_valid, rob.io.rs1_bypass_data, regfile.rs1_data)
-  val rs2_bypassed = Mux(rob.io.rs2_bypass_valid, rob.io.rs2_bypass_data, regfile.rs2_data)
+    rs1s(w) := regfile_utils.getRs1(frontends(w)("instr"))
+    rs2s(w) := regfile_utils.getRs2(frontends(w)("instr"))
+    rds(w)  := regfile_utils.getRd(frontends(w)("instr"))
 
-  val is_bubble = frontend("instr") === p(Bubble).value.U(p(ILen).W)
+    regfile.rs1_preg(w) := rs1s(w)
+    regfile.rs2_preg(w) := rs2s(w)
 
-  val csr_hazard = (decoder.decoded.csr || decoder.decoded.ret) && !rob.io.empty
+    rob.io.rs1_addr(w) := rs1s(w)
+    rob.io.rs2_addr(w) := rs2s(w)
 
-  val sb_ready  = is_bubble || scheduler.dis_reqs(0).ready
-  val rob_ready = is_bubble || rob.io.enq_ready
+    val is_bubble = frontends(w)("instr") === p(Bubble).value.U(p(ILen).W)
+    val is_csr    = decoders(w).decoded.csr || decoders(w).decoded.ret
+    val hazard    = is_csr && (csr_active || w.U > 0.U)
 
-  val dispatch_fire = !is_bubble && scheduler.dis_reqs(0).ready && rob.io.enq_ready && !csr_hazard
+    val ready = is_bubble || (scheduler.dis_reqs(w).ready && rob.io.enq(w).ready && !hazard)
+    when(!ready)(any_blocked := true.B)
 
-  bpu.update.valid  := commit_fire && rob.io.commit_is_branch
-  bpu.update.pc     := rob.io.commit_pc
-  bpu.update.target := rob.io.commit_bpu_actual_target
-  bpu.update.taken  := rob.io.commit_bpu_actual_taken
+    if (w > 0) when(is_csr) { csr_active = true.B }
+  }
 
-  ifu.stall           := !sb_ready || !rob_ready || csr_hazard
+  val group_dispatch_fire = !any_blocked && !global_flush
+  val dispatch_fire       = Wire(Vec(p(IssueWidth), Bool()))
+
+  for (w <- 0 until p(IssueWidth)) {
+    val is_bubble = frontends(w)("instr") === p(Bubble).value.U(p(ILen).W)
+    dispatch_fire(w) := group_dispatch_fire && !is_bubble
+  }
+
+  val bpu_update_valid  = WireDefault(false.B)
+  val bpu_update_pc     = WireDefault(0.U(p(XLen).W))
+  val bpu_update_target = WireDefault(0.U(p(XLen).W))
+  val bpu_update_taken  = WireDefault(false.B)
+
+  for (w <- p(IssueWidth) - 1 to 0 by -1)
+    when(rob.io.commit(w).pop && rob.io.commit(w).is_branch) {
+      bpu_update_valid  := true.B
+      bpu_update_pc     := rob.io.commit(w).pc
+      bpu_update_target := rob.io.commit(w).bpu_actual_target
+      bpu_update_taken  := rob.io.commit(w).bpu_actual_taken
+    }
+
+  bpu.update.valid  := bpu_update_valid
+  bpu.update.pc     := bpu_update_pc
+  bpu.update.target := bpu_update_target
+  bpu.update.taken  := bpu_update_taken
+
+  ifu.stall           := any_blocked
   ifu.load_use_hazard := false.B
   ifu.lsu_busy        := false.B
-
-  frontend.stall := ifu.fronend_stall || !sb_ready || !rob_ready || csr_hazard
-  frontend.flush := ifu.fronend_flush || global_flush
-
-  frontend.drive("instr", ifu.if_instr)
-  frontend.drive("pc", ifu.if_pc)
-  frontend.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
-  frontend.drive("bpu_pred_target", ifu.if_bpu_pred_target)
 
   def getFuId(t: proto.FunctionalUnitType): UInt =
     math.max(0, p(FunctionalUnits).indexWhere(_.`type` == t)).U
 
-  val target_fu_id = MuxCase(
-    getFuId(FUNCTIONAL_UNIT_TYPE_ALU),
-    Seq(
-      decoder.decoded.lsu                          -> getFuId(FUNCTIONAL_UNIT_TYPE_LSU),
-      decoder.decoded.mult_en                      -> getFuId(FUNCTIONAL_UNIT_TYPE_MULT),
-      (decoder.decoded.csr || decoder.decoded.ret) -> getFuId(FUNCTIONAL_UNIT_TYPE_CSR),
-      decoder.decoded.branch                       -> getFuId(FUNCTIONAL_UNIT_TYPE_BRU)
+  for (w <- 0 until p(IssueWidth)) {
+    frontends(w).stall := ifu.fronend_stall || any_blocked
+    frontends(w).flush := ifu.fronend_flush || global_flush
+
+    frontends(w).drive("instr", ifu.if_instr(w))
+    frontends(w).drive("pc", ifu.if_pc(w))
+    frontends(w).drive("bpu_pred_taken", ifu.if_bpu_pred_taken(w))
+    frontends(w).drive("bpu_pred_target", ifu.if_bpu_pred_target(w))
+
+    val target_fu_id = MuxCase(
+      getFuId(FUNCTIONAL_UNIT_TYPE_ALU),
+      Seq(
+        decoders(w).decoded.lsu                              -> getFuId(FUNCTIONAL_UNIT_TYPE_LSU),
+        decoders(w).decoded.mult_en                          -> getFuId(FUNCTIONAL_UNIT_TYPE_MULT),
+        (decoders(w).decoded.csr || decoders(w).decoded.ret) -> getFuId(FUNCTIONAL_UNIT_TYPE_CSR),
+        decoders(w).decoded.branch                           -> getFuId(FUNCTIONAL_UNIT_TYPE_BRU)
+      )
     )
-  )
 
-  rob.io.enq_valid           := dispatch_fire
-  rob.io.enq_pc              := frontend("pc")
-  rob.io.enq_instr           := frontend("instr")
-  rob.io.enq_rd              := Mux(decoder.decoded.regwrite, rd, 0.U)
-  rob.io.enq_pd              := 0.U
-  rob.io.enq_old_pd          := 0.U
-  rob.io.enq_is_branch       := decoder.decoded.branch
-  rob.io.enq_bpu_pred_taken  := frontend("bpu_pred_taken").asBool
-  rob.io.enq_bpu_pred_target := frontend("bpu_pred_target")
+    rob.io.enq(w).valid           := dispatch_fire(w)
+    rob.io.enq(w).pc              := frontends(w)("pc")
+    rob.io.enq(w).instr           := frontends(w)("instr")
+    rob.io.enq(w).rd              := Mux(decoders(w).decoded.regwrite, rds(w), 0.U)
+    rob.io.enq(w).pd              := 0.U
+    rob.io.enq(w).old_pd          := 0.U
+    rob.io.enq(w).is_branch       := decoders(w).decoded.branch
+    rob.io.enq(w).bpu_pred_taken  := frontends(w)("bpu_pred_taken").asBool
+    rob.io.enq(w).bpu_pred_target := frontends(w)("bpu_pred_target")
 
-  // NOTE: Single issue only for now
-  val dis0 = scheduler.dis_reqs(0)
-  dis0.valid         := dispatch_fire
-  dis0.bits.pc       := frontend("pc")
-  dis0.bits.instr    := frontend("instr")
-  dis0.bits.fu_id    := target_fu_id
-  dis0.bits.rs1      := rs1
-  dis0.bits.rs2      := rs2
-  dis0.bits.rd       := Mux(decoder.decoded.regwrite, rd, 0.U)
-  dis0.bits.rs1_data := rs1_bypassed
-  dis0.bits.rs2_data := rs2_bypassed
-  dis0.bits.rob_tag  := rob.io.rob_tag
+    val rs1_bypassed = Mux(rob.io.rs1_bypass(w).valid, rob.io.rs1_bypass(w).data, regfile.rs1_data(w))
+    val rs2_bypassed = Mux(rob.io.rs2_bypass(w).valid, rob.io.rs2_bypass(w).data, regfile.rs2_data(w))
 
-  for (w <- 1 until p(IssueWidth)) {
-    scheduler.dis_reqs(w).valid := false.B
-    scheduler.dis_reqs(w).bits  := 0.U.asTypeOf(new MicroOp)
+    val dis = scheduler.dis_reqs(w)
+    dis.valid         := dispatch_fire(w)
+    dis.bits.pc       := frontends(w)("pc")
+    dis.bits.instr    := frontends(w)("instr")
+    dis.bits.fu_id    := target_fu_id
+    dis.bits.rs1      := rs1s(w)
+    dis.bits.rs2      := rs2s(w)
+    dis.bits.rd       := Mux(decoders(w).decoded.regwrite, rds(w), 0.U)
+    dis.bits.rs1_data := rs1_bypassed
+    dis.bits.rs2_data := rs2_bypassed
+    dis.bits.rob_tag  := rob.io.enq(w).rob_tag
   }
 
   scheduler.flush := global_flush
@@ -184,48 +214,53 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   for ((fu, i) <- fus.zipWithIndex) {
     fu.io.req <> scheduler.fu_reqs(i)
-    wb_arbiter.io.in(i) <> fu.io.resp
-    fu.io.flush := global_flush
+    fu.io.resp.ready := true.B
+    fu.io.flush      := global_flush
 
-    scheduler.fu_done(i).valid := wb_arbiter.io.in(i).fire
-    scheduler.fu_done(i).bits  := wb_arbiter.io.in(i).bits
+    scheduler.fu_done(i).valid := fu.io.resp.valid
+    scheduler.fu_done(i).bits  := fu.io.resp.bits
+
+    rob.io.wb(i).valid   := fu.io.resp.valid
+    rob.io.wb(i).rob_tag := fu.io.resp.bits.rob_tag
+    rob.io.wb(i).data    := fu.io.resp.bits.result
+
+    rob.io.wb(i).is_bru        := false.B
+    rob.io.wb(i).actual_taken  := false.B
+    rob.io.wb(i).actual_target := 0.U
+    rob.io.wb(i).trap_req      := false.B
+    rob.io.wb(i).trap_target   := 0.U
+    rob.io.wb(i).trap_ret      := false.B
+    rob.io.wb(i).trap_ret_tgt  := 0.U
+
+    fu match {
+      case b: BruFU =>
+        rob.io.wb(i).is_bru        := true.B
+        rob.io.wb(i).actual_taken  := b.actual_taken
+        rob.io.wb(i).actual_target := b.actual_target
+      case c: CsrFU =>
+        rob.io.wb(i).trap_req     := c.trap_request
+        rob.io.wb(i).trap_target  := c.trap_target
+        rob.io.wb(i).trap_ret     := c.trap_ret
+        rob.io.wb(i).trap_ret_tgt := c.trap_ret_tgt
+      case _        =>
+    }
   }
 
-  wb_arbiter.io.out.ready := true.B
-  val wb_resp = wb_arbiter.io.out.bits
-  val wb_fire = wb_arbiter.io.out.fire
+  for (w <- 0 until p(IssueWidth)) {
+    rob.io.read_rob_tag(w) := 0.U
+    rob.io.commit(w).pop   := rob.io.commit(w).valid
 
-  def muxBru[T <: Data](default: T)(extract: BruFU => T): T =
-    if (brus.nonEmpty) Mux1H(brus.map(b => fuFireMap(b) -> extract(b))) else default
+    regfile.write_en(w)   := rob.io.commit(w).pop && (rob.io.commit(w).rd =/= 0.U)
+    regfile.write_preg(w) := rob.io.commit(w).rd
+    regfile.write_data(w) := rob.io.commit(w).data
+  }
 
-  def muxCsr[T <: Data](default: T)(extract: CsrFU => T): T =
-    if (csrs.nonEmpty) Mux1H(csrs.map(c => fuFireMap(c) -> extract(c))) else default
+  val cycle_count      = RegInit(0.U(64.W))
+  val instret_count    = RegInit(0.U(64.W))
+  val commit_pop_count = PopCount(rob.io.commit.map(_.pop))
 
-  val is_bru_wb = if (brus.nonEmpty) brus.map(fuFireMap).foldLeft(false.B)(_ || _) else false.B
-  val is_csr_wb = if (csrs.nonEmpty) csrs.map(fuFireMap).foldLeft(false.B)(_ || _) else false.B
-
-  rob.io.wb_valid         := wb_fire
-  rob.io.wb_rob_tag       := wb_resp.rob_tag
-  rob.io.wb_data          := wb_resp.result
-  rob.io.wb_is_bru        := is_bru_wb
-  rob.io.wb_actual_taken  := muxBru(false.B)(_.actual_taken)
-  rob.io.wb_actual_target := muxBru(0.U(p(XLen).W))(_.actual_target)
-  rob.io.wb_trap_req      := muxCsr(false.B)(_.trap_request)
-  rob.io.wb_trap_target   := muxCsr(0.U(p(XLen).W))(_.trap_target)
-  rob.io.wb_trap_ret      := muxCsr(false.B)(_.trap_ret)
-  rob.io.wb_trap_ret_tgt  := muxCsr(0.U(p(XLen).W))(_.trap_ret_tgt)
-
-  rob.io.read_rob_tag := 0.U
-  rob.io.commit_pop   := commit_fire
-
-  regfile.write_en   := commit_fire && (rob.io.commit_rd =/= 0.U)
-  regfile.write_preg := rob.io.commit_rd
-  regfile.write_data := rob.io.commit_data
-
-  val cycle_count   = RegInit(0.U(64.W))
-  val instret_count = RegInit(0.U(64.W))
   cycle_count   := cycle_count + 1.U
-  instret_count := instret_count + Mux(commit_fire, 1.U, 0.U)
+  instret_count := instret_count + commit_pop_count
 
   csrs.foreach { csr =>
     csr.cycle         := cycle_count
@@ -247,20 +282,20 @@ class RiscCore(implicit p: Parameters) extends Module {
   debug_cycle_count   := cycle_count
   debug_instret_count := instret_count
 
-  debug_instret  := commit_fire
-  debug_pc       := rob.io.commit_pc
-  debug_instr    := rob.io.commit_instr
-  debug_reg_we   := regfile.write_en
-  debug_reg_addr := regfile.write_preg
-  debug_reg_data := regfile.write_data
+  debug_instret  := rob.io.commit(0).pop
+  debug_pc       := rob.io.commit(0).pc
+  debug_instr    := rob.io.commit(0).instr
+  debug_reg_we   := regfile.write_en(0)
+  debug_reg_addr := regfile.write_preg(0)
+  debug_reg_data := regfile.write_data(0)
 
   val debug_branch_taken  = IO(Output(Bool()))
   val debug_branch_source = IO(Output(UInt(p(XLen).W)))
   val debug_branch_target = IO(Output(UInt(p(XLen).W)))
 
-  debug_branch_taken  := commit_fire && rob.io.commit_is_branch && rob.io.commit_bpu_actual_taken
-  debug_branch_source := rob.io.commit_pc
-  debug_branch_target := rob.io.commit_bpu_actual_target
+  debug_branch_taken  := bpu_update_valid && bpu_update_taken
+  debug_branch_source := bpu_update_pc
+  debug_branch_target := bpu_update_target
 
   val debug_l1_icache_access = IO(Output(Bool()))
   val debug_l1_icache_miss   = IO(Output(Bool()))
