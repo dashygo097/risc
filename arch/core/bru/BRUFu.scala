@@ -1,8 +1,6 @@
 package arch.core.bru
 
 import arch.core.ooo._
-import arch.core.decoder._
-import arch.core.imm._
 import arch.configs._
 import chisel3._
 
@@ -12,9 +10,9 @@ class BruFU(implicit p: Parameters) extends FunctionalUnit {
   val actual_taken  = IO(Output(Bool()))
   val actual_target = IO(Output(UInt(p(XLen).W)))
 
-  val bru     = Module(new Bru)
-  val decoder = Module(new Decoder)
-  val imm_gen = Module(new ImmGen)
+  val bru     = Module(new arch.core.bru.Bru)
+  val decoder = Module(new arch.core.decoder.Decoder)
+  val imm_gen = Module(new arch.core.imm.ImmGen)
 
   val busy    = RegInit(false.B)
   val req_reg = Reg(new MicroOp)
@@ -46,9 +44,10 @@ class BruFU(implicit p: Parameters) extends FunctionalUnit {
   io.resp.bits.instr   := req_reg.instr
   io.resp.bits.rd      := req_reg.rd
   io.resp.bits.rob_tag := req_reg.rob_tag
-  
-  io.resp.bits.result  := req_reg.pc + p(IAlign).U 
 
-  actual_taken  := bru.taken
-  actual_target := bru.target
+  io.resp.bits.result := req_reg.pc + p(IAlign).U
+
+  actual_taken := bru.taken
+
+  actual_target := Mux(bru.taken, bru.target, req_reg.pc + p(IAlign).U)
 }
