@@ -12,6 +12,7 @@ object RiscDump {
       ifu = Some(
         IfuConfig(
           ibufferSize = p(IBufferSize),
+          resetVector = p(ResetVector),
         )
       ),
       bpu = Some(

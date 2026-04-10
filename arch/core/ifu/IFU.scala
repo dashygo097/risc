@@ -7,16 +7,11 @@ import chisel3._
 class Ifu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_ifu"
 
-  val imem_pc_init = p(BusAddressMap)
-    .find(_.name == "imem")
-    .map(_.base)
-    .getOrElse(throw new Exception("Error: 'imem' region not found in BusAddressMap!"))
-
   val mem = IO(new CacheReadOnlyIO(UInt(p(XLen).W), p(XLen)))
 
   val bru_taken       = IO(Input(Bool()))
   val bru_target      = IO(Input(UInt(p(XLen).W)))
-  val id_ex_stall     = IO(Input(Bool()))
+  val stall           = IO(Input(Bool()))
   val load_use_hazard = IO(Input(Bool()))
   val lsu_busy        = IO(Input(Bool()))
 
@@ -43,13 +38,13 @@ class Ifu(implicit p: Parameters) extends Module {
 
   val ibuffer = Module(new IBuffer)
 
-  val pc = RegInit(imem_pc_init.U(p(XLen).W))
+  val pc = RegInit(p(ResetVector).U(p(XLen).W))
 
   val reset_ibuffer_reg = RegInit(false.B)
   val imem_pending      = RegInit(false.B)
   val imem_data         = RegInit(p(Bubble).value.U(p(ILen).W))
 
-  val imem_pc    = RegInit(imem_pc_init.U(p(XLen).W))
+  val imem_pc    = RegInit(p(ResetVector).U(p(XLen).W))
   val imem_valid = RegInit(false.B)
 
   val bpu_pred_taken  = RegInit(false.B)
@@ -102,7 +97,7 @@ class Ifu(implicit p: Parameters) extends Module {
   ibuffer.enq.bits.bpu_pred_taken  := bpu_pred_taken
   ibuffer.enq.bits.bpu_pred_target := bpu_pred_target
 
-  val stall_cond = id_ex_stall || load_use_hazard
+  val stall_cond = stall || load_use_hazard
   val flush_cond = (do_redirect || !imem_valid || reset_ibuffer_reg) && !lsu_busy
 
   ibuffer.deq.ready := (!ibuffer.empty && !stall_cond && !flush_cond) || reset_ibuffer_reg

@@ -150,7 +150,7 @@ void DemuSimulator::reset() {
 
   on_reset();
   DEMU_INFO("System Reset Complete. PC: 0x{:08x}",
-            static_cast<addr_t>(dut_->debug_pc))
+            static_cast<addr_t>(config_->ifu().reset_vector()))
 }
 
 void DemuSimulator::step(uint64_t cycles) {
