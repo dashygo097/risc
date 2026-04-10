@@ -10,7 +10,6 @@ import csr._
 import lsu._
 import alu._
 import mult._
-import pipeline._
 import ooo._
 import arch.configs._
 import arch.configs.proto.FunctionalUnitType._
