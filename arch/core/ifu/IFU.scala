@@ -26,15 +26,15 @@ class Ifu(implicit p: Parameters) extends Module {
 
   val fetch_pc = IO(Output(UInt(p(XLen).W)))
 
-  val fronend_stall      = IO(Output(Bool()))
-  val fronend_flush      = IO(Output(Bool()))
-  val if_instr           = IO(Output(UInt(p(ILen).W)))
-  val if_pc              = IO(Output(UInt(p(XLen).W)))
-  val if_bpu_pred_taken  = IO(Output(Bool()))
-  val if_bpu_pred_target = IO(Output(UInt(p(XLen).W)))
+  val fronend_stall = IO(Output(Bool()))
+  val fronend_flush = IO(Output(Bool()))
 
-  val ibuffer_deq_fire = IO(Output(Bool()))
-  val reset_ibuffer    = IO(Output(Bool()))
+  val if_instr           = IO(Output(Vec(p(IssueWidth), UInt(p(ILen).W))))
+  val if_pc              = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
+  val if_bpu_pred_taken  = IO(Output(Vec(p(IssueWidth), Bool())))
+  val if_bpu_pred_target = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
+
+  val reset_ibuffer = IO(Output(Bool()))
 
   val ibuffer = Module(new IBuffer)
 
@@ -91,6 +91,8 @@ class Ifu(implicit p: Parameters) extends Module {
     reset_ibuffer_reg := false.B
   }
 
+  ibuffer.flush := do_redirect
+
   ibuffer.enq.valid                := icache_resp_fire && imem_valid && !ibuffer.full
   ibuffer.enq.bits.pc              := imem_pc
   ibuffer.enq.bits.instr           := mem.resp.bits.data
@@ -100,17 +102,17 @@ class Ifu(implicit p: Parameters) extends Module {
   val stall_cond = stall || load_use_hazard
   val flush_cond = (do_redirect || !imem_valid || reset_ibuffer_reg) && !lsu_busy
 
-  ibuffer.deq.ready := (!ibuffer.empty && !stall_cond && !flush_cond) || reset_ibuffer_reg
+  for (w <- 0 until p(IssueWidth)) {
+    ibuffer.deq(w).ready  := !stall_cond && !flush_cond
+    if_instr(w)           := Mux(ibuffer.deq(w).fire, ibuffer.deq(w).bits.instr, p(Bubble).value.U(p(ILen).W))
+    if_pc(w)              := Mux(ibuffer.deq(w).fire, ibuffer.deq(w).bits.pc, 0.U(p(XLen).W))
+    if_bpu_pred_taken(w)  := Mux(ibuffer.deq(w).fire, ibuffer.deq(w).bits.bpu_pred_taken, false.B)
+    if_bpu_pred_target(w) := Mux(ibuffer.deq(w).fire, ibuffer.deq(w).bits.bpu_pred_target, 0.U(p(XLen).W))
+  }
 
-  fronend_stall      := stall_cond
-  fronend_flush      := flush_cond
-  if_instr           := Mux(ibuffer.deq.fire, ibuffer.deq.bits.instr, p(Bubble).value.U(p(ILen).W))
-  if_pc              := Mux(ibuffer.deq.fire, ibuffer.deq.bits.pc, 0.U(p(XLen).W))
-  if_bpu_pred_taken  := Mux(ibuffer.deq.fire, ibuffer.deq.bits.bpu_pred_taken, false.B)
-  if_bpu_pred_target := Mux(ibuffer.deq.fire, ibuffer.deq.bits.bpu_pred_target, 0.U(p(XLen).W))
-
-  ibuffer_deq_fire := ibuffer.deq.fire
-  reset_ibuffer    := reset_ibuffer_reg
+  fronend_stall := stall_cond
+  fronend_flush := flush_cond
+  reset_ibuffer := reset_ibuffer_reg
 
   when(take_trap && !lsu_busy) {
     pc := trap_target
