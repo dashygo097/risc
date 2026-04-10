@@ -138,7 +138,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   frontend.drive("bpu_pred_taken", ifu.if_bpu_pred_taken)
   frontend.drive("bpu_pred_target", ifu.if_bpu_pred_target)
 
-  def getFuId(t: arch.configs.proto.FunctionalUnitType): UInt =
+  def getFuId(t: proto.FunctionalUnitType): UInt =
     math.max(0, p(FunctionalUnits).indexWhere(_.`type` == t)).U
 
   val target_fu_id = MuxCase(
