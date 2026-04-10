@@ -157,7 +157,11 @@ public:
 
 inline auto create_ref_model(const std::string &path)
     -> std::unique_ptr<IRefModel> {
-  return std::make_unique<GdbRefModel>(1234);
+  if (path == "gdb") {
+    return std::make_unique<GdbRefModel>(1234);
+  }
+
+  return nullptr;
 }
 
 } // namespace demu::difftest
