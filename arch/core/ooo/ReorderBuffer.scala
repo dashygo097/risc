@@ -2,7 +2,7 @@ package arch.core.ooo
 
 import arch.configs._
 import chisel3._
-import chisel3.util.{ log2Ceil, PopCount, MuxCase }
+import chisel3.util._
 
 class RobEnqIO(implicit p: Parameters) extends Bundle {
   val valid           = Input(Bool())
@@ -13,6 +13,7 @@ class RobEnqIO(implicit p: Parameters) extends Bundle {
   val pd              = Input(UInt(log2Ceil(p(NumPhyRegs)).W))
   val old_pd          = Input(UInt(log2Ceil(p(NumPhyRegs)).W))
   val is_branch       = Input(Bool())
+  val is_lsu          = Input(Bool())
   val bpu_pred_taken  = Input(Bool())
   val bpu_pred_target = Input(UInt(p(XLen).W))
   val rob_tag         = Output(UInt(log2Ceil(p(ROBSize)).W))
@@ -43,6 +44,7 @@ class RobCommitIO(implicit p: Parameters) extends Bundle {
   val flush_pipeline    = Output(Bool())
   val flush_target      = Output(UInt(p(XLen).W))
   val is_branch         = Output(Bool())
+  val is_lsu            = Output(Bool())
   val bpu_actual_taken  = Output(Bool())
   val bpu_actual_target = Output(UInt(p(XLen).W))
 }
@@ -63,6 +65,7 @@ class ROBEntry(implicit p: Parameters) extends Bundle {
   val pd             = UInt(log2Ceil(p(NumPhyRegs)).W)
   val old_pd         = UInt(log2Ceil(p(NumPhyRegs)).W)
   val is_branch      = Bool()
+  val is_lsu         = Bool()
   val pred_taken     = Bool()
   val pred_target    = UInt(p(XLen).W)
   val actual_taken   = Bool()
@@ -121,6 +124,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
       buffer(idx).pd             := io.enq(w).pd
       buffer(idx).old_pd         := io.enq(w).old_pd
       buffer(idx).is_branch      := io.enq(w).is_branch
+      buffer(idx).is_lsu         := io.enq(w).is_lsu
       buffer(idx).pred_taken     := io.enq(w).bpu_pred_taken
       buffer(idx).pred_target    := io.enq(w).bpu_pred_target
       buffer(idx).actual_taken   := false.B
@@ -169,8 +173,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   for (w <- 0 until p(IssueWidth)) {
     val idx = ((head + w.U) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
 
-    val is_lane_0   = if (w == 0) true.B else false.B
-    val committable = is_lane_0 && (count > w.U) && buffer(idx).valid && buffer(idx).ready && !stop_commit && commit_valid_acc
+    val committable = (count > w.U) && buffer(idx).valid && buffer(idx).ready && !stop_commit && commit_valid_acc
 
     io.commit(w).valid             := committable
     io.commit(w).pc                := buffer(idx).pc
@@ -182,6 +185,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     io.commit(w).flush_pipeline    := buffer(idx).flush_pipeline
     io.commit(w).flush_target      := buffer(idx).flush_target
     io.commit(w).is_branch         := buffer(idx).is_branch
+    io.commit(w).is_lsu            := buffer(idx).is_lsu
     io.commit(w).bpu_actual_taken  := buffer(idx).actual_taken
     io.commit(w).bpu_actual_target := buffer(idx).actual_target
 
