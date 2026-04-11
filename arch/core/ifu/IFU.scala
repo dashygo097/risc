@@ -12,7 +12,6 @@ class Ifu(implicit p: Parameters) extends Module {
 
   val bru_taken  = IO(Input(Bool()))
   val bru_target = IO(Input(UInt(p(XLen).W)))
-  val lsu_busy   = IO(Input(Bool()))
 
   val bpu_taken_in  = IO(Input(Bool()))
   val bpu_target_in = IO(Input(UInt(p(XLen).W)))
@@ -97,11 +96,11 @@ class Ifu(implicit p: Parameters) extends Module {
   meta_q.io.enq.bits.bpu_pred_taken  := bpu_taken_in
   meta_q.io.enq.bits.bpu_pred_target := bpu_target_in
 
-  when(take_trap && !lsu_busy) {
+  when(take_trap) {
     pc := trap_target
-  }.elsewhen(bru_taken && !lsu_busy) {
+  }.elsewhen(bru_taken) {
     pc := bru_target
-  }.elsewhen(bru_not_taken && !lsu_busy) {
+  }.elsewhen(bru_not_taken) {
     pc := bru_branch_pc + 4.U
   }.elsewhen(req_fire) {
     pc := Mux(bpu_taken_in, bpu_target_in, next_block_pc)

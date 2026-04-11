@@ -79,7 +79,6 @@ class RiscCore(implicit p: Parameters) extends Module {
   val global_flush = commit_flush_pipeline || async_trap_req
   val redirect_pc  = Mux(async_trap_req, async_trap_tgt, commit_flush_target)
 
-  // ---------------- Memory Drain Tracking ----------------
   val cache_inflight = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
   val mmio_inflight  = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
 
@@ -394,8 +393,6 @@ class RiscCore(implicit p: Parameters) extends Module {
   bpu.update.pc     := bpu_update_pc
   bpu.update.target := bpu_update_target
   bpu.update.taken  := bpu_update_taken
-
-  ifu.lsu_busy := false.B
 
   for (w <- 0 until p(IssueWidth)) {
     rob.io.enq(w).valid           := lane_valid(w)
