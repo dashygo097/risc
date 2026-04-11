@@ -250,13 +250,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   }
 
   val wants_to_issue = Wire(Vec(p(IssueWidth), Bool()))
-  val inst_type      = Wire(Vec(p(IssueWidth), UInt(3.W)))
-
-  val TYPE_ALU  = 0.U(3.W)
-  val TYPE_LSU  = 1.U(3.W)
-  val TYPE_MULT = 2.U(3.W)
-  val TYPE_BRU  = 3.U(3.W)
-  val TYPE_CSR  = 4.U(3.W)
+  val inst_type      = Wire(Vec(p(IssueWidth), UInt(log2Ceil(proto.FunctionalUnitType.values.size).W)))
 
   val kill_mask = Wire(Vec(p(IssueWidth), Bool()))
   kill_mask(0)   := false.B
@@ -267,12 +261,12 @@ class RiscCore(implicit p: Parameters) extends Module {
     wants_to_issue(w) := ifu.if_valid(w) && !is_bubble(w) && !hazard(w) && !global_flush && !kill_mask(w) && !mem_draining
 
     inst_type(w) := MuxCase(
-      TYPE_ALU,
+      FUNCTIONAL_UNIT_TYPE_ALU.index.U,
       Seq(
-        is_lsu(w)                                            -> TYPE_LSU,
-        decoders(w).decoded.mult_en                          -> TYPE_MULT,
-        decoders(w).decoded.branch                           -> TYPE_BRU,
-        (decoders(w).decoded.csr || decoders(w).decoded.ret) -> TYPE_CSR
+        is_lsu(w)                                            -> FUNCTIONAL_UNIT_TYPE_LSU.index.U,
+        decoders(w).decoded.mult_en                          -> FUNCTIONAL_UNIT_TYPE_MULT.index.U,
+        decoders(w).decoded.branch                           -> FUNCTIONAL_UNIT_TYPE_BRU.index.U,
+        (decoders(w).decoded.csr || decoders(w).decoded.ret) -> FUNCTIONAL_UNIT_TYPE_CSR.index.U
       )
     )
   }
@@ -299,30 +293,30 @@ class RiscCore(implicit p: Parameters) extends Module {
     else MuxLookup((used + rr) % ids.length.U, ids.head)(ids.zipWithIndex.map { case (id, idx) => idx.U -> id })
 
   for (w <- 0 until p(IssueWidth)) {
-    val alu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_ALU && !struct_hazard(i)))
-    val lsu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_LSU && !struct_hazard(i)))
-    val mult_used = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_MULT && !struct_hazard(i)))
-    val bru_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_BRU && !struct_hazard(i)))
-    val csr_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === TYPE_CSR && !struct_hazard(i)))
+    val alu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_ALU.index.U && !struct_hazard(i)))
+    val lsu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_LSU.index.U && !struct_hazard(i)))
+    val mult_used = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_MULT.index.U && !struct_hazard(i)))
+    val bru_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_BRU.index.U && !struct_hazard(i)))
+    val csr_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_CSR.index.U && !struct_hazard(i)))
 
     struct_hazard(w) := MuxCase(
       false.B,
       Seq(
-        (inst_type(w) === TYPE_ALU)  -> (alu_used >= aluIds.length.U),
-        (inst_type(w) === TYPE_LSU)  -> (lsu_used >= lsuIds.length.U),
-        (inst_type(w) === TYPE_MULT) -> (mult_used >= multIds.length.U),
-        (inst_type(w) === TYPE_BRU)  -> (bru_used >= bruIds.length.U),
-        (inst_type(w) === TYPE_CSR)  -> (csr_used >= csrIds.length.U)
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_ALU.index.U)  -> (alu_used >= aluIds.length.U),
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_LSU.index.U)  -> (lsu_used >= lsuIds.length.U),
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_MULT.index.U) -> (mult_used >= multIds.length.U),
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_BRU.index.U)  -> (bru_used >= bruIds.length.U),
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_CSR.index.U)  -> (csr_used >= csrIds.length.U)
       )
     )
 
     target_fu_id(w) := MuxCase(
       getId(alu_used, aluIds, alu_rr),
       Seq(
-        (inst_type(w) === TYPE_LSU)  -> getId(lsu_used, lsuIds, lsu_rr),
-        (inst_type(w) === TYPE_MULT) -> getId(mult_used, multIds, 0.U),
-        (inst_type(w) === TYPE_BRU)  -> getId(bru_used, bruIds, 0.U),
-        (inst_type(w) === TYPE_CSR)  -> getId(csr_used, csrIds, 0.U)
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_LSU.index.U)  -> getId(lsu_used, lsuIds, lsu_rr),
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_MULT.index.U) -> getId(mult_used, multIds, 0.U),
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_BRU.index.U)  -> getId(bru_used, bruIds, 0.U),
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_CSR.index.U)  -> getId(csr_used, csrIds, 0.U)
       )
     )
   }
@@ -351,8 +345,8 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   ifu.dispatch_fire := ifu_fire
 
-  val alu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === TYPE_ALU))
-  val lsu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === TYPE_LSU))
+  val alu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === FUNCTIONAL_UNIT_TYPE_ALU.index.U))
+  val lsu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === FUNCTIONAL_UNIT_TYPE_LSU.index.U))
 
   if (aluIds.nonEmpty) alu_rr := (alu_rr + alu_disp) % aluIds.length.U
   if (lsuIds.nonEmpty) lsu_rr := (lsu_rr + lsu_disp) % lsuIds.length.U
