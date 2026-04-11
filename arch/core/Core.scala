@@ -66,62 +66,6 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   if (lsus.isEmpty) throw new Exception("LSU Unit is mandatory but missing from configuration!")
 
-  if (lsus.length == 1) {
-    l1_dcache.upper <> lsus(0).mem
-    mmio <> lsus(0).mmio
-  } else {
-    val memReqArb = Module(new RRArbiter(chiselTypeOf(lsus(0).mem.req.bits), lsus.length))
-    for (i <- lsus.indices) memReqArb.io.in(i) <> lsus(i).mem.req
-    l1_dcache.upper.req <> memReqArb.io.out
-
-    val memRespQueue = Module(new Queue(UInt(log2Ceil(lsus.length).W), p(ROBSize)))
-    memRespQueue.io.enq.valid := memReqArb.io.out.fire
-    memRespQueue.io.enq.bits  := memReqArb.io.chosen
-    memRespQueue.io.deq.ready := l1_dcache.upper.resp.fire
-
-    val memTarget = memRespQueue.io.deq.bits
-    for (i <- lsus.indices) {
-      lsus(i).mem.resp.valid := l1_dcache.upper.resp.valid && memRespQueue.io.deq.valid && (memTarget === i.U)
-      lsus(i).mem.resp.bits  := l1_dcache.upper.resp.bits
-    }
-
-    l1_dcache.upper.resp.ready := false.B
-    for (i <- lsus.indices)
-      when(memRespQueue.io.deq.valid && memTarget === i.U) {
-        l1_dcache.upper.resp.ready := lsus(i).mem.resp.ready
-      }
-
-    val mmioReqArb = Module(new RRArbiter(chiselTypeOf(lsus(0).mmio.req.bits), lsus.length))
-    for (i <- lsus.indices) mmioReqArb.io.in(i) <> lsus(i).mmio.req
-    mmio.req <> mmioReqArb.io.out
-
-    val mmioRespQueue = Module(new Queue(UInt(log2Ceil(lsus.length).W), p(ROBSize)))
-    mmioRespQueue.io.enq.valid := mmioReqArb.io.out.fire
-    mmioRespQueue.io.enq.bits  := mmioReqArb.io.chosen
-    mmioRespQueue.io.deq.ready := mmio.resp.fire
-
-    val mmioTarget = mmioRespQueue.io.deq.bits
-    for (i <- lsus.indices) {
-      lsus(i).mmio.resp.valid := mmio.resp.valid && mmioRespQueue.io.deq.valid && (mmioTarget === i.U)
-      lsus(i).mmio.resp.bits  := mmio.resp.bits
-    }
-
-    mmio.resp.ready := false.B
-    for (i <- lsus.indices)
-      when(mmioRespQueue.io.deq.valid && mmioTarget === i.U) {
-        mmio.resp.ready := lsus(i).mmio.resp.ready
-      }
-  }
-
-  dmem <> l1_dcache.lower
-
-  csrs.foreach { csr =>
-    csr.arch_pc := Mux(rob.io.empty, ifu.if_pc(0), rob.io.commit(0).pc)
-  }
-
-  val commit_pops = rob.io.commit.map(_.pop)
-  val commit_fire = commit_pops.reduce(_ || _)
-
   val is_flush = Wire(Vec(p(IssueWidth), Bool()))
   for (w <- 0 until p(IssueWidth))
     is_flush(w) := rob.io.commit(w).pop && rob.io.commit(w).flush_pipeline
@@ -134,6 +78,81 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val global_flush = commit_flush_pipeline || async_trap_req
   val redirect_pc  = Mux(async_trap_req, async_trap_tgt, commit_flush_target)
+
+  if (lsus.length == 1) {
+    l1_dcache.upper <> lsus(0).mem
+    mmio <> lsus(0).mmio
+  } else {
+    // ---------------- L1 D-Cache Arbitration & Queue ----------------
+    val memReqArb = Module(new RRArbiter(chiselTypeOf(lsus(0).mem.req.bits), lsus.length))
+    for (i <- lsus.indices) memReqArb.io.in(i) <> lsus(i).mem.req
+
+    val memRespQueue = Module(new Queue(UInt(log2Ceil(lsus.length).W), p(ROBSize)))
+    
+    // Backpressure the Arbiter so requests aren't lost if the tracking queue is full
+    memReqArb.io.out.ready := l1_dcache.upper.req.ready && memRespQueue.io.enq.ready
+    l1_dcache.upper.req.valid := memReqArb.io.out.valid && memRespQueue.io.enq.ready
+    l1_dcache.upper.req.bits  := memReqArb.io.out.bits
+
+    memRespQueue.io.enq.valid := memReqArb.io.out.valid && l1_dcache.upper.req.ready
+    memRespQueue.io.enq.bits  := memReqArb.io.chosen
+
+    val memTarget = memRespQueue.io.deq.bits
+    for (i <- lsus.indices) {
+      lsus(i).mem.resp.valid := false.B
+      lsus(i).mem.resp.bits  := l1_dcache.upper.resp.bits
+    }
+
+    l1_dcache.upper.resp.ready := false.B
+    memRespQueue.io.deq.ready  := false.B
+    when(memRespQueue.io.deq.valid) {
+      for (i <- lsus.indices) {
+        when(memTarget === i.U) {
+          // Force Cache Bus progression. If LSU was aborted, it sinks the response perfectly.
+          l1_dcache.upper.resp.ready := true.B
+          memRespQueue.io.deq.ready  := l1_dcache.upper.resp.valid
+          lsus(i).mem.resp.valid     := l1_dcache.upper.resp.valid
+        }
+      }
+    }
+
+    // ---------------- MMIO Arbitration & Queue ----------------
+    val mmioReqArb = Module(new RRArbiter(chiselTypeOf(lsus(0).mmio.req.bits), lsus.length))
+    for (i <- lsus.indices) mmioReqArb.io.in(i) <> lsus(i).mmio.req
+
+    val mmioRespQueue = Module(new Queue(UInt(log2Ceil(lsus.length).W), p(ROBSize)))
+
+    mmioReqArb.io.out.ready := mmio.req.ready && mmioRespQueue.io.enq.ready
+    mmio.req.valid := mmioReqArb.io.out.valid && mmioRespQueue.io.enq.ready
+    mmio.req.bits  := mmioReqArb.io.out.bits
+
+    mmioRespQueue.io.enq.valid := mmioReqArb.io.out.valid && mmio.req.ready
+    mmioRespQueue.io.enq.bits  := mmioReqArb.io.chosen
+
+    val mmioTarget = mmioRespQueue.io.deq.bits
+    for (i <- lsus.indices) {
+      lsus(i).mmio.resp.valid := false.B
+      lsus(i).mmio.resp.bits  := mmio.resp.bits
+    }
+
+    mmio.resp.ready := false.B
+    mmioRespQueue.io.deq.ready := false.B
+    when(mmioRespQueue.io.deq.valid) {
+      for (i <- lsus.indices) {
+        when(mmioTarget === i.U) {
+          mmio.resp.ready := true.B
+          mmioRespQueue.io.deq.ready := mmio.resp.valid
+          lsus(i).mmio.resp.valid    := mmio.resp.valid
+        }
+      }
+    }
+  }
+
+  dmem <> l1_dcache.lower
+
+  csrs.foreach { csr =>
+    csr.arch_pc := Mux(rob.io.empty, ifu.if_pc(0), rob.io.commit(0).pc)
+  }
 
   imem.req <> l1_icache.lower.req
   imem.resp.ready                := l1_icache.lower.resp.ready
@@ -164,12 +183,19 @@ class RiscCore(implicit p: Parameters) extends Module {
   val rs2s = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
   val rds  = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
 
-  val is_bubble = Wire(Vec(p(IssueWidth), Bool()))
-  val is_csr    = Wire(Vec(p(IssueWidth), Bool()))
-  val is_lsu    = Wire(Vec(p(IssueWidth), Bool()))
-  val hazard    = Wire(Vec(p(IssueWidth), Bool()))
+  val is_bubble   = Wire(Vec(p(IssueWidth), Bool()))
+  val is_csr      = Wire(Vec(p(IssueWidth), Bool()))
+  val is_lsu      = Wire(Vec(p(IssueWidth), Bool()))
+  val is_store    = Wire(Vec(p(IssueWidth), Bool()))
+  val is_load     = Wire(Vec(p(IssueWidth), Bool()))
+  val valid_lsu   = Wire(Vec(p(IssueWidth), Bool()))
+  val valid_store = Wire(Vec(p(IssueWidth), Bool()))
+  val hazard      = Wire(Vec(p(IssueWidth), Bool()))
 
   var csr_active = !rob.io.empty
+
+  val uncompleted_lsus   = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
+  val last_lsu_was_store = RegInit(false.B)
 
   for (w <- 0 until p(IssueWidth)) {
     decoders(w).instr   := ifu.if_instr(w)
@@ -186,12 +212,24 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.rs1_addr(w) := rs1s(w)
     rob.io.rs2_addr(w) := rs2s(w)
 
-    is_bubble(w) := ifu.if_instr(w) === p(Bubble).value.U(p(ILen).W)
-    is_csr(w)    := decoders(w).decoded.csr || decoders(w).decoded.ret
-    is_lsu(w)    := decoders(w).decoded.lsu
+    is_bubble(w)   := ifu.if_instr(w) === p(Bubble).value.U(p(ILen).W)
+    is_csr(w)      := decoders(w).decoded.csr || decoders(w).decoded.ret
+    is_lsu(w)      := decoders(w).decoded.lsu
+    
+    is_store(w)    := is_lsu(w) && !decoders(w).decoded.regwrite
+    is_load(w)     := is_lsu(w) && decoders(w).decoded.regwrite
 
-    val csr_haz = is_csr(w) && (csr_active || w.U > 0.U)
-    hazard(w) := csr_haz
+    valid_lsu(w)   := ifu.if_valid(w) && !is_bubble(w) && is_lsu(w)
+    valid_store(w) := ifu.if_valid(w) && !is_bubble(w) && is_store(w)
+
+    val prev_lsu   = if (w == 0) false.B else (0 until w).map(v => valid_lsu(v)).reduce(_ || _)
+    val prev_store = if (w == 0) false.B else (0 until w).map(v => valid_store(v)).reduce(_ || _)
+
+    val csr_haz   = is_csr(w) && (csr_active || w.U > 0.U)
+    val store_haz = is_store(w) && (uncompleted_lsus > 0.U || prev_lsu)
+    val load_haz  = is_load(w)  && ((last_lsu_was_store && uncompleted_lsus > 0.U) || prev_store)
+
+    hazard(w) := csr_haz || store_haz || load_haz
 
     if (w > 0) {
       val next_csr = WireDefault(csr_active)
@@ -307,6 +345,24 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   if (aluIds.nonEmpty) alu_rr := (alu_rr + alu_disp) % aluIds.length.U
   if (lsuIds.nonEmpty) lsu_rr := (lsu_rr + lsu_disp) % lsuIds.length.U
+
+  val lsu_dispatched = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && is_lsu(w)))
+  val lsu_wb         = PopCount(lsuIds.map(id => rob.io.wb(id).valid))
+
+  when(global_flush) {
+    uncompleted_lsus   := 0.U
+    last_lsu_was_store := false.B
+  }.otherwise {
+    val next_uncompleted = uncompleted_lsus + lsu_dispatched - lsu_wb
+    // Failsafe Clamp: Safely absorbs ghost WB signals from draining FUs
+    uncompleted_lsus := Mux(lsu_wb > (uncompleted_lsus + lsu_dispatched), 0.U, next_uncompleted)
+
+    val any_lsu_disp   = (0 until p(IssueWidth)).map(w => lane_valid(w) && is_lsu(w)).reduce(_ || _)
+    val any_store_disp = (0 until p(IssueWidth)).map(w => lane_valid(w) && is_store(w)).reduce(_ || _)
+    when(any_lsu_disp) {
+      last_lsu_was_store := any_store_disp
+    }
+  }
 
   val bpu_update_valid  = WireDefault(false.B)
   val bpu_update_pc     = WireDefault(0.U(p(XLen).W))
