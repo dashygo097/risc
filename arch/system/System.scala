@@ -55,6 +55,15 @@ class RiscSystem(implicit p: Parameters) extends Module {
   val debug_l1_dcache_access = IO(Output(Bool()))
   val debug_l1_dcache_miss   = IO(Output(Bool()))
 
+  val debug_flush_cycle    = IO(Output(Bool()))
+  val debug_bpu_mispredict = IO(Output(Bool()))
+  val debug_branch_commit  = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
+  val debug_rob_empty      = IO(Output(Bool()))
+  val debug_issue_count    = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
+
+  val debug_frontend_stall = IO(Output(Bool()))
+  val debug_backend_stall  = IO(Output(Bool()))
+
   debug_cycle_count   := cpu.debug_cycle_count
   debug_instret_count := cpu.debug_instret_count
   debug_instret       := cpu.debug_instret
@@ -72,4 +81,13 @@ class RiscSystem(implicit p: Parameters) extends Module {
   debug_l1_icache_miss   := cpu.debug_l1_icache_miss
   debug_l1_dcache_access := cpu.debug_l1_dcache_access
   debug_l1_dcache_miss   := cpu.debug_l1_dcache_miss
+
+  debug_flush_cycle    := cpu.debug_flush_cycle
+  debug_bpu_mispredict := cpu.debug_bpu_mispredict
+  debug_branch_commit  := cpu.debug_branch_commit
+  debug_rob_empty      := cpu.debug_rob_empty
+  debug_issue_count    := cpu.debug_issue_count
+
+  debug_frontend_stall := cpu.debug_frontend_stall
+  debug_backend_stall  := cpu.debug_backend_stall
 }

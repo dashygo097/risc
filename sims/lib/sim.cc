@@ -145,6 +145,14 @@ void DemuSimulator::reset() {
   _l1_dcache_accesses = 0;
   _l1_dcache_misses = 0;
 
+  _bpu_mispredicts = 0;
+  _branches_committed = 0;
+  _flush_cycles = 0;
+  _rob_empty_cycles = 0;
+  _issue_count = 0;
+  _frontend_stalls = 0;
+  _backend_stalls = 0;
+
   _terminate = false;
   _register_values.fill(0);
 
@@ -175,13 +183,26 @@ void DemuSimulator::run(uint64_t max_cycles) {
                       end_time - start_time)
                       .count();
 
-  DEMU_INFO("Simulation completed!")
-  DEMU_INFO("  With {} cycles, {} instructions, IPC: {:.3f} "
-            "after {} ms",
+  DEMU_INFO("Simulation completed!");
+  DEMU_INFO("  With {} cycles, {} instructions, IPC: {:.3f} after {} ms",
             cycle_count(), instret_count(), ipc(), duration / 1000.0);
 
-  DEMU_INFO("  L1 Icache Hit Rate: {:.2f} %", l1_icache_hit_rate() * 100);
-  DEMU_INFO("  L1 Dcache Hit Rate: {:.2f} %", l1_dcache_hit_rate() * 100);
+  DEMU_INFO("  --- Memory Performance ---");
+  DEMU_INFO("  L1 Icache Hit Rate: {:.2f} % ({} misses / {} accesses)",
+            l1_icache_hit_rate() * 100, _l1_icache_misses, _l1_icache_accesses);
+  DEMU_INFO("  L1 Dcache Hit Rate: {:.2f} % ({} misses / {} accesses)",
+            l1_dcache_hit_rate() * 100, _l1_dcache_misses, _l1_dcache_accesses);
+
+  DEMU_INFO("  --- Pipeline Profiling ---");
+  DEMU_INFO("  BPU Hit Rate:       {:.2f} % ({} misses / {} branches)",
+            bpu_hit_rate() * 100, _bpu_mispredicts, _branches_committed);
+  DEMU_INFO("  Issue Rate:         {:.3f} uOps/cycle", issue_rate());
+  DEMU_INFO("  Frontend Starved:   {:.2f} % of cycles (ROB Empty)",
+            frontend_starvation_rate() * 100);
+  DEMU_INFO("  Frontend Stalled:   {:.2f} % of cycles (Hazards/Full)",
+            frontend_stall_rate() * 100);
+  DEMU_INFO("  Backend Stalled:    {:.2f} % of cycles (Waiting Exe/Mem)",
+            backend_stall_rate() * 100);
 }
 
 void DemuSimulator::dump_registers() const {
@@ -224,6 +245,7 @@ void DemuSimulator::clock_tick() {
   device_manager_->clock_tick();
   handle_interrupt();
   handle_cache_profiling();
+  handle_performance_profiling();
 
   const auto reg_addr = dut_->debug_reg_addr;
   if (reg_addr < NUM_GPRS && dut_->debug_reg_we) {
@@ -268,6 +290,16 @@ void DemuSimulator::handle_cache_profiling() {
   _l1_dcache_accesses += static_cast<uint64_t>(dut_->debug_l1_dcache_access);
   _l1_dcache_misses += static_cast<uint64_t>(dut_->debug_l1_dcache_access &&
                                              dut_->debug_l1_dcache_miss);
+}
+
+void DemuSimulator::handle_performance_profiling() {
+  _bpu_mispredicts += static_cast<uint64_t>(dut_->debug_bpu_mispredict);
+  _branches_committed += static_cast<uint64_t>(dut_->debug_branch_commit);
+  _flush_cycles += static_cast<uint64_t>(dut_->debug_flush_cycle);
+  _rob_empty_cycles += static_cast<uint64_t>(dut_->debug_rob_empty);
+  _issue_count += static_cast<uint64_t>(dut_->debug_issue_count);
+  _frontend_stalls += static_cast<uint64_t>(dut_->debug_frontend_stall);
+  _backend_stalls += static_cast<uint64_t>(dut_->debug_backend_stall);
 }
 
 } // namespace demu

@@ -542,4 +542,22 @@ class RiscCore(implicit p: Parameters) extends Module {
   debug_l1_icache_miss   := !l1_icache.upper.resp.bits.hit
   debug_l1_dcache_access := RegNext(l1_dcache.upper.req.fire)
   debug_l1_dcache_miss   := !l1_dcache.upper.resp.bits.hit
+
+  val debug_flush_cycle    = IO(Output(Bool()))
+  val debug_bpu_mispredict = IO(Output(Bool()))
+  val debug_branch_commit  = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
+  val debug_rob_empty      = IO(Output(Bool()))
+  val debug_issue_count    = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
+
+  debug_flush_cycle    := global_flush
+  debug_bpu_mispredict := (0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).flush_pipeline).reduce(_ || _)
+  debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch))
+  debug_rob_empty      := rob.io.empty
+  debug_issue_count    := PopCount(lane_valid)
+
+  val debug_frontend_stall = IO(Output(Bool()))
+  val debug_backend_stall  = IO(Output(Bool()))
+
+  debug_frontend_stall := wants_to_issue(0) && !lane_valid(0)
+  debug_backend_stall  := !rob.io.empty && (commit_pop_count === 0.U)
 }
