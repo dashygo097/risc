@@ -14,6 +14,7 @@ import core.imm._
 import core.csr._
 import configs._
 import vopts.utils._
+import vopts.utils.DesignEmitter._
 
 object MainCore extends App {
   DecoderInit
@@ -25,7 +26,13 @@ object MainCore extends App {
   ImmInit
   CsrInit
 
-  VerilogEmitter.parse(new RiscCore, s"${p(ISA).name}_cpu.sv", lowering = true)
+  DesignEmitter.emit(
+    gen = new RiscCore,
+    filename = s"${p(ISA).name}_cpu",
+    target = SystemVerilog,
+    info = true,
+    lowering = true,
+  )
   RiscDump.dump(
     p = p,
     configPath = "build/config.json",
@@ -48,7 +55,13 @@ object MainSystem extends App {
   BusBridgeInit
   BusCrossbarInit
 
-  VerilogEmitter.parse(new RiscSystem, s"${p(ISA).name}_system.sv", lowering = true)
+  DesignEmitter.emit(
+    gen = new RiscSystem,
+    filename = s"${p(ISA).name}_system",
+    target = SystemVerilog,
+    info = true,
+    lowering = true,
+  )
   RiscDump.dump(
     p = p,
     configPath = "build/config.json",
