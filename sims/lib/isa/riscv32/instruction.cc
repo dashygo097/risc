@@ -62,7 +62,7 @@ auto Instruction::type() const noexcept -> InstrType {
   }
 }
 
-std::string Instruction::mnemonic() const noexcept {
+auto Instruction::mnemonic() const noexcept -> std::string {
   switch (opcode_) {
   case 0b0110011:
     switch (funct3_) {
