@@ -90,7 +90,8 @@ protected:
 #if defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)
     const auto *clint_r = config_->find_region("clint");
     device_manager_->register_device<demu::hal::axi::AXIFullCLINT>(
-        3, *clint_r, timer_irq_.get(), soft_irq_.get());
+        3, *clint_r, config_->freq(), timer_irq_.get(), soft_irq_.get());
+
     device_manager_->register_handler(
         3, std::make_unique<demu::hal::axi::AXIFullPortHandler>([this]() {
           demu::hal::axi::AXIFullSignals s;

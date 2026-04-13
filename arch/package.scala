@@ -12,7 +12,8 @@ package object configs {
 
   // --------------------------------------------
   // Architecture Parameters
-  object ISA extends Field[IsaWrapper](RV32IM)
+  object ISA       extends Field[IsaWrapper](RV32IM)
+  object Frequency extends Field[Long](50_000_000) // NOTE: default: 5MHZ
 
   // Ifu Parameters
   object IBufferSize extends Field[Int](8)
@@ -85,8 +86,10 @@ package object configs {
   object Bubble      extends Field[BitPat](ISA().bubble)
 
   implicit val p: Parameters = Parameters.empty ++ Map(
+    ISA       -> ISA(),
+    Frequency -> Frequency(),
+
     // ISA
-    ISA         -> ISA(),
     XLen        -> XLen(),
     ILen        -> ILen(),
     IAlign      -> IAlign(),

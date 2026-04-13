@@ -24,8 +24,10 @@ trait RV32ICsrMap {
   def SZ_CSR = CSR_U.getWidth
 
   // U-mode
-  def CSR_CYCLE   = BitPat("b1100_0000_0000")
-  def CSR_INSTRET = BitPat("b1100_0000_0010")
+  def CSR_CYCLE    = BitPat("b1100_0000_0000")
+  def CSR_INSTRET  = BitPat("b1100_0000_0010")
+  def CSR_CYCLEH   = BitPat("b1100_1000_0000")
+  def CSR_INSTRETH = BitPat("b1100_1000_0010")
 
   // S-mode
 
@@ -46,6 +48,8 @@ trait RV32ICsrMap {
   def CSR_MARCHID   = BitPat("b1111_0001_0010")
   def CSR_MIMPID    = BitPat("b1111_0001_0011")
   def CSR_MHARTID   = BitPat("b1111_0001_0100")
+  def CSR_MCYCLEH   = BitPat("b1011_1000_0000")
+  def CSR_MINSTRETH = BitPat("b1011_1000_0010")
 }
 
 object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsrConsts with RV32ICsrMap {
@@ -86,6 +90,8 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
       // U-mode
       (Register("cycle", CSR_CYCLE.value, 0x0L, writable = false), AlwaysUpdate(params => params("cycle")(31, 0))),
       (Register("instret", CSR_INSTRET.value, 0x0L, writable = false), AlwaysUpdate(params => params("instret")(31, 0))),
+      (Register("cycleh", CSR_CYCLEH.value, 0x0L, writable = false), AlwaysUpdate(params => params("cycle")(63, 32))),
+      (Register("instreth", CSR_INSTRETH.value, 0x0L, writable = false), AlwaysUpdate(params => params("instret")(63, 32))),
 
       // M-mode
       (Register("mstatus", CSR_MSTATUS.value, 0x0L), NormalUpdate),
@@ -110,6 +116,8 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
       (Register("marchid", CSR_MARCHID.value, 0x0L, writable = false), NormalUpdate),
       (Register("mimpid", CSR_MIMPID.value, 0x0L, writable = false), NormalUpdate),
       (Register("mhartid", CSR_MHARTID.value, 0x0L, writable = false), NormalUpdate),
+      (Register("mcycleh", CSR_MCYCLEH.value, 0x0L, writable = false), AlwaysUpdate(params => params("cycle")(63, 32))),
+      (Register("minstreth", CSR_MINSTRETH.value, 0x0L, writable = false), AlwaysUpdate(params => params("instret")(63, 32))),
     )
 
     override def checkInterrupts(regs: Map[String, UInt], extra: Map[String, UInt]): (Bool, UInt, UInt) = {
