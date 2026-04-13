@@ -9,6 +9,9 @@ trait RegfileUtilities extends Utilities {
   def getRs2(instr: UInt): UInt
   def getRd(instr: UInt): UInt
   def extraInfo: Seq[Register]
+
+  def writable(addr: UInt): Bool
+  def readable(addr: UInt): Bool
 }
 
 object RegfileUtilitiesFactory extends UtilitiesFactory[RegfileUtilities]("Regfile")
