@@ -10,6 +10,7 @@ class Regfile(implicit p: Parameters) extends Module {
 
   val utils = RegfileUtilitiesFactory.getOrThrow(p(ISA).name)
 
+  // NOTE: Renaming to be impled
   val rs1_preg   = IO(Input(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W))))
   val rs2_preg   = IO(Input(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W))))
   val write_preg = IO(Input(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W))))

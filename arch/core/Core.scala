@@ -84,25 +84,17 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val mem_req_fire  = l1_dcache.upper.req.fire
   val mem_resp_fire = l1_dcache.upper.resp.fire
-  when(mem_req_fire && !mem_resp_fire) {
-    cache_inflight := cache_inflight + 1.U
-  }.elsewhen(!mem_req_fire && mem_resp_fire) {
-    cache_inflight := cache_inflight - 1.U
-  }
+  when(mem_req_fire && !mem_resp_fire)(cache_inflight := cache_inflight + 1.U)
+    .elsewhen(!mem_req_fire && mem_resp_fire)(cache_inflight := cache_inflight - 1.U)
 
   val mmio_req_fire  = mmio.req.fire
   val mmio_resp_fire = mmio.resp.fire
-  when(mmio_req_fire && !mmio_resp_fire) {
-    mmio_inflight := mmio_inflight + 1.U
-  }.elsewhen(!mmio_req_fire && mmio_resp_fire) {
-    mmio_inflight := mmio_inflight - 1.U
-  }
+  when(mmio_req_fire && !mmio_resp_fire)(mmio_inflight := mmio_inflight + 1.U)
+    .elsewhen(!mmio_req_fire && mmio_resp_fire)(mmio_inflight := mmio_inflight - 1.U)
 
   val mem_draining = RegInit(false.B)
   when(global_flush) {
-    when(cache_inflight =/= 0.U || mmio_inflight =/= 0.U) {
-      mem_draining := true.B
-    }
+    when(cache_inflight =/= 0.U || mmio_inflight =/= 0.U)(mem_draining := true.B)
   }.elsewhen(mem_draining && cache_inflight === 0.U && mmio_inflight === 0.U) {
     mem_draining := false.B
   }
@@ -115,7 +107,6 @@ class RiscCore(implicit p: Parameters) extends Module {
     for (i <- lsus.indices) memReqArb.io.in(i) <> lsus(i).mem.req
 
     val memRespQueue = Module(new Queue(UInt(log2Ceil(lsus.length).W), p(ROBSize)))
-
     memReqArb.io.out.ready    := l1_dcache.upper.req.ready && memRespQueue.io.enq.ready
     l1_dcache.upper.req.valid := memReqArb.io.out.valid && memRespQueue.io.enq.ready
     l1_dcache.upper.req.bits  := memReqArb.io.out.bits
@@ -134,10 +125,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     when(memRespQueue.io.deq.valid) {
       for (i <- lsus.indices)
         when(memTarget === i.U) {
-          val is_idle           = lsus(i).io.req.ready
-          val lsu_ready         = lsus(i).mem.resp.ready
-          val effectively_ready = lsu_ready || is_idle
-
+          val effectively_ready = lsus(i).mem.resp.ready || lsus(i).io.req.ready
           l1_dcache.upper.resp.ready := effectively_ready
           memRespQueue.io.deq.ready  := l1_dcache.upper.resp.valid && effectively_ready
         }
@@ -147,7 +135,6 @@ class RiscCore(implicit p: Parameters) extends Module {
     for (i <- lsus.indices) mmioReqArb.io.in(i) <> lsus(i).mmio.req
 
     val mmioRespQueue = Module(new Queue(UInt(log2Ceil(lsus.length).W), p(ROBSize)))
-
     mmioReqArb.io.out.ready := mmio.req.ready && mmioRespQueue.io.enq.ready
     mmio.req.valid          := mmioReqArb.io.out.valid && mmioRespQueue.io.enq.ready
     mmio.req.bits           := mmioReqArb.io.out.bits
@@ -166,10 +153,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     when(mmioRespQueue.io.deq.valid) {
       for (i <- lsus.indices)
         when(mmioTarget === i.U) {
-          val is_idle           = lsus(i).io.req.ready
-          val lsu_ready         = lsus(i).mmio.resp.ready
-          val effectively_ready = lsu_ready || is_idle
-
+          val effectively_ready = lsus(i).mmio.resp.ready || lsus(i).io.req.ready
           mmio.resp.ready            := effectively_ready
           mmioRespQueue.io.deq.ready := mmio.resp.valid && effectively_ready
         }
@@ -177,10 +161,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   }
 
   dmem <> l1_dcache.lower
-
-  csrs.foreach { csr =>
-    csr.arch_pc := Mux(rob.io.empty, ifu.if_pc(0), rob.io.commit(0).pc)
-  }
+  csrs.foreach(csr => csr.arch_pc := Mux(rob.io.empty, ifu.if_pc(0), rob.io.commit(0).pc))
 
   imem.req <> l1_icache.lower.req
   imem.resp.ready                := l1_icache.lower.resp.ready
@@ -350,32 +331,6 @@ class RiscCore(implicit p: Parameters) extends Module {
   if (aluIds.nonEmpty) alu_rr := (alu_rr + alu_disp) % aluIds.length.U
   if (lsuIds.nonEmpty) lsu_rr := (lsu_rr + lsu_disp) % lsuIds.length.U
 
-  val lsu_order_buffer = Reg(Vec(p(ROBSize), UInt(log2Ceil(p(ROBSize)).W)))
-  val lsu_order_head   = RegInit(0.U(log2Ceil(p(ROBSize)).W))
-  val lsu_order_tail   = RegInit(0.U(log2Ceil(p(ROBSize)).W))
-
-  val lsu_disp_valids = Wire(Vec(p(IssueWidth), Bool()))
-  for (w <- 0 until p(IssueWidth)) lsu_disp_valids(w) := lane_valid(w) && is_lsu(w)
-
-  val lsu_disp_count = PopCount(lsu_disp_valids)
-
-  val enq_offsets = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(ROBSize)).W)))
-  enq_offsets(0)   := 0.U
-  for (w <- 1 until p(IssueWidth))
-    enq_offsets(w) := enq_offsets(w - 1) + lsu_disp_valids(w - 1).asUInt
-
-  for (w <- 0 until p(IssueWidth))
-    when(lsu_disp_valids(w)) {
-      val idx = (lsu_order_tail + enq_offsets(w)) % p(ROBSize).U
-      lsu_order_buffer(idx) := rob.io.enq(w).rob_tag
-    }
-
-  val lsu_req_fires = Wire(Vec(p(FunctionalUnits).size, Bool()))
-  lsu_req_fires.foreach(_ := false.B)
-
-  val current_lsu_tag = lsu_order_buffer(lsu_order_head)
-  val lsu_order_valid = lsu_order_head =/= lsu_order_tail
-
   val bpu_update_valid  = WireDefault(false.B)
   val bpu_update_pc     = WireDefault(0.U(p(XLen).W))
   val bpu_update_target = WireDefault(0.U(p(XLen).W))
@@ -402,7 +357,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.enq(w).pd              := 0.U
     rob.io.enq(w).old_pd          := 0.U
     rob.io.enq(w).is_branch       := decoders(w).decoded.branch
-    rob.io.enq(w).is_lsu          := is_lsu(w)
+    rob.io.enq(w).is_lsu          := decoders(w).decoded.lsu
     rob.io.enq(w).bpu_pred_taken  := ifu.if_bpu_pred_taken(w)
     rob.io.enq(w).bpu_pred_target := ifu.if_bpu_pred_target(w)
 
@@ -428,19 +383,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   for ((fu, i) <- fus.zipWithIndex) {
     fu.io.flush := global_flush
 
-    fu match {
-      case l: LsuFU =>
-        val is_next_lsu = lsu_order_valid && (scheduler.fu_reqs(i).bits.rob_tag === current_lsu_tag)
-
-        fu.io.req.valid            := scheduler.fu_reqs(i).valid && is_next_lsu
-        scheduler.fu_reqs(i).ready := fu.io.req.ready && is_next_lsu
-        fu.io.req.bits             := scheduler.fu_reqs(i).bits
-
-        lsu_req_fires(i) := fu.io.req.fire
-      case _        =>
-        fu.io.req <> scheduler.fu_reqs(i)
-    }
-
+    fu.io.req <> scheduler.fu_reqs(i)
     fu.io.resp.ready := true.B
 
     scheduler.fu_done(i).valid := fu.io.resp.valid
@@ -470,16 +413,6 @@ class RiscCore(implicit p: Parameters) extends Module {
         rob.io.wb(i).trap_ret_tgt := c.trap_ret_tgt
       case _        =>
     }
-  }
-
-  val lsu_fire_count = PopCount(lsu_req_fires)
-
-  when(global_flush) {
-    lsu_order_head := 0.U
-    lsu_order_tail := 0.U
-  }.otherwise {
-    lsu_order_tail := (lsu_order_tail + lsu_disp_count) % p(ROBSize).U
-    lsu_order_head := (lsu_order_head + lsu_fire_count) % p(ROBSize).U
   }
 
   for (w <- 0 until p(IssueWidth)) {
@@ -543,20 +476,21 @@ class RiscCore(implicit p: Parameters) extends Module {
   debug_l1_dcache_access := RegNext(l1_dcache.upper.req.fire)
   debug_l1_dcache_miss   := !l1_dcache.upper.resp.bits.hit
 
-  val debug_flush_cycle    = IO(Output(Bool()))
   val debug_bpu_mispredict = IO(Output(Bool()))
   val debug_branch_commit  = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
+  val debug_flush_cycle    = IO(Output(Bool()))
   val debug_rob_empty      = IO(Output(Bool()))
   val debug_issue_count    = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
-
-  debug_flush_cycle    := global_flush
-  debug_bpu_mispredict := (0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).flush_pipeline).reduce(_ || _)
-  debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch))
-  debug_rob_empty      := rob.io.empty
-  debug_issue_count    := PopCount(lane_valid)
-
+  val debug_commit_count   = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
   val debug_frontend_stall = IO(Output(Bool()))
   val debug_backend_stall  = IO(Output(Bool()))
+
+  debug_bpu_mispredict := (0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).flush_pipeline).reduce(_ || _)
+  debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch))
+  debug_flush_cycle    := global_flush
+  debug_rob_empty      := rob.io.empty
+  debug_issue_count    := PopCount(lane_valid)
+  debug_commit_count   := commit_pop_count
 
   debug_frontend_stall := wants_to_issue(0) && !lane_valid(0)
   debug_backend_stall  := !rob.io.empty && (commit_pop_count === 0.U)
