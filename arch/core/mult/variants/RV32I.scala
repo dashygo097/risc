@@ -2,14 +2,13 @@ package arch.core.mult
 
 import arch.configs._
 import chisel3._
-import vopts.math.Multiplier
 
 object RV32IMultUtilities extends RegisteredUtilities[MultUtilities] {
   override def utils: MultUtilities = new MultUtilities {
     override def name: String = "rv32i"
 
-    override def build: Multiplier =
-      Module(new Multiplier(p(XLen), pipeline_stages = p(MultPipelineStages)))
+    // NOTE: Should not impled, return 0.U
+    override def fn(en: Bool, kill: Bool, src1: UInt, src2: UInt, a_signed: Bool, b_signed: Bool, high: Bool): (UInt, Bool, Bool) = (0.U(p(XLen).W), false.B, true.B)
   }
 
   override def factory: UtilitiesFactory[MultUtilities] = MultUtilitiesFactory
