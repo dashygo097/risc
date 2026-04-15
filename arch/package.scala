@@ -13,7 +13,7 @@ package object configs {
   // --------------------------------------------
   // Architecture Parameters
   object ISA       extends Field[IsaWrapper](RV32IM)
-  object Frequency extends Field[Long](50_000_000) // NOTE: default: 5MHZ
+  object Frequency extends Field[Long](50_000_000) // NOTE: default: 50MHZ
 
   // Ifu Parameters
   object IBufferSize extends Field[Int](8)

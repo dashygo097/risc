@@ -45,10 +45,22 @@ void AXIFullSRAM::clock_tick() {
 }
 
 void AXIFullSRAM::calculate_next_address(BurstTransaction &req) {
-  if (req.burst == 1) { // INCR Burst
-    req.addr += (1u << req.size);
+  const addr_t bytes_per_beat = 1u << req.size;
+
+  if (req.burst == 1) {
+    // INCR Burst: Purely linear increment
+    req.addr += bytes_per_beat;
   } else if (req.burst == 2) {
-    req.addr += (1u << req.size);
+    // WRAP Burst: Wraps around when hitting the upper boundary
+    const addr_t wrap_bytes =
+        (static_cast<addr_t>(req.len) + 1u) * bytes_per_beat;
+    const addr_t wrap_mask = wrap_bytes - 1u;
+
+    const addr_t base_addr = req.addr & ~wrap_mask;
+
+    const addr_t next_offset = (req.addr + bytes_per_beat) & wrap_mask;
+
+    req.addr = base_addr | next_offset;
   }
 }
 
