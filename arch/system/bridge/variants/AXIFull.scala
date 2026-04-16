@@ -31,10 +31,13 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val w_data_buffer = Reg(UInt(memory.req.bits.data.getWidth.W))
       val w_strb_buffer = Reg(UInt(memory.req.bits.strb.getWidth.W))
 
-      axi.aw.valid := false.B; axi.aw.bits := DontCare
-      axi.w.valid  := false.B; axi.w.bits  := DontCare
+      axi.aw.valid := false.B
+      axi.aw.bits  := DontCare
+      axi.w.valid  := false.B
+      axi.w.bits   := DontCare
       axi.b.ready  := false.B
-      axi.ar.valid := false.B; axi.ar.bits := DontCare
+      axi.ar.valid := false.B
+      axi.ar.bits  := DontCare
       axi.r.ready  := false.B
 
       memory.req.ready      := false.B
@@ -111,7 +114,7 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
           axi.aw.bits.addr  := req_addr
           axi.aw.bits.len   := burstLen
           axi.aw.bits.size  := log2Ceil(bytesPerAxiBeat).U
-          axi.aw.bits.burst := 1.U // Always INCR for writes
+          axi.aw.bits.burst := 1.U
           axi.aw.bits.id    := 0.U
           when(axi.aw.fire)(state := AXIBridgeState.W)
         }
@@ -186,10 +189,13 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val state    = RegInit(AXIBridgeState.IDLE)
       val req_addr = RegInit(0.U(p(XLen).W))
 
-      axi.aw.valid := false.B; axi.aw.bits := DontCare
-      axi.w.valid  := false.B; axi.w.bits  := DontCare
+      axi.aw.valid := false.B
+      axi.aw.bits  := DontCare
+      axi.w.valid  := false.B
+      axi.w.bits   := DontCare
       axi.b.ready  := false.B
-      axi.ar.valid := false.B; axi.ar.bits := DontCare
+      axi.ar.valid := false.B
+      axi.ar.bits  := DontCare
       axi.r.ready  := false.B
 
       memory.req.ready      := false.B
