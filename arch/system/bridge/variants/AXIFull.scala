@@ -176,7 +176,7 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val axi = Wire(new AXIFullMasterIO(addrWidth = p(XLen), dataWidth = p(XLen), idWidth = 4))
 
       val bytesPerAxiBeat = p(XLen) / 8
-      val bytesPerGen     = memory.resp.bits.data.getWidth / 8 // YOUR FIX HERE!
+      val bytesPerGen     = memory.resp.bits.data.getWidth / 8
       val axiBeatsPerGen  = bytesPerGen / bytesPerAxiBeat
 
       val wordsPerLine  = if (isMmio) 1 else p(L1ICacheLineSize) / bytesPerGen
