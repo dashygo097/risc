@@ -141,6 +141,7 @@ void DemuSimulator::reset() {
 
   device_manager_->reset();
 
+  _l1_icache_accesses = 0;
   _l1_icache_misses = 0;
   _l1_dcache_accesses = 0;
   _l1_dcache_misses = 0;
@@ -265,13 +266,10 @@ void DemuSimulator::clock_tick() {
   }
 
   if (__builtin_expect(static_cast<bool>(dut_->debug_instret), 0)) {
-    auto &logger = ::demu::Logger::getDemuLogger();
-    if (logger->should_log(spdlog::level::info)) {
-      Instruction inst(static_cast<instr_t>(dut_->debug_instr));
-      DEMU_DEBUG("RETIRE | Cycle {:6d} | PC=0x{:08x} | Inst=0x{:08x} ({})",
-                 cycle_count(), static_cast<addr_t>(dut_->debug_pc),
-                 dut_->debug_instr, inst.to_string());
-    }
+    Instruction inst(static_cast<instr_t>(dut_->debug_instr));
+    DEMU_DEBUG("RETIRE | Cycle {:6d} | PC=0x{:08x} | Inst=0x{:08x} ({})",
+               cycle_count(), static_cast<addr_t>(dut_->debug_pc),
+               dut_->debug_instr, inst.to_string());
   }
 
   on_clock_tick();
