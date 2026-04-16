@@ -121,7 +121,7 @@ auto DeviceManager::register_device(port_id_t port, risc::DeviceDescriptor desc,
     rebuild_indices_for(port);
 
     HAL_DEBUG("Registered device '{}' on Port {} [Base: 0x{:08X}]", desc.name(),
-              port, static_cast<uint32_t>(ptr->base_address()));
+              port, static_cast<addr_t>(ptr->base_address()));
 
     return ptr;
   } catch (const std::exception &e) {
