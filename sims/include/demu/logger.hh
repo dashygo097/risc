@@ -81,7 +81,7 @@ private:
 #define DEMU_CPU_TICK(cycle) DEMU_TRACE("CYCLE {:<6}", cycle)
 
 #define DEMU_REG_WRITE(reg, val)                                               \
-  DEMU_DEBUG("REG [x{:02d}] <- 0x{:08x}", reg, val)
+  DEMU_TRACE("REG [x{:02d}] <- 0x{:08x}", reg, val)
 
 #define DEMU_MEM_TRACE(type, addr, data)                                       \
   DEMU_TRACE("[MEM {}] Addr: 0x{:08x} | Data: 0x{:08x}", type, addr, data)

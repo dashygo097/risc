@@ -183,17 +183,19 @@ void DemuSimulator::run(uint64_t max_cycles) {
                       end_time - start_time)
                       .count();
 
-  DEMU_INFO("Simulation completed!");
-  DEMU_INFO("  With {} cycles, {} instructions, IPC: {:.3f} after {} ms",
+  DEMU_INFO("Simulation completed with: ");
+  DEMU_INFO("  {} cycles, {} instructions, IPC: {:.3f} after {} ms",
             cycle_count(), instret_count(), ipc(), duration / 1000.0);
 
-  DEMU_INFO("  --- Memory Performance ---");
+  DEMU_INFO("")
+  DEMU_INFO("--- Memory Performance ---");
   DEMU_INFO("  L1 Icache Hit Rate: {:.2f} % ({} misses / {} accesses)",
             l1_icache_hit_rate() * 100, _l1_icache_misses, _l1_icache_accesses);
   DEMU_INFO("  L1 Dcache Hit Rate: {:.2f} % ({} misses / {} accesses)",
             l1_dcache_hit_rate() * 100, _l1_dcache_misses, _l1_dcache_accesses);
 
-  DEMU_INFO("  --- Pipeline Profiling ---");
+  DEMU_INFO("")
+  DEMU_INFO("--- Pipeline Profiling ---");
   DEMU_INFO("  BPU Hit Rate:       {:.2f} % ({} misses / {} branches)",
             bpu_hit_rate() * 100, _bpu_mispredicts, _branches_committed);
   DEMU_INFO("  Issue Rate:         {:.3f} uOps/cycle", issue_rate());
@@ -203,6 +205,7 @@ void DemuSimulator::run(uint64_t max_cycles) {
             frontend_stall_rate() * 100);
   DEMU_INFO("  Backend Stalled:    {:.2f} % of cycles (Waiting Exe/Mem)",
             backend_stall_rate() * 100);
+  DEMU_INFO("")
 }
 
 void DemuSimulator::dump_registers() const {
@@ -263,9 +266,9 @@ void DemuSimulator::clock_tick() {
     auto &logger = ::demu::Logger::getDemuLogger();
     if (logger->should_log(spdlog::level::info)) {
       Instruction inst(static_cast<instr_t>(dut_->debug_instr));
-      DEMU_INFO("RETIRE | Cycle {:6d} | PC=0x{:08x} | Inst=0x{:08x} ({})",
-                cycle_count(), static_cast<addr_t>(dut_->debug_pc),
-                dut_->debug_instr, inst.to_string());
+      DEMU_DEBUG("RETIRE | Cycle {:6d} | PC=0x{:08x} | Inst=0x{:08x} ({})",
+                 cycle_count(), static_cast<addr_t>(dut_->debug_pc),
+                 dut_->debug_instr, inst.to_string());
     }
   }
 
