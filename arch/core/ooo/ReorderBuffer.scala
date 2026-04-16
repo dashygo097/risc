@@ -153,10 +153,10 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
         wb_entry.actual_target := io.wb(i).actual_target
       }.elsewhen(non_bru_mispredict) {
         wb_entry.actual_taken  := false.B
-        wb_entry.actual_target := wb_entry.pc + 4.U
+        wb_entry.actual_target := wb_entry.pc + p(IAlign).U
       }
 
-      val target = Mux(io.wb(i).is_bru, io.wb(i).actual_target, wb_entry.pc + 4.U)
+      val target = Mux(io.wb(i).is_bru, io.wb(i).actual_target, wb_entry.pc + p(IAlign).U)
 
       wb_entry.flush_pipeline := is_mispredict || io.wb(i).trap_req || io.wb(i).trap_ret
       wb_entry.flush_target   := MuxCase(
