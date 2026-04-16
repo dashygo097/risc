@@ -188,10 +188,9 @@ class RiscCore(implicit p: Parameters) extends Module {
   val rs2s = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
   val rds  = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
 
-  val is_bubble = Wire(Vec(p(IssueWidth), Bool()))
-  val is_csr    = Wire(Vec(p(IssueWidth), Bool()))
-  val is_lsu    = Wire(Vec(p(IssueWidth), Bool()))
-  val hazard    = Wire(Vec(p(IssueWidth), Bool()))
+  val is_csr = Wire(Vec(p(IssueWidth), Bool()))
+  val is_lsu = Wire(Vec(p(IssueWidth), Bool()))
+  val hazard = Wire(Vec(p(IssueWidth), Bool()))
 
   var csr_active = !rob.io.empty
 
@@ -210,9 +209,8 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.rs1_addr(w) := rs1s(w)
     rob.io.rs2_addr(w) := rs2s(w)
 
-    is_bubble(w) := ifu.if_instr(w) === p(Bubble).value.U(p(ILen).W)
-    is_csr(w)    := decoders(w).decoded.csr || decoders(w).decoded.ret
-    is_lsu(w)    := decoders(w).decoded.lsu
+    is_csr(w) := decoders(w).decoded.csr || decoders(w).decoded.ret
+    is_lsu(w) := decoders(w).decoded.lsu
 
     val csr_haz = is_csr(w) && (csr_active || w.U > 0.U)
 
@@ -220,7 +218,7 @@ class RiscCore(implicit p: Parameters) extends Module {
 
     if (w > 0) {
       val next_csr = WireDefault(csr_active)
-      when(is_csr(w) && !is_bubble(w))(next_csr := true.B)
+      when(is_csr(w))(next_csr := true.B)
       csr_active = next_csr
     }
   }
@@ -234,7 +232,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     kill_mask(w) := kill_mask(w - 1) || (ifu.if_valid(w - 1) && ifu.if_bpu_pred_taken(w - 1))
 
   for (w <- 0 until p(IssueWidth)) {
-    wants_to_issue(w) := ifu.if_valid(w) && !is_bubble(w) && !hazard(w) && !global_flush && !kill_mask(w) && !mem_draining
+    wants_to_issue(w) := ifu.if_valid(w) && !hazard(w) && !global_flush && !kill_mask(w) && !mem_draining
 
     inst_type(w) := MuxCase(
       FUNCTIONAL_UNIT_TYPE_ALU.index.U,
@@ -251,9 +249,14 @@ class RiscCore(implicit p: Parameters) extends Module {
   intra_hazard(0) := false.B
   for (w <- 1 until p(IssueWidth)) {
     val conflicts = (0 until w).map { v =>
-      val rd_v       = Mux(decoders(v).decoded.regwrite, rds(v), 0.U)
+      val rd_v       = rds(v)
+      val we_v       = decoders(v).decoded.regwrite && regfile_utils.writable(rd_v)
       val is_issuing = wants_to_issue(v)
-      is_issuing && rd_v =/= 0.U && (rs1s(w) === rd_v || rs2s(w) === rd_v)
+
+      is_issuing && we_v && (
+        (rs1s(w) === rd_v && regfile_utils.readable(rs1s(w))) ||
+          (rs2s(w) === rd_v && regfile_utils.readable(rs2s(w)))
+      )
     }
     intra_hazard(w) := conflicts.reduce(_ || _)
   }
@@ -311,11 +314,11 @@ class RiscCore(implicit p: Parameters) extends Module {
     if (w == 0) {
       fire(w)       := can_consume
       lane_valid(w) := valid_req && dis_ready(w)
-      ifu_fire(w)   := ifu.if_valid(w) && (is_bubble(w) || global_flush || fire(w))
+      ifu_fire(w)   := ifu.if_valid(w) && (global_flush || fire(w))
     } else {
       fire(w)       := can_consume && fire(w - 1)
       lane_valid(w) := valid_req && dis_ready(w) && fire(w - 1)
-      ifu_fire(w)   := ifu.if_valid(w) && (is_bubble(w) || global_flush || fire(w)) && ifu_fire(w - 1)
+      ifu_fire(w)   := ifu.if_valid(w) && (global_flush || fire(w)) && ifu_fire(w - 1)
     }
   }
 
@@ -349,7 +352,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.enq(w).valid           := lane_valid(w)
     rob.io.enq(w).pc              := ifu.if_pc(w)
     rob.io.enq(w).instr           := ifu.if_instr(w)
-    rob.io.enq(w).rd              := Mux(decoders(w).decoded.regwrite, rds(w), 0.U)
+    rob.io.enq(w).rd              := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
     rob.io.enq(w).pd              := 0.U
     rob.io.enq(w).old_pd          := 0.U
     rob.io.enq(w).is_branch       := decoders(w).decoded.branch
@@ -367,7 +370,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     dis.bits.fu_id    := target_fu_id(w)
     dis.bits.rs1      := rs1s(w)
     dis.bits.rs2      := rs2s(w)
-    dis.bits.rd       := Mux(decoders(w).decoded.regwrite, rds(w), 0.U)
+    dis.bits.rd       := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
     dis.bits.rs1_data := rs1_bypassed
     dis.bits.rs2_data := rs2_bypassed
     dis.bits.rob_tag  := rob.io.enq(w).rob_tag
@@ -415,7 +418,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.read_rob_tag(w) := 0.U
     rob.io.commit(w).pop   := rob.io.commit(w).valid
 
-    regfile.write_en(w)   := rob.io.commit(w).pop && (rob.io.commit(w).rd =/= 0.U)
+    regfile.write_en(w)   := rob.io.commit(w).pop && regfile_utils.writable(rob.io.commit(w).rd)
     regfile.write_preg(w) := rob.io.commit(w).rd
     regfile.write_data(w) := rob.io.commit(w).data
   }

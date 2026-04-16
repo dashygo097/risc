@@ -184,8 +184,10 @@ void DemuSimulator::run(uint64_t max_cycles) {
                       .count();
 
   DEMU_INFO("Simulation completed with: ");
-  DEMU_INFO("  {} cycles, {} instructions, IPC: {:.3f} after {} ms",
+  DEMU_INFO("  {} cycles, {} instructions, IPC: {:.3f} after {:.3f} ms",
             cycle_count(), instret_count(), ipc(), duration / 1000.0);
+  DEMU_INFO("  simulation speed: {:.3f} kHz",
+            static_cast<float>(cycle_count()) / (duration / 1000.0f))
 
   DEMU_INFO("")
   DEMU_INFO("--- Memory Performance ---");
