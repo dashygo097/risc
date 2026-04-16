@@ -20,14 +20,18 @@ enum ClintRegisters : addr_t {
   CLINT_MTIME_HI = 0x8FFC
 };
 
+constexpr const uint64_t TICK_MS_DIVIDER = 1000;
+constexpr const uint64_t TICK_US_DIVIDER = TICK_MS_DIVIDER * 1000;
+constexpr const uint64_t TICK_NS_DIVIDER = TICK_US_DIVIDER * 1000;
+
 class AXIFullCLINT final : public AXIFullSlave {
 public:
-  explicit AXIFullCLINT(const risc::DeviceDescriptor &desc,
+  explicit AXIFullCLINT(const risc::DeviceDescriptor &desc, uint64_t freq,
                         InterruptLine *timer_line = nullptr,
                         InterruptLine *soft_line = nullptr)
       : AXIFullSlave(desc),
         allocator_(std::make_unique<MemoryAllocator>(desc.base(), desc.size())),
-        timer_line_(timer_line), soft_line_(soft_line) {}
+        freq_(freq), timer_line_(timer_line), soft_line_(soft_line) {}
 
   ~AXIFullCLINT() override = default;
 
@@ -105,6 +109,7 @@ public:
 
 private:
   std::unique_ptr<MemoryAllocator> allocator_;
+  uint64_t freq_;
   InterruptLine *timer_line_;
   InterruptLine *soft_line_;
 

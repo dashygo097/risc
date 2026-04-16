@@ -14,12 +14,13 @@ option java_package = "arch.configs.proto";
 option java_outer_classname = "RiscConfigProto";
 
 message RiscConfig {
-  IfuConfig ifu = 1;
-  BpuConfig bpu = 2;
-  RegfileConfig regfile = 3;
-  SchedulerConfig scheduler = 4;
-  RobConfig rob = 5;
-  CacheConfig l1i = 6;
-  CacheConfig l1d = 7;
-  BusConfig bus = 8;
+  uint64 freq = 1 ;
+  IfuConfig ifu = 2;
+  BpuConfig bpu = 3;
+  RegfileConfig regfile = 4;
+  SchedulerConfig scheduler = 5;
+  RobConfig rob = 6;
+  CacheConfig l1i = 7;
+  CacheConfig l1d = 8;
+  BusConfig bus = 9;
 }

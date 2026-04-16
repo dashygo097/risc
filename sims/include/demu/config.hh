@@ -17,6 +17,9 @@ public:
   RiscConfig() { load(get_config_path()); }
   explicit RiscConfig(const std::string &p) { load(p); }
 
+  [[nodiscard]] auto freq() const noexcept -> const uint64_t {
+    return proto_.freq();
+  }
   [[nodiscard]] auto ifu() const noexcept -> const risc::IfuConfig & {
     return proto_.ifu();
   }

@@ -20,8 +20,13 @@ verilate(demu
     -j 0
     --top-module ${ISA_TARGET}_system
     -CFLAGS "-Wno-unused-variable -Wno-bool-operation -Wno-parentheses-equality"
+
+    --output-split 2000
+    --output-split-cfuncs 2000
+    --output-split-ctrace 2000
+
   PREFIX V${ISA_TARGET}_system
-  TRACE_THREADS 2
+  TRACE_THREADS ${NUM_TRACE_THREADS}
   THREADS ${NUM_THREADS}
 )
 

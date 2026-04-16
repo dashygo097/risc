@@ -24,7 +24,7 @@ class MultFU(implicit p: Parameters) extends FunctionalUnit {
   }.elsewhen(io.flush) {
     state := state_idle
   }.otherwise {
-    when(state === state_busy && core_mult.io.done) {
+    when(state === state_busy && core_mult.done) {
       state := state_done
     }.elsewhen(state === state_done && io.resp.fire) {
       state := state_idle
@@ -34,16 +34,16 @@ class MultFU(implicit p: Parameters) extends FunctionalUnit {
   val current_instr = Mux(io.req.fire, io.req.bits.instr, req_reg.instr)
   decoder.instr := current_instr
 
-  core_mult.io.en       := io.req.fire
-  core_mult.io.kill     := io.flush
-  core_mult.io.src1     := Mux(io.req.fire, io.req.bits.rs1_data, req_reg.rs1_data)
-  core_mult.io.src2     := Mux(io.req.fire, io.req.bits.rs2_data, req_reg.rs2_data)
-  core_mult.io.a_signed := decoder.decoded.mult_a_signed
-  core_mult.io.b_signed := decoder.decoded.mult_b_signed
-  core_mult.io.high     := decoder.decoded.mult_high
+  core_mult.en       := io.req.fire
+  core_mult.kill     := io.flush
+  core_mult.src1     := Mux(io.req.fire, io.req.bits.rs1_data, req_reg.rs1_data)
+  core_mult.src2     := Mux(io.req.fire, io.req.bits.rs2_data, req_reg.rs2_data)
+  core_mult.a_signed := decoder.decoded.mult_a_signed
+  core_mult.b_signed := decoder.decoded.mult_b_signed
+  core_mult.high     := decoder.decoded.mult_high
 
   io.resp.valid        := (state === state_done)
-  io.resp.bits.result  := core_mult.io.result
+  io.resp.bits.result  := core_mult.result
   io.resp.bits.rd      := req_reg.rd
   io.resp.bits.pc      := req_reg.pc
   io.resp.bits.instr   := req_reg.instr

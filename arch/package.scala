@@ -12,7 +12,8 @@ package object configs {
 
   // --------------------------------------------
   // Architecture Parameters
-  object ISA extends Field[IsaWrapper](RV32IM)
+  object ISA       extends Field[IsaWrapper](RV32IM)
+  object Frequency extends Field[Long](50_000_000) // NOTE: default: 50MHZ
 
   // Ifu Parameters
   object IBufferSize extends Field[Int](8)
@@ -24,13 +25,15 @@ package object configs {
 
   // Scheduler Parameters
   object ScheduleType extends Field[String]("scoreboard")
-  object IssueWidth   extends Field[Int](1) // NOTE: Only IssueWidth = 1 is supported by now
+  object IssueWidth   extends Field[Int](2)
   object FunctionalUnits
       extends Field[Seq[FunctionalUnitDescriptor]](
         Seq(
           FunctionalUnitDescriptor(name = "ALU_0", `type` = FUNCTIONAL_UNIT_TYPE_ALU),
+          FunctionalUnitDescriptor(name = "ALU_1", `type` = FUNCTIONAL_UNIT_TYPE_ALU),
           FunctionalUnitDescriptor(name = "MULT_0", `type` = FUNCTIONAL_UNIT_TYPE_MULT),
           FunctionalUnitDescriptor(name = "LSU_0", `type` = FUNCTIONAL_UNIT_TYPE_LSU),
+          FunctionalUnitDescriptor(name = "LSU_1", `type` = FUNCTIONAL_UNIT_TYPE_LSU),
           FunctionalUnitDescriptor(name = "BRU_0", `type` = FUNCTIONAL_UNIT_TYPE_BRU),
           FunctionalUnitDescriptor(name = "CSR", `type` = FUNCTIONAL_UNIT_TYPE_CSR),
         )
@@ -83,8 +86,10 @@ package object configs {
   object Bubble      extends Field[BitPat](ISA().bubble)
 
   implicit val p: Parameters = Parameters.empty ++ Map(
+    ISA       -> ISA(),
+    Frequency -> Frequency(),
+
     // ISA
-    ISA         -> ISA(),
     XLen        -> XLen(),
     ILen        -> ILen(),
     IAlign      -> IAlign(),

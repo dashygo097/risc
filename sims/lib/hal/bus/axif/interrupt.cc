@@ -38,7 +38,7 @@ void AXIFullCLINT::clock_tick() {
   uint64_t mtime = (static_cast<uint64_t>(mtime_hi) << 32) | mtime_lo;
 
   // RTC
-  mtime++;
+  mtime += TICK_NS_DIVIDER / freq_; // NOTE: in ns
   allocator_->write_word(base + CLINT_MTIME_LO,
                          static_cast<uint32_t>(mtime & 0xFFFFFFFF));
   allocator_->write_word(base + CLINT_MTIME_HI,

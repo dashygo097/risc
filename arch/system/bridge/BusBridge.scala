@@ -9,8 +9,8 @@ class BusBridge(implicit p: Parameters) extends Module {
 
   val utils = BusBridgeUtilitiesFactory.getOrThrow(p(BusType))
 
-  val imem = IO(Flipped(new CacheReadOnlyIO(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(ILen).W)), p(XLen))))
-  val dmem = IO(Flipped(new CacheIO(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), p(XLen))))
+  val imem = IO(Flipped(new CacheReadOnlyIO(Vec(p(IssueWidth), UInt(p(ILen).W)), p(XLen))))
+  val dmem = IO(Flipped(new CacheIO(UInt(p(XLen).W), p(XLen))))
   val mmio = IO(Flipped(new CacheIO(UInt(p(XLen).W), p(XLen))))
 
   val ibus = IO(utils.busType)
@@ -24,7 +24,7 @@ class BusBridge(implicit p: Parameters) extends Module {
   dontTouch(dbus)
   dontTouch(mbus)
 
-  ibus <> utils.createBridgeReadOnly(Vec(p(L1ICacheLineSize) / (p(XLen) / 8), UInt(p(ILen).W)), imem)
-  dbus <> utils.createBridge(Vec(p(L1DCacheLineSize) / (p(XLen) / 8), UInt(p(XLen).W)), dmem)
-  mbus <> utils.createBridge(UInt(p(XLen).W), mmio)
+  ibus <> utils.createBridgeReadOnly(Vec(p(IssueWidth), UInt(p(ILen).W)), imem, isMmio = false)
+  dbus <> utils.createBridge(UInt(p(XLen).W), dmem, isMmio = false)
+  mbus <> utils.createBridge(UInt(p(XLen).W), mmio, isMmio = true)
 }

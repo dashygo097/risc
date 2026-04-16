@@ -11,14 +11,6 @@
 #include "verilated_vcd_c.h"
 #endif
 
-#if defined(__ISA_RV32IM__)
-#include "Vrv32im_system.h"
-
-#elif defined(__ISA_RV32I__)
-#include "Vrv32i_system.h"
-
-#endif
-
 namespace demu {
 using namespace isa;
 
@@ -77,6 +69,33 @@ public:
                            _l1_dcache_accesses
                : 0.0;
   };
+  [[nodiscard]] auto bpu_hit_rate() const noexcept -> double {
+    return _branches_committed > 0
+               ? 1.0 -
+                     static_cast<double>(_bpu_mispredicts) / _branches_committed
+               : 0.0;
+  }
+  [[nodiscard]] auto issue_rate() const noexcept -> double {
+    return dut_->debug_cycle_count > 0
+               ? static_cast<double>(_issue_count) / dut_->debug_cycle_count
+               : 0.0;
+  }
+  [[nodiscard]] auto frontend_starvation_rate() const noexcept -> double {
+    return dut_->debug_cycle_count > 0
+               ? static_cast<double>(_rob_empty_cycles) /
+                     dut_->debug_cycle_count
+               : 0.0;
+  }
+  [[nodiscard]] auto frontend_stall_rate() const noexcept -> double {
+    return dut_->debug_cycle_count > 0
+               ? static_cast<double>(_frontend_stalls) / dut_->debug_cycle_count
+               : 0.0;
+  }
+  [[nodiscard]] auto backend_stall_rate() const noexcept -> double {
+    return dut_->debug_cycle_count > 0
+               ? static_cast<double>(_backend_stalls) / dut_->debug_cycle_count
+               : 0.0;
+  }
 
   // Debug output
   void dump_registers() const;
@@ -103,10 +122,20 @@ protected:
   // Simulator state
   bool _terminate{false};
 
+  // Cache Profiling
   uint64_t _l1_icache_accesses{0};
   uint64_t _l1_icache_misses{0};
   uint64_t _l1_dcache_accesses{0};
   uint64_t _l1_dcache_misses{0};
+
+  // Advanced Pipeline Profiling
+  uint64_t _bpu_mispredicts{0};
+  uint64_t _branches_committed{0};
+  uint64_t _flush_cycles{0};
+  uint64_t _rob_empty_cycles{0};
+  uint64_t _issue_count{0};
+  uint64_t _frontend_stalls{0};
+  uint64_t _backend_stalls{0};
 
   std::array<word_t, NUM_GPRS> _register_values{};
 
@@ -114,6 +143,7 @@ protected:
   void clock_tick();
   void handle_interrupt();
   void handle_cache_profiling();
+  void handle_performance_profiling();
 
   // Overridable hooks
   virtual void register_devices() {};

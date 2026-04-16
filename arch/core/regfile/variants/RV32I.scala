@@ -1,7 +1,7 @@
 package arch.core.regfile
 
 import arch.configs._
-import vopts.utils.Register
+import vopts.utils._
 import chisel3._
 
 object RV32IRegfileUtilities extends RegisteredUtilities[RegfileUtilities] {
@@ -54,6 +54,9 @@ object RV32IRegfileUtilities extends RegisteredUtilities[RegfileUtilities] {
       }
       info
     }
+
+    override def writable(addr: UInt): Bool = addr =/= 0.U
+    override def readable(addr: UInt): Bool = addr =/= 0.U
   }
 
   override def factory: UtilitiesFactory[RegfileUtilities] = RegfileUtilitiesFactory

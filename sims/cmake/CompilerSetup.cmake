@@ -24,7 +24,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     -ffinite-math-only
     -fassociative-math
   )
-  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
   find_program(MOLD_LINKER mold)
   find_program(LLD_LINKER lld)
@@ -46,7 +45,6 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     -funroll-loops
     -finline-functions
   )
-  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 else()
   add_compile_options(
     -O0
