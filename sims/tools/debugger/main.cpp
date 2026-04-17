@@ -15,53 +15,19 @@ public:
 
 protected:
   void register_devices() override {
-    const auto *imem_r = config_->find_region("imem");
-    const auto *dmem_r = config_->find_region("dmem");
-    const auto *uart_r = config_->find_region("uart");
-
-    device_manager_->register_device<demu::hal::axi::AXIFullSRAM>(0, *imem_r);
-    device_manager_->register_device<demu::hal::axi::AXIFullSRAM>(1, *dmem_r);
-    device_manager_->register_device<demu::hal::axi::AXIFullUART>(2, *uart_r);
-
-    device_manager_->register_handler(
-        0, std::make_unique<demu::hal::axi::AXIFullPortHandler>(
-               [this]() -> demu::hal::axi::AXIFullSignals {
-                 demu::hal::axi::AXIFullSignals s;
-                 MAP_AXIF_SIGNALS(dut_, s, 0);
-                 return s;
-               }));
-
-    device_manager_->register_handler(
-        1, std::make_unique<demu::hal::axi::AXIFullPortHandler>(
-               [this]() -> demu::hal::axi::AXIFullSignals {
-                 demu::hal::axi::AXIFullSignals s;
-                 MAP_AXIF_SIGNALS(dut_, s, 1);
-                 return s;
-               }));
-
-    device_manager_->register_handler(
-        2, std::make_unique<demu::hal::axi::AXIFullPortHandler>(
-               [this]() -> demu::hal::axi::AXIFullSignals {
-                 demu::hal::axi::AXIFullSignals s;
-                 MAP_AXIF_SIGNALS(dut_, s, 2);
-                 return s;
-               }));
+    register_port<0, demu::hal::axi::AXIFullPortHandler,
+                  demu::hal::axi::AXIFullSRAM>("imem");
+    register_port<1, demu::hal::axi::AXIFullPortHandler,
+                  demu::hal::axi::AXIFullSRAM>("dmem");
+    register_port<2, demu::hal::axi::AXIFullPortHandler,
+                  demu::hal::axi::AXIFullUART>("uart");
 
 #if defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)
-    const auto *clint_r = config_->find_region("clint");
-
-    device_manager_->register_device<demu::hal::axi::AXIFullCLINT>(
-        3, *clint_r, config_->freq(), timer_irq_.get(), soft_irq_.get());
-
-    device_manager_->register_handler(
-        3, std::make_unique<demu::hal::axi::AXIFullPortHandler>(
-               [this]() -> demu::hal::axi::AXIFullSignals {
-                 demu::hal::axi::AXIFullSignals s;
-                 MAP_AXIF_SIGNALS(dut_, s, 3);
-                 return s;
-               }));
+    register_port<3, demu::hal::axi::AXIFullPortHandler,
+                  demu::hal::axi::AXIFullCLINT>(
+        "clint", config_->freq(), timer_irq_.get(), soft_irq_.get());
 #endif
-  }
+  };
 
   void on_init() override {}
   void on_clock_tick() override {}

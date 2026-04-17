@@ -9,8 +9,6 @@
 
 // Peripherals
 // SRAM
-#include "./peripheral/sram/port_handler.hh"
-#include "./peripheral/sram/signals.hh"
 #include "./peripheral/sram/sram.hh"
 
 // UART
@@ -18,9 +16,11 @@
 
 // Bus
 // AXI4-Lite
+#include "./bus/axil/interrupt.hh"
 #include "./bus/axil/port_handler.hh"
 #include "./bus/axil/slave.hh"
 #include "./bus/axil/sram.hh"
+#include "./bus/axil/uart.hh"
 
 // AXI4-Full
 #include "./bus/axif/interrupt.hh"

@@ -30,18 +30,15 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
       val state    = RegInit(AXIBridgeState.IDLE)
       val req_addr = RegInit(0.U(p(XLen).W))
 
-      // Read Counters & Buffers
       val r_beat_count  = RegInit(0.U(log2Ceil(totalAxiBeats + 1).max(1).W))
       val r_pack_count  = RegInit(0.U(log2Ceil(axiBeatsPerGen + 1).max(1).W))
       val r_data_buffer = Reg(Vec(axiBeatsPerGen.max(1), UInt(p(XLen).W)))
 
-      // Write Counters & Buffers
       val w_beat_count   = RegInit(0.U(log2Ceil(totalAxiBeats + 1).max(1).W))
       val w_unpack_count = RegInit(0.U(log2Ceil(axiBeatsPerGen + 1).max(1).W))
       val w_data_buffer  = Reg(UInt(memory.req.bits.data.getWidth.max(p(XLen)).W))
       val w_strb_buffer  = Reg(UInt(memory.req.bits.strb.getWidth.max(p(XLen) / 8).W))
 
-      // Default Tie-offs
       axi.aw.valid := false.B; axi.aw.bits := DontCare
       axi.w.valid  := false.B; axi.w.bits  := DontCare
       axi.b.ready  := false.B
@@ -76,7 +73,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         is(AXIBridgeState.AR) {
           val isWrap        = !isMmio.B
           val wrapBytes     = totalAxiBeats * bytesPerAxiBeat
-          val wrapMask      = (wrapBytes - 1).U
+          val wrapMask      = (wrapBytes - 1).U(p(XLen).W)
           val alignedBase   = req_addr & ~wrapMask
           val currentOffset = (req_addr & wrapMask) + (r_beat_count * bytesPerAxiBeat.U)
           val wrappedOffset = currentOffset & wrapMask
@@ -212,7 +209,7 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
         is(AXIBridgeState.AR) {
           val isWrap        = !isMmio.B
           val wrapBytes     = totalAxiBeats * bytesPerAxiBeat
-          val wrapMask      = (wrapBytes - 1).U
+          val wrapMask      = (wrapBytes - 1).U(p(XLen).W)
           val alignedBase   = req_addr & ~wrapMask
           val currentOffset = (req_addr & wrapMask) + (r_beat_count * bytesPerAxiBeat.U)
           val wrappedOffset = currentOffset & wrapMask
