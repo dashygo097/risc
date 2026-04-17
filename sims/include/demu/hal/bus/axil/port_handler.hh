@@ -103,3 +103,31 @@ private:
 };
 
 } // namespace demu::hal::axi
+
+namespace demu::hal {
+
+#define DEMU_BIND_AXIL_PORT(PORT_ID)                                           \
+  template <typename DUT>                                                      \
+  struct SignalBinder<                                                         \
+      DUT, demu::hal::axi::AXILitePortHandler, PORT_ID,                        \
+      std::void_t<decltype(std::declval<DUT>().M_AXIL_##PORT_ID##_AWADDR)>> {  \
+    static constexpr bool exists = true;                                       \
+    static auto bind(DUT *dut) -> demu::hal::axi::AXILiteSignals {             \
+      demu::hal::axi::AXILiteSignals s;                                        \
+      MAP_AXIL_SIGNALS(dut, s, PORT_ID);                                       \
+      return s;                                                                \
+    }                                                                          \
+  };
+
+DEMU_BIND_AXIL_PORT(0)
+DEMU_BIND_AXIL_PORT(1)
+DEMU_BIND_AXIL_PORT(2)
+DEMU_BIND_AXIL_PORT(3)
+DEMU_BIND_AXIL_PORT(4)
+DEMU_BIND_AXIL_PORT(5)
+DEMU_BIND_AXIL_PORT(6)
+DEMU_BIND_AXIL_PORT(7)
+
+#undef DEMU_BIND_AXIL_PORT
+
+} // namespace demu::hal

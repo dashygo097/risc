@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../../allocator.hh"
-#include "../../device.hh"
 #include "../../interrupt.hh"
 #include "./slave.hh"
 #include <memory>

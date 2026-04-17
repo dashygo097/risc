@@ -76,9 +76,6 @@ class RiscCore(implicit p: Parameters) extends Module {
   val async_trap_req = if (csrs.nonEmpty) csrs.map(c => c.trap_request && !c.is_busy).foldLeft(false.B)(_ || _) else false.B
   val async_trap_tgt = if (csrs.nonEmpty) Mux1H(csrs.map(c => (c.trap_request && !c.is_busy) -> c.trap_target)) else 0.U(p(XLen).W)
 
-  val global_flush = commit_flush_pipeline || async_trap_req
-  val redirect_pc  = Mux(async_trap_req, async_trap_tgt, commit_flush_target)
-
   val cache_inflight = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
   val mmio_inflight  = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
 
@@ -92,10 +89,17 @@ class RiscCore(implicit p: Parameters) extends Module {
   when(mmio_req_fire && !mmio_resp_fire)(mmio_inflight := mmio_inflight + 1.U)
     .elsewhen(!mmio_req_fire && mmio_resp_fire)(mmio_inflight := mmio_inflight - 1.U)
 
+  val rob_is_empty    = rob.io.empty
+  val mem_is_quiet    = (cache_inflight === 0.U) && (mmio_inflight === 0.U)
+  val fire_async_trap = async_trap_req && rob_is_empty && mem_is_quiet
+
+  val global_flush = commit_flush_pipeline || fire_async_trap
+  val redirect_pc  = Mux(fire_async_trap, async_trap_tgt, commit_flush_target)
+
   val mem_draining = RegInit(false.B)
   when(global_flush) {
-    when(cache_inflight =/= 0.U || mmio_inflight =/= 0.U)(mem_draining := true.B)
-  }.elsewhen(mem_draining && cache_inflight === 0.U && mmio_inflight === 0.U) {
+    when(!mem_is_quiet)(mem_draining := true.B)
+  }.elsewhen(mem_draining && mem_is_quiet) {
     mem_draining := false.B
   }
 
@@ -163,7 +167,13 @@ class RiscCore(implicit p: Parameters) extends Module {
   dmem <> l1_dcache.lower
   imem <> l1_icache.lower
 
-  csrs.foreach(csr => csr.arch_pc := Mux(rob.io.empty, ifu.if_pc(0), rob.io.commit(0).pc))
+  val commit_next_pc = RegInit(p(ResetVector).U(p(XLen).W))
+  val committing_pcs = rob.io.commit.map(c => Mux(c.flush_pipeline, c.flush_target, c.pc + (p(ILen) / 8).U))
+  val pop_flags      = rob.io.commit.map(_.pop)
+  val last_pop_pc    = MuxCase(commit_next_pc, pop_flags.zip(committing_pcs).reverse)
+  commit_next_pc := last_pop_pc
+
+  csrs.foreach(csr => csr.arch_pc := commit_next_pc)
 
   ifu.mem <> l1_icache.upper
 
@@ -232,7 +242,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     kill_mask(w) := kill_mask(w - 1) || (ifu.if_valid(w - 1) && ifu.if_bpu_pred_taken(w - 1))
 
   for (w <- 0 until p(IssueWidth)) {
-    wants_to_issue(w) := ifu.if_valid(w) && !hazard(w) && !global_flush && !kill_mask(w) && !mem_draining
+    wants_to_issue(w) := ifu.if_valid(w) && !hazard(w) && !global_flush && !kill_mask(w) && !mem_draining && !async_trap_req
 
     inst_type(w) := MuxCase(
       FUNCTIONAL_UNIT_TYPE_ALU.index.U,
@@ -249,11 +259,11 @@ class RiscCore(implicit p: Parameters) extends Module {
   intra_hazard(0) := false.B
   for (w <- 1 until p(IssueWidth)) {
     val conflicts = (0 until w).map { v =>
-      val rd_v       = rds(v)
-      val we_v       = decoders(v).decoded.regwrite && regfile_utils.writable(rd_v)
-      val is_issuing = wants_to_issue(v)
+      val is_writable = decoders(v).decoded.regwrite && regfile_utils.writable(rds(v))
+      val rd_v        = rds(v)
+      val is_issuing  = wants_to_issue(v)
 
-      is_issuing && we_v && (
+      is_issuing && is_writable && (
         (rs1s(w) === rd_v && regfile_utils.readable(rs1s(w))) ||
           (rs2s(w) === rd_v && regfile_utils.readable(rs2s(w)))
       )
@@ -349,10 +359,12 @@ class RiscCore(implicit p: Parameters) extends Module {
   bpu.update.taken  := bpu_update_taken
 
   for (w <- 0 until p(IssueWidth)) {
+    val is_writable = decoders(w).decoded.regwrite && regfile_utils.writable(rds(w))
+
     rob.io.enq(w).valid           := lane_valid(w)
     rob.io.enq(w).pc              := ifu.if_pc(w)
     rob.io.enq(w).instr           := ifu.if_instr(w)
-    rob.io.enq(w).rd              := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
+    rob.io.enq(w).rd              := Mux(is_writable, rds(w), 0.U)
     rob.io.enq(w).pd              := 0.U
     rob.io.enq(w).old_pd          := 0.U
     rob.io.enq(w).is_branch       := decoders(w).decoded.branch
@@ -370,7 +382,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     dis.bits.fu_id    := target_fu_id(w)
     dis.bits.rs1      := rs1s(w)
     dis.bits.rs2      := rs2s(w)
-    dis.bits.rd       := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
+    dis.bits.rd       := Mux(is_writable, rds(w), 0.U)
     dis.bits.rs1_data := rs1_bypassed
     dis.bits.rs2_data := rs2_bypassed
     dis.bits.rob_tag  := rob.io.enq(w).rob_tag

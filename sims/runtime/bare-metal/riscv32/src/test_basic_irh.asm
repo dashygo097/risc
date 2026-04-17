@@ -52,8 +52,8 @@ wait_for_soft_irq:
     li x6, CLINT_MTIME_LO
     lw x7, 0(x6)              # Read 0x2000BFF8
 
-    # Add 100 clock ticks to current time to schedule the timer interrupt
-    addi x7, x7, 100
+    # Add 1000ns to current time to schedule the timer interrupt
+    addi x7, x7, 1000
     
     # Write to mtimecmp
     li x6, CLINT_MTIMECMP_LO
