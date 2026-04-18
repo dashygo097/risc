@@ -3,7 +3,7 @@ package arch.core.bru
 import arch.configs._
 import chisel3._
 
-trait BruUtilities extends Utilities {
+trait BruUtils extends Utils {
   def opWidth: Int
   def hasJump: Boolean
   def hasJalr: Boolean
@@ -12,9 +12,9 @@ trait BruUtilities extends Utilities {
   def fn(src1: UInt, src2: UInt, op: UInt): Bool
 }
 
-object BruUtilitiesFactory extends UtilitiesFactory[BruUtilities]("BRU")
+object BruUtilsFactory extends UtilsFactory[BruUtils]("BRU")
 
 object BruInit {
-  val rv32iUtils  = RV32IBruUtilities
-  val rv32imUtils = RV32IMBruUtilities
+  val rv32iUtils  = riscv.RV32IBruUtils
+  val rv32imUtils = riscv.RV32IMBruUtils
 }

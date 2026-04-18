@@ -11,8 +11,8 @@ import chisel3.util.log2Ceil
 class RiscSystem(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_system"
 
-  val bridge_utils   = BusBridgeUtilitiesFactory.getOrThrow(p(BusType))
-  val crossbar_utils = BusCrossbarUtilitiesFactory.getOrThrow(p(BusType))
+  val bridge_utils   = BusBridgeUtilsFactory.getOrThrow(p(BusType))
+  val crossbar_utils = BusCrossbarUtilsFactory.getOrThrow(p(BusType))
 
   val devices = IO(Vec(p(BusAddressMap).length, crossbar_utils.slaveType)).suggestName(s"M_${p(BusType)}".toUpperCase)
   val irq     = IO(new CoreInterruptIO)

@@ -12,7 +12,7 @@ class BruFU(implicit p: Parameters) extends FunctionalUnit {
   val actual_target = IO(Output(UInt(p(XLen).W)))
 
   val bru       = Module(new Bru)
-  val imm_utils = ImmUtilitiesFactory.getOrThrow(p(ISA).name)
+  val imm_utils = ImmUtilsFactory.getOrThrow(p(ISA).name)
 
   val busy    = RegInit(false.B)
   val uop_reg = Reg(new MicroOp)

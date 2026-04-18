@@ -13,7 +13,7 @@ class CsrCtrl(val opWidth: Int) extends Bundle {
 class CsrFile(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_csrfile"
 
-  val utils = CsrUtilitiesFactory.getOrThrow(p(ISA).name)
+  val utils = CsrUtilsFactory.getOrThrow(p(ISA).name)
 
   val en    = IO(Input(Bool()))
   val uop   = IO(Input(UInt(p(MicroOpWidth).W)))

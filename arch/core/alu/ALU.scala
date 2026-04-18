@@ -13,7 +13,7 @@ class AluCtrl(fnWidth: Int) extends Bundle with AluConsts {
 class Alu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_alu"
 
-  val utils = AluUtilitiesFactory.getOrThrow(p(ISA).name)
+  val utils = AluUtilsFactory.getOrThrow(p(ISA).name)
 
   val en     = IO(Input(Bool()))
   val src1   = IO(Input(UInt(p(XLen).W)))

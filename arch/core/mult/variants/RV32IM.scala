@@ -1,5 +1,6 @@
-package arch.core.mult
+package arch.core.mult.riscv
 
+import arch.core.mult._
 import arch.configs._
 import vopts.math.Multiplier
 import chisel3._
@@ -23,8 +24,8 @@ trait RV32IMMultUOpConsts {
   def UOP_MULHU  = cat(P_X, MS_0, MS_0, MH_1)
 }
 
-object RV32IMMultUtilities extends RegisteredUtilities[MultUtilities] with RV32IMMultUOpConsts {
-  override def utils: MultUtilities = new MultUtilities {
+object RV32IMMultUtils extends RegisteredUtils[MultUtils] with RV32IMMultUOpConsts {
+  override def utils: MultUtils = new MultUtils {
     override def name: String = "rv32im"
 
     override def decode(uop: UInt): MultCtrl = {
@@ -58,5 +59,5 @@ object RV32IMMultUtilities extends RegisteredUtilities[MultUtilities] with RV32I
     }
   }
 
-  override def factory: UtilitiesFactory[MultUtilities] = MultUtilitiesFactory
+  override def factory: UtilsFactory[MultUtils] = MultUtilsFactory
 }

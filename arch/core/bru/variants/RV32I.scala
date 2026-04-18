@@ -1,5 +1,6 @@
-package arch.core.bru
+package arch.core.bru.riscv
 
+import arch.core.bru._
 import arch.configs._
 import chisel3._
 import chisel3.util.{ BitPat, MuxLookup }
@@ -34,8 +35,8 @@ trait RV32IBruUOpConsts {
   def UOP_JALR = cat(P_X, B_JMP_1, B_JLR_1, B_AL)
 }
 
-object RV32IBruUtilities extends RegisteredUtilities[BruUtilities] with RV32IBruUOpConsts {
-  override def utils: BruUtilities = new BruUtilities {
+object RV32IBruUtils extends RegisteredUtils[BruUtils] with RV32IBruUOpConsts {
+  override def utils: BruUtils = new BruUtils {
     override def name: String = "rv32i"
 
     override def opWidth: Int     = 3
@@ -79,5 +80,5 @@ object RV32IBruUtilities extends RegisteredUtilities[BruUtilities] with RV32IBru
     }
   }
 
-  override def factory: UtilitiesFactory[BruUtilities] = BruUtilitiesFactory
+  override def factory: UtilsFactory[BruUtils] = BruUtilsFactory
 }

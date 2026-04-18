@@ -6,8 +6,8 @@ import vopts.mem.cache._
 import chisel3._
 import chisel3.util.{ log2Ceil, Cat, switch, is }
 
-object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
-  override def utils: BusBridgeUtilities = new BusBridgeUtilities {
+object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
+  override def utils: BusBridgeUtils = new BusBridgeUtils {
     override def name: String = "axif"
 
     override def busType: Bundle =
@@ -265,5 +265,5 @@ object AXIFullBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
     }
   }
 
-  override def factory: UtilitiesFactory[BusBridgeUtilities] = BusBridgeUtilitiesFactory
+  override def factory: UtilsFactory[BusBridgeUtils] = BusBridgeUtilsFactory
 }

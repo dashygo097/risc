@@ -13,7 +13,7 @@ case object NormalUpdate                                        extends CsrUpdat
 case class AlwaysUpdate(fn: CsrUpdateBehavior.CsrUpdateFn)      extends CsrUpdateBehavior
 case class ConditionalUpdate(fn: CsrUpdateBehavior.CsrUpdateFn) extends CsrUpdateBehavior
 
-trait CsrUtilities extends Utilities {
+trait CsrUtils extends Utils {
   def addrWidth: Int
   def opWidth: Int
 
@@ -37,9 +37,9 @@ trait CsrUtilities extends Utilities {
   def getTrapReturnUpdates(regs: Map[String, UInt]): Map[String, UInt] = Map.empty
 }
 
-object CsrUtilitiesFactory extends UtilitiesFactory[CsrUtilities]("CSR")
+object CsrUtilsFactory extends UtilsFactory[CsrUtils]("CSR")
 
 object CsrInit {
-  val rv32iUtils  = RV32ICsrUtilities
-  val rv32imUtils = RV32IMCsrUtilities
+  val rv32iUtils  = riscv.RV32ICsrUtils
+  val rv32imUtils = riscv.RV32IMCsrUtils
 }

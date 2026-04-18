@@ -1,5 +1,6 @@
-package arch.core.lsu
+package arch.core.lsu.riscv
 
+import arch.core.lsu._
 import arch.configs._
 import chisel3._
 import chisel3.util.{ BitPat, MuxLookup }
@@ -29,8 +30,8 @@ trait RV32ILsuUOpConsts {
   def UOP_SW  = cat(P_X, L_WR, L_S, L_W)
 }
 
-object RV32ILsuUtilities extends RegisteredUtilities[LsuUtilities] with RV32ILsuUOpConsts {
-  override def utils: LsuUtilities = new LsuUtilities {
+object RV32ILsuUtils extends RegisteredUtils[LsuUtils] with RV32ILsuUOpConsts {
+  override def utils: LsuUtils = new LsuUtils {
     override def name: String = "rv32i"
 
     override def decode(uop: UInt): LsuCtrl = {
@@ -55,5 +56,5 @@ object RV32ILsuUtilities extends RegisteredUtilities[LsuUtilities] with RV32ILsu
     }
   }
 
-  override def factory: UtilitiesFactory[LsuUtilities] = LsuUtilitiesFactory
+  override def factory: UtilsFactory[LsuUtils] = LsuUtilsFactory
 }

@@ -15,7 +15,7 @@ class LsuFU(implicit p: Parameters) extends FunctionalUnit {
   val mmio = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
 
   val lsu       = Module(new Lsu)
-  val imm_utils = ImmUtilitiesFactory.getOrThrow(p(ISA).name)
+  val imm_utils = ImmUtilsFactory.getOrThrow(p(ISA).name)
 
   val uop_reg                                            = Reg(new MicroOp)
   val state_idle :: state_wait_resp :: state_done :: Nil = Enum(3)

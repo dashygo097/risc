@@ -43,7 +43,7 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val l1_dcache = Module(new SetAssociativeCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA).name)
+  val regfile_utils = RegfileUtilsFactory.getOrThrow(p(ISA).name)
 
   val scheduler = Scheduler()
   val rob       = Module(new ReorderBuffer)

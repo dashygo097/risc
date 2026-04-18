@@ -3,13 +3,13 @@ package arch.core.lsu
 import arch.configs._
 import chisel3._
 
-trait LsuUtilities extends Utilities {
+trait LsuUtils extends Utils {
   def decode(uop: UInt): LsuCtrl
 }
 
-object LsuUtilitiesFactory extends UtilitiesFactory[LsuUtilities]("LSU")
+object LsuUtilsFactory extends UtilsFactory[LsuUtils]("LSU")
 
 object LsuInit {
-  val rv32iUtils  = RV32ILsuUtilities
-  val rv32imUtils = RV32IMLsuUtilities
+  val rv32iUtils  = riscv.RV32ILsuUtils
+  val rv32imUtils = riscv.RV32IMLsuUtils
 }

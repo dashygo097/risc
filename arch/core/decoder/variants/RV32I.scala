@@ -1,10 +1,11 @@
-package arch.core.decoder
+package arch.core.decoder.riscv
 
-import arch.core.imm._
-import arch.core.alu._
-import arch.core.lsu._
-import arch.core.bru._
-import arch.core.csr._
+import arch.core.imm.riscv._
+import arch.core.alu.riscv._
+import arch.core.lsu.riscv._
+import arch.core.bru.riscv._
+import arch.core.csr.riscv._
+import arch.core.decoder._
 import arch.configs._
 import arch.isa._
 import chisel3._
@@ -17,12 +18,9 @@ trait RV32IUOp extends RV32IImmConsts with RV32IAluUopConsts with RV32ILsuUOpCon
   def X = BitPat("b?")
   def Y = BitPat("b1")
   def N = BitPat("b0")
-
-  override def UOP_JAL  = super[RV32IBruUOpConsts].UOP_JAL
-  override def UOP_JALR = super[RV32IBruUOpConsts].UOP_JALR
 }
 
-object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with RV32IUOp {
+object RV32IDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IUOp {
 
   private val allEncodings =
     RV32I.isa.instrSet
@@ -43,7 +41,7 @@ object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with 
     BitPat("b" + bits)
   }
 
-  override def utils: DecoderUtilities = new DecoderUtilities {
+  override def utils: DecoderUtils = new DecoderUtils {
     override def name: String = "rv32i"
 
     override def default: List[BitPat] =
@@ -136,5 +134,5 @@ object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with 
     )
   }
 
-  override def factory: UtilitiesFactory[DecoderUtilities] = DecoderUtilitiesFactory
+  override def factory: UtilsFactory[DecoderUtils] = DecoderUtilsFactory
 }

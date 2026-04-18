@@ -1,5 +1,6 @@
-package arch.core.csr
+package arch.core.csr.riscv
 
+import arch.core.csr._
 import arch.configs._
 import vopts.utils.Register
 import chisel3._
@@ -64,8 +65,8 @@ trait RV32ICsrMap {
   def CSR_MINSTRETH = BitPat("b1011_1000_0010")
 }
 
-object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsrUOpConsts with RV32ICsrMap {
-  override def utils: CsrUtilities = new CsrUtilities {
+object RV32ICsrUtils extends RegisteredUtils[CsrUtils] with RV32ICsrUOpConsts with RV32ICsrMap {
+  override def utils: CsrUtils = new CsrUtils {
     override def name: String = "rv32i"
 
     override def addrWidth: Int = SZ_CSR
@@ -189,5 +190,5 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
     }
   }
 
-  override def factory: UtilitiesFactory[CsrUtilities] = CsrUtilitiesFactory
+  override def factory: UtilsFactory[CsrUtils] = CsrUtilsFactory
 }

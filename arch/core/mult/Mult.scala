@@ -12,7 +12,7 @@ class MultCtrl extends Bundle {
 class Mult(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_multiplier"
 
-  val utils = MultUtilitiesFactory.getOrThrow(p(ISA).name)
+  val utils = MultUtilsFactory.getOrThrow(p(ISA).name)
 
   val en   = IO(Input(Bool()))
   val kill = IO(Input(Bool()))

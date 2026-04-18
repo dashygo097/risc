@@ -10,8 +10,8 @@ class AluFU(implicit p: Parameters) extends FunctionalUnit with AluConsts {
   override def desiredName: String = s"${p(ISA).name}_alu_fu"
 
   val alu       = Module(new Alu)
-  val alu_utils = AluUtilitiesFactory.getOrThrow(p(ISA).name)
-  val imm_utils = ImmUtilitiesFactory.getOrThrow(p(ISA).name)
+  val alu_utils = AluUtilsFactory.getOrThrow(p(ISA).name)
+  val imm_utils = ImmUtilsFactory.getOrThrow(p(ISA).name)
 
   val uop_reg = Reg(new MicroOp)
   val valid   = RegInit(false.B)

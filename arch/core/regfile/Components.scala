@@ -4,7 +4,7 @@ import arch.configs._
 import vopts.utils.Register
 import chisel3._
 
-trait RegfileUtilities extends Utilities {
+trait RegfileUtils extends Utils {
   def getRs1(instr: UInt): UInt
   def getRs2(instr: UInt): UInt
   def getRd(instr: UInt): UInt
@@ -14,9 +14,9 @@ trait RegfileUtilities extends Utilities {
   def readable(addr: UInt): Bool
 }
 
-object RegfileUtilitiesFactory extends UtilitiesFactory[RegfileUtilities]("Regfile")
+object RegfileUtilsFactory extends UtilsFactory[RegfileUtils]("Regfile")
 
 object RegfileInit {
-  val rv32iUtils  = RV32IRegfileUtilities
-  val rv32imUtils = RV32IMRegfileUtilities
+  val rv32iUtils  = riscv.RV32IRegfileUtils
+  val rv32imUtils = riscv.RV32IMRegfileUtils
 }

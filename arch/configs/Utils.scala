@@ -2,11 +2,11 @@ package arch.configs
 
 import scala.collection.mutable
 
-trait Utilities {
+trait Utils {
   def name: String
 }
 
-class UtilitiesFactory[T <: Utilities](val utilityType: String) {
+class UtilsFactory[T <: Utils](val utilityType: String) {
   private val registry = mutable.Map[String, T]()
 
   def register(utils: T): Unit = registry(utils.name.toLowerCase) = utils
@@ -32,9 +32,9 @@ class UtilitiesFactory[T <: Utilities](val utilityType: String) {
   def getAll(): Seq[T] = registry.values.toSeq
 }
 
-trait RegisteredUtilities[T <: Utilities] {
+trait RegisteredUtils[T <: Utils] {
   def utils: T
-  def factory: UtilitiesFactory[T]
+  def factory: UtilsFactory[T]
 
   factory.register(utils)
 }

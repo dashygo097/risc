@@ -1,5 +1,6 @@
-package arch.core.alu
+package arch.core.alu.riscv
 
+import arch.core.alu._
 import arch.configs._
 import chisel3._
 import chisel3.util.{ BitPat, MuxLookup }
@@ -45,15 +46,13 @@ trait RV32IAluUopConsts extends AluConsts {
   def UOP_ORI   = cat(A1_RS1, A2_IMM, AM_0, AFN_OR)
   def UOP_ANDI  = cat(A1_RS1, A2_IMM, AM_0, AFN_AND)
 
-  // Jumps / U-Type
-  def UOP_JALR  = cat(A1_PC, A2_PCSTEP, AM_0, AFN_ADD)
-  def UOP_JAL   = cat(A1_PC, A2_PCSTEP, AM_0, AFN_ADD)
+  // U-Type
   def UOP_LUI   = cat(A1_ZERO, A2_IMM, AM_0, AFN_ADD)
   def UOP_AUIPC = cat(A1_PC, A2_IMM, AM_0, AFN_ADD)
 }
 
-object RV32IAluUtilities extends RegisteredUtilities[AluUtilities] with RV32IAluUopConsts {
-  override def utils: AluUtilities = new AluUtilities {
+object RV32IAluUtils extends RegisteredUtils[AluUtils] with RV32IAluUopConsts {
+  override def utils: AluUtils = new AluUtils {
     override def name: String = "rv32i"
 
     override def sel1Width: Int   = SZ_A1
@@ -105,5 +104,5 @@ object RV32IAluUtilities extends RegisteredUtilities[AluUtilities] with RV32IAlu
     }
   }
 
-  override def factory: UtilitiesFactory[AluUtilities] = AluUtilitiesFactory
+  override def factory: UtilsFactory[AluUtils] = AluUtilsFactory
 }

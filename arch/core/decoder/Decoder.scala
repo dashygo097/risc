@@ -5,7 +5,7 @@ import arch.configs._
 import chisel3._
 
 class DecodedOutput(implicit p: Parameters) extends Bundle {
-  val imm_utils = ImmUtilitiesFactory.getOrThrow(p(ISA).name)
+  val imm_utils = ImmUtilsFactory.getOrThrow(p(ISA).name)
 
   val legal    = Bool()
   val regwrite = Bool()
@@ -26,7 +26,7 @@ class DecodedOutput(implicit p: Parameters) extends Bundle {
 class Decoder(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_decoder"
 
-  val utils = DecoderUtilitiesFactory.getOrThrow(p(ISA).name)
+  val utils = DecoderUtilsFactory.getOrThrow(p(ISA).name)
 
   val instr   = IO(Input(UInt(p(ILen).W)))
   val decoded = IO(Output(new DecodedOutput))

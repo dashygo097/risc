@@ -10,8 +10,8 @@ object AXIBridgeState extends ChiselEnum {
   val IDLE, AR, R, AW, W, B = Value
 }
 
-object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
-  override def utils: BusBridgeUtilities = new BusBridgeUtilities {
+object AXILiteBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
+  override def utils: BusBridgeUtils = new BusBridgeUtils {
     override def name: String = "axil"
 
     override def busType: Bundle =
@@ -256,5 +256,5 @@ object AXILiteBridgeUtilities extends RegisteredUtilities[BusBridgeUtilities] {
     }
   }
 
-  override def factory: UtilitiesFactory[BusBridgeUtilities] = BusBridgeUtilitiesFactory
+  override def factory: UtilsFactory[BusBridgeUtils] = BusBridgeUtilsFactory
 }

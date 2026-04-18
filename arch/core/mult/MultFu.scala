@@ -9,7 +9,7 @@ class MultFU(implicit p: Parameters) extends FunctionalUnit {
   override def desiredName: String = s"${p(ISA).name}_mult_fu"
 
   val mult       = Module(new Mult)
-  val mult_utils = MultUtilitiesFactory.getOrThrow(p(ISA).name)
+  val mult_utils = MultUtilsFactory.getOrThrow(p(ISA).name)
 
   val uop_reg                                       = Reg(new MicroOp)
   val state_idle :: state_busy :: state_done :: Nil = Enum(3)

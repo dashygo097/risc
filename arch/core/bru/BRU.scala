@@ -12,7 +12,7 @@ class BruCtrl(val opWidth: Int) extends Bundle {
 class Bru(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_bru"
 
-  val utils = BruUtilitiesFactory.getOrThrow(p(ISA).name)
+  val utils = BruUtilsFactory.getOrThrow(p(ISA).name)
 
   val en   = IO(Input(Bool()))
   val pc   = IO(Input(UInt(p(XLen).W)))

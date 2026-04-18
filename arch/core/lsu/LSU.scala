@@ -18,7 +18,7 @@ class LsuCtrl extends Bundle {
 class Lsu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_lsu"
 
-  val utils = LsuUtilitiesFactory.getOrThrow(p(ISA).name)
+  val utils = LsuUtilsFactory.getOrThrow(p(ISA).name)
 
   // Control inputs
   val en            = IO(Input(Bool()))

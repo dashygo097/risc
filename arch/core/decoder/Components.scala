@@ -4,15 +4,15 @@ import arch.configs._
 import chisel3._
 import chisel3.util.BitPat
 
-trait DecoderUtilities extends Utilities {
+trait DecoderUtils extends Utils {
   def default: List[BitPat]
   def decode(instr: UInt): DecodedOutput
   def table: Array[(BitPat, List[BitPat])]
 }
 
-object DecoderUtilitiesFactory extends UtilitiesFactory[DecoderUtilities]("Decoder")
+object DecoderUtilsFactory extends UtilsFactory[DecoderUtils]("Decoder")
 
 object DecoderInit {
-  val rv32iUtils  = RV32IDecoderUtilities
-  val rv32imUtils = RV32IMDecoderUtilities
+  val rv32iUtils  = riscv.RV32IDecoderUtils
+  val rv32imUtils = riscv.RV32IMDecoderUtils
 }

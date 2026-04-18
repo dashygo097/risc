@@ -1,6 +1,7 @@
-package arch.core.decoder
+package arch.core.decoder.riscv
 
-import arch.core.mult._
+import arch.core.mult.riscv._
+import arch.core.decoder._
 import arch.configs._
 import arch.isa._
 import chisel3._
@@ -8,7 +9,7 @@ import chisel3.util.BitPat
 
 trait RV32IMUOp extends RV32IUOp with RV32IMMultUOpConsts {}
 
-object RV32IMDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with RV32IMUOp {
+object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
 
   private val allEncodings =
     RV32IM.isa.instrSet
@@ -29,9 +30,9 @@ object RV32IMDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with
     BitPat("b" + bits)
   }
 
-  override def utils: DecoderUtilities = new DecoderUtilities {
+  override def utils: DecoderUtils = new DecoderUtils {
     override def name: String          = "rv32im"
-    override def default: List[BitPat] = RV32IDecoderUtilities.utils.default
+    override def default: List[BitPat] = RV32IDecoderUtils.utils.default
 
     override def decode(instr: UInt): DecodedOutput = {
       val sigs    = Wire(new DecodedOutput)
@@ -53,7 +54,7 @@ object RV32IMDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with
       sigs
     }
 
-    override def table: Array[(BitPat, List[BitPat])] = RV32IDecoderUtilities.utils.table ++
+    override def table: Array[(BitPat, List[BitPat])] = RV32IDecoderUtils.utils.table ++
       Array(
         // R-Type: Mul
         enc("MUL")    -> List(Y, N, IMM_X, N, N, N, N, N, Y, UOP_MUL),
@@ -63,5 +64,5 @@ object RV32IMDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with
       )
   }
 
-  override def factory: UtilitiesFactory[DecoderUtilities] = DecoderUtilitiesFactory
+  override def factory: UtilsFactory[DecoderUtils] = DecoderUtilsFactory
 }

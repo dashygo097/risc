@@ -18,7 +18,7 @@ class CsrFU(implicit p: Parameters) extends FunctionalUnit {
   val arch_pc      = IO(Input(UInt(p(XLen).W)))
 
   val csrfile   = Module(new CsrFile)
-  val csr_utils = CsrUtilitiesFactory.getOrThrow(p(ISA).name)
+  val csr_utils = CsrUtilsFactory.getOrThrow(p(ISA).name)
 
   val busy    = RegInit(false.B)
   val uop_reg = Reg(new MicroOp)

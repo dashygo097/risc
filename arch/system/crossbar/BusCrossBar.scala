@@ -6,7 +6,7 @@ import chisel3._
 class BusCrossbar(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(BusType)}_crossbar"
 
-  val utils = BusCrossbarUtilitiesFactory.getOrThrow(p(BusType))
+  val utils = BusCrossbarUtilsFactory.getOrThrow(p(BusType))
 
   val ibus    = IO(utils.masterType).suggestName("IBUS")
   val dbus    = IO(utils.masterType).suggestName("DBUS")
