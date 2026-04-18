@@ -11,7 +11,7 @@ class MultFU(implicit p: Parameters) extends FunctionalUnit {
   val mult       = Module(new Mult)
   val mult_utils = MultUtilitiesFactory.getOrThrow(p(ISA).name)
 
-  val req_reg                                       = Reg(new MicroOp)
+  val uop_reg                                       = Reg(new MicroOp)
   val state_idle :: state_busy :: state_done :: Nil = Enum(3)
   val state                                         = RegInit(state_idle)
 
@@ -19,7 +19,7 @@ class MultFU(implicit p: Parameters) extends FunctionalUnit {
 
   when(io.req.fire) {
     state   := state_busy
-    req_reg := io.req.bits
+    uop_reg := io.req.bits
   }.elsewhen(io.flush) {
     state := state_idle
   }.otherwise {
@@ -30,13 +30,13 @@ class MultFU(implicit p: Parameters) extends FunctionalUnit {
     }
   }
 
-  val current_uop = Mux(io.req.fire, io.req.bits.uop, req_reg.uop)
-  val ctrl        = mult_utils.decodeUop(current_uop)
+  val current_uop = Mux(io.req.fire, io.req.bits.uop, uop_reg.uop)
+  val ctrl        = mult_utils.decode(current_uop)
 
   mult.en   := io.req.fire
   mult.kill := io.flush
-  mult.src1 := Mux(io.req.fire, io.req.bits.rs1_data, req_reg.rs1_data)
-  mult.src2 := Mux(io.req.fire, io.req.bits.rs2_data, req_reg.rs2_data)
+  mult.src1 := Mux(io.req.fire, io.req.bits.rs1_data, uop_reg.rs1_data)
+  mult.src2 := Mux(io.req.fire, io.req.bits.rs2_data, uop_reg.rs2_data)
 
   mult.a_signed := ctrl.a_signed
   mult.b_signed := ctrl.b_signed
@@ -44,8 +44,8 @@ class MultFU(implicit p: Parameters) extends FunctionalUnit {
 
   io.resp.valid        := (state === state_done)
   io.resp.bits.result  := mult.result
-  io.resp.bits.rd      := req_reg.rd
-  io.resp.bits.pc      := req_reg.pc
-  io.resp.bits.instr   := req_reg.instr
-  io.resp.bits.rob_tag := req_reg.rob_tag
+  io.resp.bits.rd      := uop_reg.rd
+  io.resp.bits.pc      := uop_reg.pc
+  io.resp.bits.instr   := uop_reg.instr
+  io.resp.bits.rob_tag := uop_reg.rob_tag
 }

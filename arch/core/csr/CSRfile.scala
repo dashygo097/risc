@@ -56,7 +56,7 @@ class CsrFile(implicit p: Parameters) extends Module {
   trap_ret_target := utils.getTrapReturnTarget(regNameMap)
   val retUpdates = utils.getTrapReturnUpdates(regNameMap)
 
-  val ctrl     = utils.decodeUop(uop)
+  val ctrl     = utils.decode(uop)
   val trap_ret = en && ctrl.is_sys
 
   val hits: Seq[Bool]          = addrMap.map(_ === addr)

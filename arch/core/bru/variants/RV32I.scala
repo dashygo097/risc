@@ -42,7 +42,7 @@ object RV32IBruUtilities extends RegisteredUtilities[BruUtilities] with RV32IBru
     override def hasJump: Boolean = true
     override def hasJalr: Boolean = true
 
-    override def decodeUop(uop: UInt): BruCtrl = {
+    override def decode(uop: UInt): BruCtrl = {
       val ctrl = Wire(new BruCtrl(opWidth))
       ctrl.is_jump := uop(4)
       ctrl.is_jalr := uop(3)

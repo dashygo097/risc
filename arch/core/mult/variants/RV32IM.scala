@@ -27,7 +27,7 @@ object RV32IMMultUtilities extends RegisteredUtilities[MultUtilities] with RV32I
   override def utils: MultUtilities = new MultUtilities {
     override def name: String = "rv32im"
 
-    override def decodeUop(uop: UInt): MultCtrl = {
+    override def decode(uop: UInt): MultCtrl = {
       val ctrl = Wire(new MultCtrl)
       ctrl.a_signed := uop(2)
       ctrl.b_signed := uop(1)

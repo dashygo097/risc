@@ -17,7 +17,7 @@ class LsuFU(implicit p: Parameters) extends FunctionalUnit {
   val lsu       = Module(new Lsu)
   val imm_utils = ImmUtilitiesFactory.getOrThrow(p(ISA).name)
 
-  val req_reg                                            = Reg(new MicroOp)
+  val uop_reg                                            = Reg(new MicroOp)
   val state_idle :: state_wait_resp :: state_done :: Nil = Enum(3)
   val state                                              = RegInit(state_idle)
 
@@ -25,7 +25,7 @@ class LsuFU(implicit p: Parameters) extends FunctionalUnit {
 
   when(io.req.fire) {
     state   := state_wait_resp
-    req_reg := io.req.bits
+    uop_reg := io.req.bits
   }.elsewhen(io.flush) {
     state := state_idle
   }.otherwise {
@@ -39,15 +39,15 @@ class LsuFU(implicit p: Parameters) extends FunctionalUnit {
     }
   }
 
-  val imm  = imm_utils.genImm(req_reg.instr, req_reg.imm_type)
-  val addr = req_reg.rs1_data + imm
+  val imm  = imm_utils.genImm(uop_reg.instr, uop_reg.imm_type)
+  val addr = uop_reg.rs1_data + imm
 
   val (_, pma_readable, pma_writable, pma_cacheable) = PmaChecker(addr)
 
   lsu.en            := (state === state_wait_resp)
-  lsu.uop           := req_reg.uop
+  lsu.uop           := uop_reg.uop
   lsu.addr          := addr
-  lsu.wdata         := req_reg.rs2_data
+  lsu.wdata         := uop_reg.rs2_data
   lsu.pma_readable  := pma_readable
   lsu.pma_writable  := pma_writable
   lsu.pma_cacheable := pma_cacheable
@@ -57,8 +57,8 @@ class LsuFU(implicit p: Parameters) extends FunctionalUnit {
 
   io.resp.valid        := (state === state_done)
   io.resp.bits.result  := lsu.rdata
-  io.resp.bits.rd      := req_reg.rd
-  io.resp.bits.pc      := req_reg.pc
-  io.resp.bits.instr   := req_reg.instr
-  io.resp.bits.rob_tag := req_reg.rob_tag
+  io.resp.bits.rd      := uop_reg.rd
+  io.resp.bits.pc      := uop_reg.pc
+  io.resp.bits.instr   := uop_reg.instr
+  io.resp.bits.rob_tag := uop_reg.rob_tag
 }

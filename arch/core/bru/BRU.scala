@@ -25,7 +25,7 @@ class Bru(implicit p: Parameters) extends Module {
   val jump   = IO(Output(Bool()))
   val target = IO(Output(UInt(p(XLen).W)))
 
-  val ctrl = utils.decodeUop(uop)
+  val ctrl = utils.decode(uop)
 
   jump  := en && ctrl.is_jump
   taken := en && utils.fn(src1, src2, ctrl.op)

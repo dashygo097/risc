@@ -78,7 +78,7 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
 
     override def getAddr(instr: UInt): UInt = instr(31, 20)
 
-    override def decodeUop(uop: UInt): CsrCtrl = {
+    override def decode(uop: UInt): CsrCtrl = {
       val ctrl = Wire(new CsrCtrl(opWidth))
       ctrl.is_sys := uop(3)
       ctrl.is_imm := uop(2)

@@ -4,7 +4,7 @@ import arch.configs._
 import chisel3._
 
 trait LsuUtilities extends Utilities {
-  def decodeUop(uop: UInt): LsuCtrl
+  def decode(uop: UInt): LsuCtrl
 }
 
 object LsuUtilitiesFactory extends UtilitiesFactory[LsuUtilities]("LSU")

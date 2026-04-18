@@ -33,7 +33,7 @@ object RV32ILsuUtilities extends RegisteredUtilities[LsuUtilities] with RV32ILsu
   override def utils: LsuUtilities = new LsuUtilities {
     override def name: String = "rv32i"
 
-    override def decodeUop(uop: UInt): LsuCtrl = {
+    override def decode(uop: UInt): LsuCtrl = {
       val ctrl = Wire(new LsuCtrl)
       val size = uop(1, 0)
 
