@@ -4,13 +4,12 @@ import arch.configs._
 import chisel3._
 
 trait BruUtilities extends Utilities {
-  def branchTypeWidth: Int
+  def opWidth: Int
   def hasJump: Boolean
   def hasJalr: Boolean
-  def isJump(brType: UInt): Bool
-  def isJalr(brType: UInt): Bool
 
-  def fn(src1: UInt, src2: UInt, brType: UInt): Bool
+  def decodeUop(uop: UInt): BruCtrl
+  def fn(src1: UInt, src2: UInt, op: UInt): Bool
 }
 
 object BruUtilitiesFactory extends UtilitiesFactory[BruUtilities]("BRU")

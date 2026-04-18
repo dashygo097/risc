@@ -3,10 +3,37 @@ package arch.core.mult
 import arch.configs._
 import vopts.math.Multiplier
 import chisel3._
+import chisel3.util.BitPat
 
-object RV32IMMultUtilities extends RegisteredUtilities[MultUtilities] {
+// Format: uop[7:3] = 0 | uop[2] = signed_bit | uop[1] = signed_bit | uop[0] = bit_sel
+trait RV32IMMultUOpConsts {
+  private def cat(bps: BitPat*): BitPat = bps.reduce(_ ## _)
+  private def P_X                       = BitPat("b?????")
+
+  def MH_X = BitPat("b?")
+  def MH_0 = BitPat("b0") // Low 32 bits
+  def MH_1 = BitPat("b1") // High 32 bits
+  def MS_X = BitPat("b?")
+  def MS_0 = BitPat("b0") // Unsigned
+  def MS_1 = BitPat("b1") // Signed
+
+  def UOP_MUL    = cat(P_X, MS_1, MS_1, MH_0)
+  def UOP_MULH   = cat(P_X, MS_1, MS_1, MH_1)
+  def UOP_MULHSU = cat(P_X, MS_1, MS_0, MH_1)
+  def UOP_MULHU  = cat(P_X, MS_0, MS_0, MH_1)
+}
+
+object RV32IMMultUtilities extends RegisteredUtilities[MultUtilities] with RV32IMMultUOpConsts {
   override def utils: MultUtilities = new MultUtilities {
     override def name: String = "rv32im"
+
+    override def decodeUop(uop: UInt): MultCtrl = {
+      val ctrl = Wire(new MultCtrl)
+      ctrl.a_signed := uop(2)
+      ctrl.b_signed := uop(1)
+      ctrl.high     := uop(0)
+      ctrl
+    }
 
     override def fn(en: Bool, kill: Bool, src1: UInt, src2: UInt, a_signed: Bool, b_signed: Bool, high: Bool): (UInt, Bool, Bool) = {
       val result = WireDefault(0.U(p(XLen).W))

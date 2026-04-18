@@ -14,14 +14,15 @@ case class AlwaysUpdate(fn: CsrUpdateBehavior.CsrUpdateFn)      extends CsrUpdat
 case class ConditionalUpdate(fn: CsrUpdateBehavior.CsrUpdateFn) extends CsrUpdateBehavior
 
 trait CsrUtilities extends Utilities {
-  def cmdWidth: Int
   def addrWidth: Int
-  def immWidth: Int
-  def isImm(cmd: UInt): Bool
-  def genImm(imm: UInt): UInt
-  def getAddr(instr: UInt): UInt
+  def opWidth: Int
 
-  def fn(cmd: UInt, csr_data: UInt, src_data: UInt): UInt
+  def getAddr(instr: UInt): UInt
+  def genImm(instr: UInt): UInt
+
+  def decodeUop(uop: UInt): CsrCtrl
+  def fn(op: UInt, csr_data: UInt, src_data: UInt): UInt
+
   def table: Seq[(Register, CsrUpdateBehavior)]
   def extraInputs: Seq[(String, Int)]
 

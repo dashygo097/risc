@@ -1,8 +1,6 @@
 package arch.core.csr
 
 import arch.core.ooo._
-import arch.core.decoder._
-import arch.core.imm._
 import arch.configs._
 import chisel3._
 
@@ -19,9 +17,8 @@ class CsrFU(implicit p: Parameters) extends FunctionalUnit {
   val irq          = IO(new CoreInterruptIO)
   val arch_pc      = IO(Input(UInt(p(XLen).W)))
 
-  val csrfile: CsrFile = Module(new CsrFile)
-  val decoder          = Module(new Decoder)
-  val imm_gen          = Module(new ImmGen)
+  val csrfile   = Module(new CsrFile)
+  val csr_utils = CsrUtilitiesFactory.getOrThrow(p(ISA).name)
 
   val busy    = RegInit(false.B)
   val req_reg = Reg(new MicroOp)
@@ -38,39 +35,32 @@ class CsrFU(implicit p: Parameters) extends FunctionalUnit {
     busy := false.B
   }
 
-  decoder.instr   := req_reg.instr
-  imm_gen.instr   := req_reg.instr
-  imm_gen.immType := decoder.decoded.imm_type
+  val active_instr = Mux(busy, req_reg.instr, 0.U)
+  val active_uop   = Mux(busy, req_reg.uop, 0.U)
+  val ctrl         = csr_utils.decodeUop(active_uop)
+
+  csrfile.en    := busy
+  csrfile.uop   := active_uop
+  csrfile.instr := active_instr
+  csrfile.addr  := csr_utils.getAddr(active_instr)
+  csrfile.src   := req_reg.rs1_data
+  csrfile.pc    := Mux(busy, req_reg.pc, arch_pc)
+
+  csrfile.extraInputIO("cycle")     := cycle
+  csrfile.extraInputIO("instret")   := instret
+  csrfile.extraInputIO("timer_irq") := irq.timer_irq
+  csrfile.extraInputIO("soft_irq")  := irq.soft_irq
+  csrfile.extraInputIO("ext_irq")   := irq.ext_irq
 
   io.resp.valid        := busy && !io.flush
+  io.resp.bits.result  := csrfile.rd
   io.resp.bits.pc      := req_reg.pc
   io.resp.bits.instr   := req_reg.instr
   io.resp.bits.rd      := req_reg.rd
   io.resp.bits.rob_tag := req_reg.rob_tag
 
-  val active_instr = Mux(busy, req_reg.instr, 0.U)
-
-  csrfile match {
-    case csr =>
-      csr.en       := true.B
-      csr.trap_ret := Mux(busy, decoder.decoded.ret, false.B)
-      csr.cmd      := Mux(busy, decoder.decoded.csr_cmd, 0.U)
-      csr.addr     := arch.core.csr.CsrUtilitiesFactory.getOrThrow(p(ISA).name).getAddr(active_instr)
-      csr.src      := req_reg.rs1_data
-      csr.imm      := imm_gen.csr_imm
-
-      csr.pc := Mux(busy, req_reg.pc, arch_pc)
-
-      csr.extraInputIO("cycle")     := cycle
-      csr.extraInputIO("instret")   := instret
-      csr.extraInputIO("timer_irq") := irq.timer_irq
-      csr.extraInputIO("soft_irq")  := irq.soft_irq
-      csr.extraInputIO("ext_irq")   := irq.ext_irq
-
-      io.resp.bits.result := csr.rd
-      trap_request        := csr.trap_request
-      trap_target         := csr.trap_target
-      trap_ret_tgt        := csr.trap_ret_target
-      trap_ret            := Mux(busy, decoder.decoded.ret, false.B)
-  }
+  trap_request := csrfile.trap_request
+  trap_target  := csrfile.trap_target
+  trap_ret_tgt := csrfile.trap_ret_target
+  trap_ret     := busy && ctrl.is_sys
 }

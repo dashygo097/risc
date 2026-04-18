@@ -4,15 +4,7 @@ import arch.configs._
 import chisel3._
 
 trait LsuUtilities extends Utilities {
-  def cmdWidth: Int
-  def strb(cmd: UInt): UInt
-
-  def isByte(cmd: UInt): Bool
-  def isHalf(cmd: UInt): Bool
-  def isWord(cmd: UInt): Bool
-  def isUnsigned(cmd: UInt): Bool
-  def isRead(cmd: UInt): Bool
-  def isWrite(cmd: UInt): Bool
+  def decodeUop(uop: UInt): LsuCtrl
 }
 
 object LsuUtilitiesFactory extends UtilitiesFactory[LsuUtilities]("LSU")

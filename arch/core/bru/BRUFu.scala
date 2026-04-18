@@ -1,6 +1,5 @@
 package arch.core.bru
 
-import arch.core.decoder._
 import arch.core.imm._
 import arch.core.ooo._
 import arch.configs._
@@ -12,9 +11,8 @@ class BruFU(implicit p: Parameters) extends FunctionalUnit {
   val actual_taken  = IO(Output(Bool()))
   val actual_target = IO(Output(UInt(p(XLen).W)))
 
-  val bru     = Module(new Bru)
-  val decoder = Module(new Decoder)
-  val imm_gen = Module(new ImmGen)
+  val bru       = Module(new Bru)
+  val imm_utils = ImmUtilitiesFactory.getOrThrow(p(ISA).name)
 
   val busy    = RegInit(false.B)
   val req_reg = Reg(new MicroOp)
@@ -30,16 +28,14 @@ class BruFU(implicit p: Parameters) extends FunctionalUnit {
     busy := false.B
   }
 
-  decoder.instr   := req_reg.instr
-  imm_gen.instr   := req_reg.instr
-  imm_gen.immType := decoder.decoded.imm_type
+  val active_uop = Mux(busy, req_reg.uop, 0.U)
 
-  bru.en     := busy && decoder.decoded.branch
-  bru.pc     := req_reg.pc
-  bru.src1   := req_reg.rs1_data
-  bru.src2   := req_reg.rs2_data
-  bru.imm    := imm_gen.imm
-  bru.brType := decoder.decoded.br_type
+  bru.en   := busy
+  bru.pc   := req_reg.pc
+  bru.src1 := req_reg.rs1_data
+  bru.src2 := req_reg.rs2_data
+  bru.uop  := active_uop
+  bru.imm  := imm_utils.genImm(req_reg.instr, req_reg.imm_type)
 
   io.resp.valid        := busy && !io.flush
   io.resp.bits.pc      := req_reg.pc
@@ -49,7 +45,6 @@ class BruFU(implicit p: Parameters) extends FunctionalUnit {
 
   io.resp.bits.result := req_reg.pc + p(IAlign).U
 
-  actual_taken := bru.taken
-
+  actual_taken  := bru.taken
   actual_target := Mux(bru.taken, bru.target, req_reg.pc + p(IAlign).U)
 }

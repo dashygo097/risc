@@ -1,7 +1,6 @@
 package arch.core.mult
 
 import arch.configs._
-import arch.core.decoder._
 import arch.core.ooo._
 import chisel3._
 import chisel3.util._
@@ -9,8 +8,8 @@ import chisel3.util._
 class MultFU(implicit p: Parameters) extends FunctionalUnit {
   override def desiredName: String = s"${p(ISA).name}_mult_fu"
 
-  val core_mult = Module(new Mult)
-  val decoder   = Module(new Decoder)
+  val mult       = Module(new Mult)
+  val mult_utils = MultUtilitiesFactory.getOrThrow(p(ISA).name)
 
   val req_reg                                       = Reg(new MicroOp)
   val state_idle :: state_busy :: state_done :: Nil = Enum(3)
@@ -24,26 +23,27 @@ class MultFU(implicit p: Parameters) extends FunctionalUnit {
   }.elsewhen(io.flush) {
     state := state_idle
   }.otherwise {
-    when(state === state_busy && core_mult.done) {
+    when(state === state_busy && mult.done) {
       state := state_done
     }.elsewhen(state === state_done && io.resp.fire) {
       state := state_idle
     }
   }
 
-  val current_instr = Mux(io.req.fire, io.req.bits.instr, req_reg.instr)
-  decoder.instr := current_instr
+  val current_uop = Mux(io.req.fire, io.req.bits.uop, req_reg.uop)
+  val ctrl        = mult_utils.decodeUop(current_uop)
 
-  core_mult.en       := io.req.fire
-  core_mult.kill     := io.flush
-  core_mult.src1     := Mux(io.req.fire, io.req.bits.rs1_data, req_reg.rs1_data)
-  core_mult.src2     := Mux(io.req.fire, io.req.bits.rs2_data, req_reg.rs2_data)
-  core_mult.a_signed := decoder.decoded.mult_a_signed
-  core_mult.b_signed := decoder.decoded.mult_b_signed
-  core_mult.high     := decoder.decoded.mult_high
+  mult.en   := io.req.fire
+  mult.kill := io.flush
+  mult.src1 := Mux(io.req.fire, io.req.bits.rs1_data, req_reg.rs1_data)
+  mult.src2 := Mux(io.req.fire, io.req.bits.rs2_data, req_reg.rs2_data)
+
+  mult.a_signed := ctrl.a_signed
+  mult.b_signed := ctrl.b_signed
+  mult.high     := ctrl.high
 
   io.resp.valid        := (state === state_done)
-  io.resp.bits.result  := core_mult.result
+  io.resp.bits.result  := mult.result
   io.resp.bits.rd      := req_reg.rd
   io.resp.bits.pc      := req_reg.pc
   io.resp.bits.instr   := req_reg.instr

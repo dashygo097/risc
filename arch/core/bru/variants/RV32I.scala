@@ -2,47 +2,78 @@ package arch.core.bru
 
 import arch.configs._
 import chisel3._
-import chisel3.util.{ BitPat, MuxCase }
+import chisel3.util.{ BitPat, MuxLookup }
 
-trait RV32IBranchConsts {
-  def BR_X    = BitPat("b???")
-  def SZ_BR   = BR_X.getWidth
-  def BR_EQ   = BitPat("b000")
-  def BR_NE   = BitPat("b001")
-  def BR_LT   = BitPat("b010")
-  def BR_GE   = BitPat("b011")
-  def BR_LTU  = BitPat("b100")
-  def BR_GEU  = BitPat("b101")
-  def BR_JAL  = BitPat("b110")
-  def BR_JALR = BitPat("b111")
+// Format: uop[7:5] = 0 | uop[4] = is_jump | uop[3] = is_jalr | uop[2:0] = op
+trait RV32IBruUOpConsts {
+  private def cat(bps: BitPat*): BitPat = bps.reduce(_ ## _)
+  private def P_X                       = BitPat("b???")
+
+  def B_JMP_0 = BitPat("b0")
+  def B_JMP_1 = BitPat("b1")
+
+  def B_JLR_0 = BitPat("b0")
+  def B_JLR_1 = BitPat("b1")
+
+  def B_EQ  = BitPat("b000")
+  def B_NE  = BitPat("b001")
+  def B_LT  = BitPat("b010")
+  def B_GE  = BitPat("b011")
+  def B_LTU = BitPat("b100")
+  def B_GEU = BitPat("b101")
+  def B_AL  = BitPat("b111")
+
+  def UOP_BEQ  = cat(P_X, B_JMP_0, B_JLR_0, B_EQ)
+  def UOP_BNE  = cat(P_X, B_JMP_0, B_JLR_0, B_NE)
+  def UOP_BLT  = cat(P_X, B_JMP_0, B_JLR_0, B_LT)
+  def UOP_BGE  = cat(P_X, B_JMP_0, B_JLR_0, B_GE)
+  def UOP_BLTU = cat(P_X, B_JMP_0, B_JLR_0, B_LTU)
+  def UOP_BGEU = cat(P_X, B_JMP_0, B_JLR_0, B_GEU)
+
+  def UOP_JAL  = cat(P_X, B_JMP_1, B_JLR_0, B_AL)
+  def UOP_JALR = cat(P_X, B_JMP_1, B_JLR_1, B_AL)
 }
 
-object RV32IBruUtilities extends RegisteredUtilities[BruUtilities] with RV32IBranchConsts {
+object RV32IBruUtilities extends RegisteredUtilities[BruUtilities] with RV32IBruUOpConsts {
   override def utils: BruUtilities = new BruUtilities {
     override def name: String = "rv32i"
 
-    override def branchTypeWidth: Int       = SZ_BR
-    override def hasJump: Boolean           = true
-    override def hasJalr: Boolean           = true
-    override def isJalr(brType: UInt): Bool = brType === BR_JALR
-    override def isJump(brType: UInt): Bool = brType(2, 1) === "b11".U
+    override def opWidth: Int     = 3
+    override def hasJump: Boolean = true
+    override def hasJalr: Boolean = true
 
-    override def fn(src1: UInt, src2: UInt, brType: UInt): Bool = {
-      val eq: Bool  = src1 === src2
-      val lt: Bool  = src1.asSInt < src2.asSInt
-      val ltu: Bool = src1 < src2
+    override def decodeUop(uop: UInt): BruCtrl = {
+      val ctrl = Wire(new BruCtrl(opWidth))
+      ctrl.is_jump := uop(4)
+      ctrl.is_jalr := uop(3)
+      ctrl.op      := uop(2, 0)
+      ctrl
+    }
 
-      MuxCase(
-        false.B,
+    override def fn(src1: UInt, src2: UInt, op: UInt): Bool = {
+      val sub_res = src1 +& ~src2 + 1.U
+      val sum     = sub_res(p(XLen) - 1, 0)
+      val carry   = sub_res(p(XLen))
+
+      val eq = sum === 0.U
+      val ne = !eq
+
+      val sign1    = src1(p(XLen) - 1)
+      val sign2    = src2(p(XLen) - 1)
+      val sum_sign = sum(p(XLen) - 1)
+
+      val lt  = Mux(sign1 === sign2, sum_sign, sign1)
+      val ltu = !carry
+
+      MuxLookup(op, false.B)(
         Seq(
-          (brType === BR_EQ.value.U(SZ_BR.W))   -> eq,
-          (brType === BR_NE.value.U(SZ_BR.W))   -> !eq,
-          (brType === BR_LT.value.U(SZ_BR.W))   -> lt,
-          (brType === BR_GE.value.U(SZ_BR.W))   -> !lt,
-          (brType === BR_LTU.value.U(SZ_BR.W))  -> ltu,
-          (brType === BR_GEU.value.U(SZ_BR.W))  -> !ltu,
-          (brType === BR_JAL.value.U(SZ_BR.W))  -> true.B,
-          (brType === BR_JALR.value.U(SZ_BR.W)) -> true.B
+          "b000".U -> eq,
+          "b001".U -> ne,
+          "b010".U -> lt,
+          "b011".U -> !lt,
+          "b100".U -> ltu,
+          "b101".U -> !ltu,
+          "b111".U -> true.B
         )
       )
     }

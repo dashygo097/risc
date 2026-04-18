@@ -24,6 +24,7 @@ trait AluUtilities extends Utilities {
   def sel2Width: Int
   def fnTypeWidth: Int
 
+  def decodeUop(uop: UInt): AluCtrl
   def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt
 }
 

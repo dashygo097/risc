@@ -5,6 +5,16 @@ import vopts.mem.cache.{ CacheIO, CacheOp }
 import chisel3._
 import chisel3.util.{ MuxCase, Cat, Fill }
 
+class LsuCtrl extends Bundle {
+  val is_byte     = Bool()
+  val is_half     = Bool()
+  val is_word     = Bool()
+  val is_unsigned = Bool()
+  val is_read     = Bool()
+  val is_write    = Bool()
+  val strb        = UInt(4.W)
+}
+
 class Lsu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_lsu"
 
@@ -12,7 +22,7 @@ class Lsu(implicit p: Parameters) extends Module {
 
   // Control inputs
   val en            = IO(Input(Bool()))
-  val cmd           = IO(Input(UInt(utils.cmdWidth.W)))
+  val uop           = IO(Input(UInt(p(MicroOpWidth).W)))
   val pma_readable  = IO(Input(Bool()))
   val pma_writable  = IO(Input(Bool()))
   val pma_cacheable = IO(Input(Bool()))
@@ -37,17 +47,19 @@ class Lsu(implicit p: Parameters) extends Module {
 
   val byte_offset = addr(1, 0)
 
+  val ctrl = utils.decodeUop(uop)
+
   rdata     := 0.U(p(XLen).W)
-  unsigned  := en && utils.isUnsigned(cmd)
-  mem_read  := en && utils.isRead(cmd)
-  mem_write := en && utils.isWrite(cmd)
+  unsigned  := en && ctrl.is_unsigned
+  mem_read  := en && ctrl.is_read
+  mem_write := en && ctrl.is_write
 
   val raw_wdata = MuxCase(
     wdata,
     Seq(
-      utils.isByte(cmd) -> Cat(Fill(24, 0.U), wdata(7, 0)),
-      utils.isHalf(cmd) -> Cat(Fill(16, 0.U), wdata(15, 0)),
-      utils.isWord(cmd) -> wdata,
+      ctrl.is_byte -> Cat(Fill(24, 0.U), wdata(7, 0)),
+      ctrl.is_half -> Cat(Fill(16, 0.U), wdata(15, 0)),
+      ctrl.is_word -> wdata,
     )
   )
 
@@ -56,9 +68,9 @@ class Lsu(implicit p: Parameters) extends Module {
   val raw_wmask = MuxCase(
     "b1111".U(4.W),
     Seq(
-      utils.isByte(cmd) -> "b0001".U(4.W),
-      utils.isHalf(cmd) -> "b0011".U(4.W),
-      utils.isWord(cmd) -> "b1111".U(4.W)
+      ctrl.is_byte -> "b0001".U(4.W),
+      ctrl.is_half -> "b0011".U(4.W),
+      ctrl.is_word -> "b1111".U(4.W)
     )
   )
   val wmask     = (raw_wmask << byte_offset)(3, 0)
@@ -66,18 +78,11 @@ class Lsu(implicit p: Parameters) extends Module {
   when(!busy) {
     req_fired := false.B
   }
-  when(mem.req.fire) {
+  when(mem.req.fire || mmio.req.fire) {
     req_fired     := true.B
     resp_received := false.B
   }
-  when(mmio.req.fire) {
-    req_fired     := true.B
-    resp_received := false.B
-  }
-  when(mem.resp.fire) {
-    resp_received := true.B
-  }
-  when(mmio.resp.fire) {
+  when(mem.resp.fire || mmio.resp.fire) {
     resp_received := true.B
   }
 
@@ -103,15 +108,9 @@ class Lsu(implicit p: Parameters) extends Module {
   val loaded_data = MuxCase(
     shifted_rdata,
     Seq(
-      utils.isByte(cmd) -> Cat(
-        Fill(24, !utils.isUnsigned(cmd) && shifted_rdata(7)),
-        shifted_rdata(7, 0)
-      ),
-      utils.isHalf(cmd) -> Cat(
-        Fill(16, !utils.isUnsigned(cmd) && shifted_rdata(15)),
-        shifted_rdata(15, 0)
-      ),
-      utils.isWord(cmd) -> shifted_rdata,
+      ctrl.is_byte -> Cat(Fill(24, !ctrl.is_unsigned && shifted_rdata(7)), shifted_rdata(7, 0)),
+      ctrl.is_half -> Cat(Fill(16, !ctrl.is_unsigned && shifted_rdata(15)), shifted_rdata(15, 0)),
+      ctrl.is_word -> shifted_rdata,
     )
   )
 

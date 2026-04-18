@@ -10,6 +10,7 @@ object RV32IM extends IsaWrapper {
     ilen = RV32I.ilen,
     iAlign = RV32I.iAlign,
     numArchRegs = RV32I.numArchRegs,
+    microOpWidth = RV32I.microOpWidth,
     isBigEndian = RV32I.isBigEndian,
     instrSet = Some(
       InstructionSet(

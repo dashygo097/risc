@@ -4,25 +4,30 @@ import arch.configs._
 import vopts.utils.{ CombTree, Register }
 import chisel3._
 
+class CsrCtrl(val opWidth: Int) extends Bundle {
+  val is_sys = Bool()
+  val is_imm = Bool()
+  val op     = UInt(opWidth.W)
+}
+
 class CsrFile(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_csrfile"
 
   val utils = CsrUtilitiesFactory.getOrThrow(p(ISA).name)
 
-  val en   = IO(Input(Bool()))
-  val cmd  = IO(Input(UInt(utils.cmdWidth.W)))
-  val imm  = IO(Input(UInt(utils.immWidth.W)))
-  val addr = IO(Input(UInt(utils.addrWidth.W)))
-  val src  = IO(Input(UInt(p(XLen).W)))
-  val pc   = IO(Input(UInt(p(XLen).W)))
-  val rd   = IO(Output(UInt(p(XLen).W)))
+  val en    = IO(Input(Bool()))
+  val uop   = IO(Input(UInt(p(MicroOpWidth).W)))
+  val instr = IO(Input(UInt(p(ILen).W)))
+  val addr  = IO(Input(UInt(utils.addrWidth.W)))
+  val src   = IO(Input(UInt(p(XLen).W)))
+  val pc    = IO(Input(UInt(p(XLen).W)))
+  val rd    = IO(Output(UInt(p(XLen).W)))
 
   // Trap Entry
   val trap_request = IO(Output(Bool()))
   val trap_target  = IO(Output(UInt(p(XLen).W)))
 
   // Trap Return
-  val trap_ret        = IO(Input(Bool()))
   val trap_ret_target = IO(Output(UInt(p(XLen).W)))
 
   val extraInputIO: Map[String, UInt] = utils.extraInputs.map { case (name, width) =>
@@ -51,13 +56,15 @@ class CsrFile(implicit p: Parameters) extends Module {
   trap_ret_target := utils.getTrapReturnTarget(regNameMap)
   val retUpdates = utils.getTrapReturnUpdates(regNameMap)
 
+  val ctrl     = utils.decodeUop(uop)
+  val trap_ret = en && ctrl.is_sys
+
   val hits: Seq[Bool]          = addrMap.map(_ === addr)
   val addrMatch: Bool          = CombTree.orTree(hits)
-  val writableHits: Seq[Bool]  = csrTable.zip(hits).map { case (reg, h) =>
-    h && reg.writable.B
-  }
-  val writeAccessAllowed: Bool = addrMatch && CombTree.orTree(writableHits)
-  val srcData: UInt            = Mux(utils.isImm(cmd), utils.genImm(imm), src)
+  val writableHits: Seq[Bool]  = csrTable.zip(hits).map { case (reg, h) => h && reg.writable.B }
+  val writeAccessAllowed: Bool = addrMatch && CombTree.orTree(writableHits) && !ctrl.is_sys
+
+  val srcData: UInt = Mux(ctrl.is_imm, utils.genImm(instr), src)
 
   utils.table.zipWithIndex.foreach { case ((reg, behavior), i) =>
     val isTrapUpdatingThisReg = do_trap && trapUpdates.contains(reg.name).B
@@ -77,7 +84,7 @@ class CsrFile(implicit p: Parameters) extends Module {
         }.elsewhen(isRetUpdatingThisReg) {
           csrRegs(i) := retUpdateValue
         }.elsewhen(en && writeAccessAllowed && hits(i) && reg.writable.B) {
-          csrRegs(i) := utils.fn(cmd, csrRegs(i), srcData)
+          csrRegs(i) := utils.fn(ctrl.op, csrRegs(i), srcData)
         }
 
       case NormalUpdate =>
@@ -86,16 +93,12 @@ class CsrFile(implicit p: Parameters) extends Module {
         }.elsewhen(isRetUpdatingThisReg) {
           csrRegs(i) := retUpdateValue
         }.elsewhen(en && writeAccessAllowed && hits(i) && reg.writable.B) {
-          csrRegs(i) := utils.fn(cmd, csrRegs(i), srcData)
+          csrRegs(i) := utils.fn(ctrl.op, csrRegs(i), srcData)
         }
     }
   }
 
   val readCases: Seq[(Bool, UInt)] = hits.zip(csrRegs)
 
-  rd := Mux(
-    en,
-    CombTree.oneHotMux(readCases),
-    0.U(p(XLen).W)
-  )
+  rd := Mux(en && !ctrl.is_sys, CombTree.oneHotMux(readCases), 0.U(p(XLen).W))
 }

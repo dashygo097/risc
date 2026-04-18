@@ -237,8 +237,8 @@ class RiscCore(implicit p: Parameters) extends Module {
       FUNCTIONAL_UNIT_TYPE_ALU.index.U,
       Seq(
         is_lsu(w)                                            -> FUNCTIONAL_UNIT_TYPE_LSU.index.U,
-        decoders(w).decoded.mult_en                          -> FUNCTIONAL_UNIT_TYPE_MULT.index.U,
-        decoders(w).decoded.branch                           -> FUNCTIONAL_UNIT_TYPE_BRU.index.U,
+        decoders(w).decoded.mult                             -> FUNCTIONAL_UNIT_TYPE_MULT.index.U,
+        decoders(w).decoded.bru                              -> FUNCTIONAL_UNIT_TYPE_BRU.index.U,
         (decoders(w).decoded.csr || decoders(w).decoded.ret) -> FUNCTIONAL_UNIT_TYPE_CSR.index.U
       )
     )
@@ -354,7 +354,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.enq(w).rd              := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
     rob.io.enq(w).pd              := 0.U
     rob.io.enq(w).old_pd          := 0.U
-    rob.io.enq(w).is_branch       := decoders(w).decoded.branch
+    rob.io.enq(w).is_branch       := decoders(w).decoded.bru
     rob.io.enq(w).is_lsu          := decoders(w).decoded.lsu
     rob.io.enq(w).bpu_pred_taken  := ifu.if_bpu_pred_taken(w)
     rob.io.enq(w).bpu_pred_target := ifu.if_bpu_pred_target(w)
@@ -368,6 +368,8 @@ class RiscCore(implicit p: Parameters) extends Module {
     dis.bits.instr    := ifu.if_instr(w)
     dis.bits.fu_id    := target_fu_id(w)
     dis.bits.rs1      := rs1s(w)
+    dis.bits.uop      := decoders(w).decoded.uop
+    dis.bits.imm_type := decoders(w).decoded.imm_type
     dis.bits.rs2      := rs2s(w)
     dis.bits.rd       := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
     dis.bits.rs1_data := rs1_bypassed
