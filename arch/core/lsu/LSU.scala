@@ -47,7 +47,7 @@ class Lsu(implicit p: Parameters) extends Module {
 
   val byte_offset = addr(1, 0)
 
-  val ctrl = utils.decodeUop(uop)
+  val ctrl = utils.decode(uop)
 
   rdata     := 0.U(p(XLen).W)
   unsigned  := en && ctrl.is_unsigned

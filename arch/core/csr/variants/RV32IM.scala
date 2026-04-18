@@ -12,7 +12,7 @@ object RV32IMCsrUtilities extends RegisteredUtilities[CsrUtilities] {
     override def getAddr(instr: UInt): UInt = RV32ICsrUtilities.utils.getAddr(instr)
     override def genImm(imm: UInt): UInt    = RV32ICsrUtilities.utils.genImm(imm)
 
-    override def decodeUop(uop: UInt): CsrCtrl                       = RV32ICsrUtilities.utils.decodeUop(uop)
+    override def decode(uop: UInt): CsrCtrl                       = RV32ICsrUtilities.utils.decode(uop)
     override def fn(cmd: UInt, csr_data: UInt, src_data: UInt): UInt = RV32ICsrUtilities.utils.fn(cmd, csr_data, src_data)
 
     override def extraInputs: Seq[(String, Int)] = RV32ICsrUtilities.utils.extraInputs

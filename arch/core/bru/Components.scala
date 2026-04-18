@@ -8,7 +8,7 @@ trait BruUtilities extends Utilities {
   def hasJump: Boolean
   def hasJalr: Boolean
 
-  def decodeUop(uop: UInt): BruCtrl
+  def decode(uop: UInt): BruCtrl
   def fn(src1: UInt, src2: UInt, op: UInt): Bool
 }
 

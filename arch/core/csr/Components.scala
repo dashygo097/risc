@@ -20,7 +20,7 @@ trait CsrUtilities extends Utilities {
   def getAddr(instr: UInt): UInt
   def genImm(instr: UInt): UInt
 
-  def decodeUop(uop: UInt): CsrCtrl
+  def decode(uop: UInt): CsrCtrl
   def fn(op: UInt, csr_data: UInt, src_data: UInt): UInt
 
   def table: Seq[(Register, CsrUpdateBehavior)]

@@ -60,7 +60,7 @@ object RV32IAluUtilities extends RegisteredUtilities[AluUtilities] with RV32IAlu
     override def sel2Width: Int   = SZ_A2
     override def fnTypeWidth: Int = 3
 
-    override def decodeUop(uop: UInt): AluCtrl = {
+    override def decode(uop: UInt): AluCtrl = {
       val ctrl = Wire(new AluCtrl(fnTypeWidth))
       ctrl.sel1 := uop(7, 6)
       ctrl.sel2 := uop(5, 4)

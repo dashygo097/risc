@@ -25,7 +25,7 @@ class AluFU(implicit p: Parameters) extends FunctionalUnit with AluConsts {
     valid := false.B
   }
 
-  val ctrl = alu_utils.decodeUop(uop_reg.uop)
+  val ctrl = alu_utils.decode(uop_reg.uop)
 
   val src1 = MuxLookup(ctrl.sel1, 0.U(p(XLen).W))(
     Seq(
