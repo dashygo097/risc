@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace demu::hal::axi {
+namespace demu::hal::axil {
 
 void AXILiteSRAM::reset() {
   sram_->reset();
@@ -95,4 +95,4 @@ void AXILiteSRAM::dump(addr_t start, size_t size) const noexcept {
   }
 }
 
-} // namespace demu::hal::axi
+} // namespace demu::hal::axil

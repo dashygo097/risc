@@ -1,18 +1,18 @@
 #pragma once
 
 #include "../../allocator.hh"
-#include "../../peripheral/sram/sram.hh"
+#include "../../peripheral/uart/uart.hh"
 #include "./slave.hh"
 #include <queue>
 
 namespace demu::hal::axil {
 
-class AXILiteSRAM final : public AXILiteSlave {
+class AXILiteUART final : public AXILiteSlave {
 public:
-  explicit AXILiteSRAM(const risc::DeviceDescriptor &desc)
-      : AXILiteSlave(desc), sram_(std::make_unique<sram::SRAM>(desc)) {}
+  explicit AXILiteUART(const risc::DeviceDescriptor &desc)
+      : AXILiteSlave(desc), uart_(std::make_unique<uart::UART>(desc)) {}
 
-  ~AXILiteSRAM() override = default;
+  ~AXILiteUART() override = default;
 
   void reset() override;
   void clock_tick() override;
@@ -61,11 +61,11 @@ public:
 
   // Bypass
   [[nodiscard]] auto allocator() const noexcept -> MemoryAllocator * override {
-    return sram_->allocator();
+    return uart_->allocator();
   }
 
 private:
-  std::unique_ptr<sram::SRAM> sram_;
+  std::unique_ptr<uart::UART> uart_;
 
   struct WriteData {
     word_t data;

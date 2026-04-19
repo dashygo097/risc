@@ -13,10 +13,10 @@ package object configs {
   // --------------------------------------------
   // Architecture Parameters
   object ISA       extends Field[IsaWrapper](RV32IM)
-  object Frequency extends Field[Long](50_000_000) // NOTE: default: 50MHZ
+  object Frequency extends Field[Long](50_000_000L) // NOTE: default: 50MHZ
 
   // Ifu Parameters
-  object IBufferSize extends Field[Int](8)
+  object IBufferSize extends Field[Int](16)
   object ResetVector extends Field[Long](0x80000000L)
 
   // Regfile Parameters
@@ -59,7 +59,7 @@ package object configs {
 
   object L1DCacheWays       extends Field[Int](4)
   object L1DCacheSets       extends Field[Int](8)
-  object L1DCacheLineSize   extends Field[Int](16) // in bytes
+  object L1DCacheLineSize   extends Field[Int](32) // in bytes
   object L1DCacheReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
 
   // Bus Parameters

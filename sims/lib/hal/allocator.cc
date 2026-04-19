@@ -51,7 +51,8 @@ auto MemoryAllocator::load_binary(const std::string &filename, addr_t load_addr)
 }
 
 void MemoryAllocator::clear() {
-  HAL_DEBUG("MemoryAllocator cleared (zeroed)");
+  HAL_DEBUG("MemoryAllocator cleared ([0x{:08x} - 0x{:08x}] zeroed)",
+            base_address(), base_address() + size());
   memset(memory_.data(), 0, memory_.size());
 }
 

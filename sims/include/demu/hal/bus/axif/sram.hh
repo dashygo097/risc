@@ -4,7 +4,7 @@
 #include "./slave.hh"
 #include <queue>
 
-namespace demu::hal::axi {
+namespace demu::hal::axif {
 
 class AXIFullSRAM final : public AXIFullSlave {
 public:
@@ -144,4 +144,4 @@ private:
   void calculate_next_address(BurstTransaction &req);
 };
 
-} // namespace demu::hal::axi
+} // namespace demu::hal::axif

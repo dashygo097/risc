@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../../allocator.hh"
-#include "../../device.hh"
 #include "../../interrupt.hh"
 #include "./slave.hh"
 #include <memory>
@@ -9,7 +8,7 @@
 
 #if defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)
 
-namespace demu::hal::axi {
+namespace demu::hal::axif {
 using namespace isa;
 
 enum ClintRegisters : addr_t {
@@ -172,6 +171,6 @@ private:
   void calculate_next_address(BurstTransaction &req);
 };
 
-} // namespace demu::hal::axi
+} // namespace demu::hal::axif
 
 #endif // defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)

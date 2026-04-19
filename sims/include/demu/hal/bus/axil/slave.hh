@@ -2,7 +2,7 @@
 
 #include "../../device.hh"
 
-namespace demu::hal::axi {
+namespace demu::hal::axil {
 
 using namespace isa;
 
@@ -32,4 +32,4 @@ public:
   virtual auto r_resp() const noexcept -> uint8_t = 0;
 };
 
-} // namespace demu::hal::axi
+} // namespace demu::hal::axil

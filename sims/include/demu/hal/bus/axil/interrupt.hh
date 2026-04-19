@@ -1,18 +1,35 @@
 #pragma once
 
 #include "../../allocator.hh"
-#include "../../peripheral/sram/sram.hh"
+#include "../../interrupt.hh"
 #include "./slave.hh"
+#include <memory>
 #include <queue>
+
+#if defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)
 
 namespace demu::hal::axil {
 
-class AXILiteSRAM final : public AXILiteSlave {
-public:
-  explicit AXILiteSRAM(const risc::DeviceDescriptor &desc)
-      : AXILiteSlave(desc), sram_(std::make_unique<sram::SRAM>(desc)) {}
+enum ClintRegisters : addr_t {
+  CLINT_MSIP = 0x0000,
+  CLINT_MTIMECMP_LO = 0x4000,
+  CLINT_MTIMECMP_HI = 0x4004,
+  CLINT_MTIME_LO = 0xBFF8,
+  CLINT_MTIME_HI = 0x8FFC
+};
 
-  ~AXILiteSRAM() override = default;
+constexpr const uint64_t TICK_MS_DIVIDER = 1000;
+constexpr const uint64_t TICK_US_DIVIDER = TICK_MS_DIVIDER * 1000;
+constexpr const uint64_t TICK_NS_DIVIDER = TICK_US_DIVIDER * 1000;
+
+class AXILiteCLINT final : public AXILiteSlave {
+public:
+  explicit AXILiteCLINT(const risc::DeviceDescriptor &desc, uint64_t freq,
+                        InterruptLine *timer_line = nullptr,
+                        InterruptLine *soft_line = nullptr)
+      : AXILiteSlave(desc),
+        allocator_(std::make_unique<MemoryAllocator>(desc.base(), desc.size())),
+        freq_(freq), timer_line_(timer_line), soft_line_(soft_line) {}
 
   void reset() override;
   void clock_tick() override;
@@ -61,11 +78,14 @@ public:
 
   // Bypass
   [[nodiscard]] auto allocator() const noexcept -> MemoryAllocator * override {
-    return sram_->allocator();
+    return allocator_.get();
   }
 
 private:
-  std::unique_ptr<sram::SRAM> sram_;
+  std::unique_ptr<MemoryAllocator> allocator_;
+  uint64_t freq_;
+  InterruptLine *timer_line_;
+  InterruptLine *soft_line_;
 
   struct WriteData {
     word_t data;
@@ -90,3 +110,5 @@ private:
 };
 
 } // namespace demu::hal::axil
+
+#endif // defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)

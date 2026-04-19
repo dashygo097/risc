@@ -16,7 +16,7 @@ using namespace isa;
 
 class DemuSimulator {
 public:
-  explicit DemuSimulator(bool enabled_trace = false, int threads = 1,
+  explicit DemuSimulator(bool enabled_trace = false, int threads = NUM_THREADS,
                          int argc = 0, char **argv = nullptr);
   ~DemuSimulator();
 
@@ -151,5 +151,40 @@ protected:
   virtual void on_init() {};
   virtual void on_exit() {};
   virtual void on_reset() {};
+
+  // device registry helper
+  template <size_t PortID, typename HandlerType, typename DeviceType,
+            typename... Args>
+  auto register_port(const std::string &region_name, Args &&...args) -> void {
+
+    auto *specific_dut = static_cast<system_t *>(this->dut_.get());
+
+    if constexpr (demu::hal::SignalBinder<system_t, HandlerType,
+                                          PortID>::exists) {
+
+      const auto *region = config_->find_region(region_name);
+      if (!region) {
+        DEMU_WARN("Region '{}' for Port {} not found in config. Skipping.",
+                  region_name, PortID);
+        return;
+      }
+
+      device_manager_->register_device<DeviceType>(PortID, *region,
+                                                   std::forward<Args>(args)...);
+
+      device_manager_->register_handler(
+          PortID, std::make_unique<HandlerType>([specific_dut]() -> auto {
+            return demu::hal::SignalBinder<system_t, HandlerType, PortID>::bind(
+                specific_dut);
+          }));
+
+      DEMU_DEBUG("Registered '{}' on Port {}", region_name, PortID)
+
+    } else {
+      DEMU_ERROR(
+          "Compile-Time SFINAE Failed: Port {} does not exist on DUT for '{}'",
+          PortID, region_name);
+    }
+  }
 };
 } // namespace demu

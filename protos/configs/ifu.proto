@@ -7,5 +7,6 @@ option java_outer_classname = "IfuConfigProto";
 
 message IfuConfig { 
   uint32 ibuffer_size = 1;
-  uint64 reset_vector = 2;
+  uint32 issue_width = 2;
+  uint64 reset_vector = 3;
 }

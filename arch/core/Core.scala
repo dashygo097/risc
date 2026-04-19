@@ -1,5 +1,4 @@
 package arch.core
-
 import ifu._
 import decoder._
 import imm._
@@ -447,15 +446,16 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val debug_cycle_count   = IO(Output(UInt(64.W)))
   val debug_instret_count = IO(Output(UInt(64.W)))
-  val debug_instret       = IO(Output(Bool()))
-  val debug_pc            = IO(Output(UInt(p(XLen).W)))
-  val debug_instr         = IO(Output(UInt(p(ILen).W)))
-  val debug_reg_we        = IO(Output(Bool()))
-  val debug_reg_addr      = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
-  val debug_reg_data      = IO(Output(UInt(p(XLen).W)))
 
   debug_cycle_count   := cycle_count
   debug_instret_count := instret_count
+
+  val debug_instret  = IO(Output(Bool()))
+  val debug_pc       = IO(Output(UInt(p(XLen).W)))
+  val debug_instr    = IO(Output(UInt(p(ILen).W)))
+  val debug_reg_we   = IO(Output(Bool()))
+  val debug_reg_addr = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
+  val debug_reg_data = IO(Output(UInt(p(XLen).W)))
 
   debug_instret  := rob.io.commit(0).pop
   debug_pc       := rob.io.commit(0).pc

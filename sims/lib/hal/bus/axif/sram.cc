@@ -3,7 +3,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace demu::hal::axi {
+namespace demu::hal::axif {
 
 void AXIFullSRAM::reset() {
   sram_->reset();
@@ -159,4 +159,4 @@ void AXIFullSRAM::dump(addr_t start, size_t size) const noexcept {
   }
 }
 
-} // namespace demu::hal::axi
+} // namespace demu::hal::axif

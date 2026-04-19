@@ -1,7 +1,7 @@
 #pragma once
 #include "../../device.hh"
 
-namespace demu::hal::axi {
+namespace demu::hal::axif {
 using namespace isa;
 
 class AXIFullSlave : public Device {
@@ -38,4 +38,4 @@ public:
   virtual auto r_last() const noexcept -> bool = 0;
 };
 
-} // namespace demu::hal::axi
+} // namespace demu::hal::axif

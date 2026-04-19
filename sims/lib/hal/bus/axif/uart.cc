@@ -1,7 +1,7 @@
 #include "demu/hal/bus/axif/uart.hh"
 #include <iostream>
 
-namespace demu::hal::axi {
+namespace demu::hal::axif {
 
 void AXIFullUART::reset() {
   uart_->reset();
@@ -113,4 +113,4 @@ void AXIFullUART::dump(addr_t start, size_t size) const noexcept {
   uart_->dump(start, size);
 }
 
-} // namespace demu::hal::axi
+} // namespace demu::hal::axif
