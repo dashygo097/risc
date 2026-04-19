@@ -34,8 +34,37 @@ object RV32IMDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with
       val sigs    = Wire(new DecodedOutput)
       val decoder = DecodeLogic(instr, default, table)
 
-      sigs.legal    := decoder(0).asBool
-      sigs.regwrite := decoder(1).asBool
+      val is_div = DecodeLogic(
+        instr,
+        N,
+        Array(
+          enc("DIV")  -> Y,
+          enc("DIVU") -> Y,
+          enc("REM")  -> Y,
+          enc("REMU") -> Y,
+        )
+      ).asBool
+
+      val is_div_signed = DecodeLogic(
+        instr,
+        N,
+        Array(
+          enc("DIV") -> Y,
+          enc("REM") -> Y,
+        )
+      ).asBool
+
+      val is_div_rem = DecodeLogic(
+        instr,
+        N,
+        Array(
+          enc("REM")  -> Y,
+          enc("REMU") -> Y,
+        )
+      ).asBool
+
+      sigs.legal    := decoder(0).asBool || is_div
+      sigs.regwrite := decoder(1).asBool || is_div
       sigs.imm_type := decoder(2)
       sigs.branch   := decoder(3).asBool
       sigs.br_type  := decoder(4)
@@ -53,6 +82,10 @@ object RV32IMDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with
       sigs.mult_high     := decoder(15).asBool
       sigs.mult_a_signed := decoder(16).asBool
       sigs.mult_b_signed := decoder(17).asBool
+
+  sigs.div_en     := is_div
+  sigs.div_signed := is_div_signed
+  sigs.div_rem    := is_div_rem
 
       sigs.ret := decoder(18).asBool
 

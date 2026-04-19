@@ -67,6 +67,10 @@ object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with 
       sigs.mult_a_signed := decoder(16).asBool
       sigs.mult_b_signed := decoder(17).asBool
 
+  sigs.div_en     := false.B
+  sigs.div_signed := false.B
+  sigs.div_rem    := false.B
+
       sigs.ret := decoder(18).asBool
 
       sigs

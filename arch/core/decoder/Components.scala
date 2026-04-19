@@ -51,6 +51,11 @@ class DecodedOutput(implicit p: Parameters) extends Bundle {
   val mult_a_signed = Bool()
   val mult_b_signed = Bool()
 
+  // div
+  val div_en     = Bool()
+  val div_signed = Bool()
+  val div_rem    = Bool()
+
   // system
   val ret = Bool()
 }
