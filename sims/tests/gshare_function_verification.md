@@ -52,6 +52,37 @@ Important caveats:
    `0x00000000` instead of the mapped IMEM base `0x80000000`.
 4. `ebreak` still does not terminate simulation correctly after retirement.
 
+## Previous BPU vs Current GShare
+
+The previous branch predictor path in this tree was BTB-oriented: a branch hit
+in the BTB could provide a target and a local 2-bit direction state, but it did
+not carry a global history snapshot through fetch, IFU buffering, ROB commit,
+and predictor update. The current implementation adds a dedicated gshare
+direction predictor with these changes:
+
+- It keeps a configurable global history register and hashes that history with
+  low and folded-high PC bits to form the PHT index.
+- It captures both the speculative history snapshot and the computed PHT index
+  at fetch time, then reuses them later at commit for the update path.
+- It updates speculative history during fetch and repairs history on flush and
+  mispredict recovery, which was not needed in the older BTB-only direction
+  flow.
+
+From a behavior perspective, the old predictor can only distinguish branches by
+BTB entry state, so different branches that share similar local behavior still
+alias heavily. Gshare improves exactly the correlated cases in this test set:
+alternating patterns, long-period patterns, and dual-branch correlated loops
+because the recent global history becomes part of the lookup key. The alias
+stress tests remain architecturally correct in both designs, but the gshare
+version is expected to reduce wrong-direction decisions on history-sensitive
+patterns rather than change the final program result.
+
+This document remains a functional report rather than an accuracy benchmark. It
+shows that the current gshare datapath preserves correct architectural results
+for the branch-pattern tests above; accuracy comparisons against the previous
+BPU should be reported separately using the repository's prediction-accuracy
+workflow instead of simulator-side ad hoc profiling.
+
 ## Evidence Pointers
 
 - Main trace used earlier: `sims/tests/test_gshare_trace.log`
