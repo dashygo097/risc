@@ -4,7 +4,7 @@
 .bsp/
 .metals/
 .cache/
-.codex
+.codex/
 .sbt-local/
 .coursier-cache/
 
@@ -21,10 +21,6 @@ hex/
 elf/
 bin/
 dump/
-sims/tests/logs/
-sims/tests/*.log
-sims/tests/Configuring
-tests/*.log
 
 # Object files
 *.o
@@ -45,7 +41,6 @@ tests/*.log
 *.so.*
 *.dylib
 
-
+# Logs
 *.log
 *.jou
-sims/gen_awk.sh
