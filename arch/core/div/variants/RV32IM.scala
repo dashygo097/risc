@@ -5,8 +5,8 @@ import chisel3._
 import chisel3.util.Fill
 import vopts.math.RestoringDivider
 
-object RV32IMDivUtilities extends RegisteredUtilities[DivUtilities] {
-  override def utils: DivUtilities = new DivUtilities {
+object RV32IMDivUtils extends RegisteredUtils[DivUtils] {
+  override def utils: DivUtils = new DivUtils {
     override def name: String = "rv32im"
 
     override def fn(en: Bool, kill: Bool, src1: UInt, src2: UInt, is_signed: Bool, is_rem: Bool): (UInt, Bool, Bool) = {
@@ -56,5 +56,5 @@ object RV32IMDivUtilities extends RegisteredUtilities[DivUtilities] {
     }
   }
 
-  override def factory: UtilitiesFactory[DivUtilities] = DivUtilitiesFactory
+  override def factory: UtilsFactory[DivUtils] = DivUtilsFactory
 }
