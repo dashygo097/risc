@@ -13,6 +13,7 @@ class DivFU(implicit p: Parameters) extends FunctionalUnit {
   val decoder = Module(new Decoder)
 
   val req_reg = Reg(new MicroOp)
+  val result_reg = Reg(UInt(p(XLen).W))
   val states = Enum(3)
   val state_idle = states(0)
   val state_busy = states(1)
@@ -28,6 +29,7 @@ class DivFU(implicit p: Parameters) extends FunctionalUnit {
     state := state_idle
   }.otherwise {
     when(state === state_busy && core_div.done) {
+      result_reg := core_div.result
       state := state_done
     }.elsewhen(state === state_done && io.resp.fire) {
       state := state_idle
@@ -45,7 +47,7 @@ class DivFU(implicit p: Parameters) extends FunctionalUnit {
   core_div.is_rem := decoder.decoded.div_rem
 
   io.resp.valid := (state === state_done)
-  io.resp.bits.result := core_div.result
+  io.resp.bits.result := result_reg
   io.resp.bits.rd := req_reg.rd
   io.resp.bits.pc := req_reg.pc
   io.resp.bits.instr := req_reg.instr

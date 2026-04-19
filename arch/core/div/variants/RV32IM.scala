@@ -2,6 +2,7 @@ package arch.core.div
 
 import arch.configs._
 import chisel3._
+import chisel3.util.Fill
 import vopts.math.RestoringDivider
 
 object RV32IMDivUtilities extends RegisteredUtilities[DivUtilities] {
@@ -15,16 +16,41 @@ object RV32IMDivUtilities extends RegisteredUtilities[DivUtilities] {
 
       val div = Module(new RestoringDivider(p(XLen)))
 
-      div.start := en
+      val int_min = (1.U(p(XLen).W) << (p(XLen) - 1))
+      val minus_one = (-1.S(p(XLen).W)).asUInt
+      val is_div_by_zero = src2 === 0.U
+      val is_signed_overflow = is_signed && (src1 === int_min) && (src2 === minus_one)
+      val special_case = is_div_by_zero || is_signed_overflow
+
+      val special_quotient = Wire(UInt(p(XLen).W))
+      val special_remainder = Wire(UInt(p(XLen).W))
+
+      special_quotient := Mux(
+        is_div_by_zero,
+        Fill(p(XLen), 1.U(1.W)),
+        src1
+      )
+
+      special_remainder := Mux(
+        is_div_by_zero,
+        src1,
+        0.U(p(XLen).W)
+      )
+
+      div.start := en && !special_case
       div.kill := kill
       div.dividend := src1
       div.divisor := src2
       div.is_signed := is_signed
-      div.select_remainder := is_rem
+  div.select_remainder := is_rem
 
-      result := div.result
-      busy := div.busy
-      done := div.done
+      result := Mux(
+        special_case,
+        Mux(is_rem, special_remainder, special_quotient),
+        div.result
+      )
+      busy := Mux(special_case, false.B, div.busy)
+      done := Mux(special_case, true.B, div.done)
 
       (result, busy, done)
     }
