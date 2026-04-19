@@ -33,6 +33,7 @@ object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
   override def utils: DecoderUtils = new DecoderUtils {
     override def name: String = "rv32im"
 
+    // [legal, regwrite, imm_type, alu, mult, div, lsu, bru, csr, ret, uop]
     override def default: List[BitPat] = RV32IDecoderUtils.utils.default
 
     override def decode(instr: UInt): DecodedOutput = {
@@ -56,7 +57,7 @@ object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
       sigs
     }
 
-    override def table: Array[(BitPat, List[BitPat])] = {
+    override def table: Array[(BitPat, List[BitPat])] =
       RV32IDecoderUtils.utils.table ++ Array(
         // R-Type: Mul
         enc("MUL")    -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MUL),
@@ -70,7 +71,6 @@ object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
         enc("REM")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_X),
         enc("REMU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_X)
       )
-    }
   }
 
   override def factory: UtilsFactory[DecoderUtils] = DecoderUtilsFactory
