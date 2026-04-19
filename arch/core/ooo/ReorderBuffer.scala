@@ -5,20 +5,20 @@ import chisel3._
 import chisel3.util._
 
 class RobEnqIO(implicit p: Parameters) extends Bundle {
-  val valid           = Input(Bool())
-  val ready           = Output(Bool())
-  val pc              = Input(UInt(p(XLen).W))
-  val instr           = Input(UInt(p(ILen).W))
-  val rd              = Input(UInt(log2Ceil(p(NumArchRegs)).W))
-  val pd              = Input(UInt(log2Ceil(p(NumPhyRegs)).W))
-  val old_pd          = Input(UInt(log2Ceil(p(NumPhyRegs)).W))
-  val is_branch       = Input(Bool())
-  val is_lsu          = Input(Bool())
-  val bpu_pred_taken  = Input(Bool())
-  val bpu_pred_target = Input(UInt(p(XLen).W))
-  val bpu_pht_index   = Input(UInt(p(GShareGhrWidth).W))
+  val valid            = Input(Bool())
+  val ready            = Output(Bool())
+  val pc               = Input(UInt(p(XLen).W))
+  val instr            = Input(UInt(p(ILen).W))
+  val rd               = Input(UInt(log2Ceil(p(NumArchRegs)).W))
+  val pd               = Input(UInt(log2Ceil(p(NumPhyRegs)).W))
+  val old_pd           = Input(UInt(log2Ceil(p(NumPhyRegs)).W))
+  val is_branch        = Input(Bool())
+  val is_lsu           = Input(Bool())
+  val bpu_pred_taken   = Input(Bool())
+  val bpu_pred_target  = Input(UInt(p(XLen).W))
+  val bpu_pht_index    = Input(UInt(p(GShareGhrWidth).W))
   val bpu_ghr_snapshot = Input(UInt(p(GShareGhrWidth).W))
-  val rob_tag         = Output(UInt(log2Ceil(p(ROBSize)).W))
+  val rob_tag          = Output(UInt(log2Ceil(p(ROBSize)).W))
 }
 
 class RobWbIO(implicit p: Parameters) extends Bundle {
@@ -181,7 +181,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   var stop_commit      = false.B
   var commit_valid_acc = true.B
   for (w <- 0 until p(IssueWidth)) {
-    val idx = ((head + w.U) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
+    val idx          = ((head + w.U) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
     val isCondBranch = buffer(idx).is_branch && buffer(idx).instr(6, 0) === "b1100011".U
 
     val committable = (count > w.U) && buffer(idx).valid && buffer(idx).ready && !stop_commit && commit_valid_acc

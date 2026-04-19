@@ -5,11 +5,11 @@ import chisel3._
 import chisel3.util.{ Decoupled, PopCount, log2Ceil, isPow2 }
 
 class IBufferEntry(implicit p: Parameters) extends Bundle {
-  val pc              = UInt(p(XLen).W)
-  val instr           = UInt(p(ILen).W)
-  val bpu_pred_taken  = Bool()
-  val bpu_pred_target = UInt(p(XLen).W)
-  val bpu_pht_index   = UInt(p(GShareGhrWidth).W)
+  val pc               = UInt(p(XLen).W)
+  val instr            = UInt(p(ILen).W)
+  val bpu_pred_taken   = Bool()
+  val bpu_pred_target  = UInt(p(XLen).W)
+  val bpu_pht_index    = UInt(p(GShareGhrWidth).W)
   val bpu_ghr_snapshot = UInt(p(GShareGhrWidth).W)
 }
 
