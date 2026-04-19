@@ -25,7 +25,8 @@ object RiscDump {
               ways = p(BTBWays),
               replPolicy = toProtoRepl(p(BTBReplPolicy)),
             )
-          )
+          ),
+          gshareGhrWidth = p(GShareGhrWidth),
         )
       ),
       regfile = Some(

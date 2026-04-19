@@ -15,8 +15,8 @@ class Ifu(implicit p: Parameters) extends Module {
 
   val bpu_taken_in  = IO(Input(Vec(p(IssueWidth), Bool())))
   val bpu_target_in = IO(Input(Vec(p(IssueWidth), UInt(p(XLen).W))))
-  val bpu_pht_index_in = IO(Input(Vec(p(IssueWidth), UInt(10.W))))
-  val bpu_ghr_snapshot_in = IO(Input(Vec(p(IssueWidth), UInt(10.W))))
+  val bpu_pht_index_in = IO(Input(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
+  val bpu_ghr_snapshot_in = IO(Input(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
 
   val bru_not_taken = IO(Input(Bool()))
   val bru_branch_pc = IO(Input(UInt(p(XLen).W)))
@@ -33,8 +33,8 @@ class Ifu(implicit p: Parameters) extends Module {
   val if_pc              = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
   val if_bpu_pred_taken  = IO(Output(Vec(p(IssueWidth), Bool())))
   val if_bpu_pred_target = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
-  val if_bpu_pht_index   = IO(Output(Vec(p(IssueWidth), UInt(10.W))))
-  val if_bpu_ghr_snapshot = IO(Output(Vec(p(IssueWidth), UInt(10.W))))
+  val if_bpu_pht_index   = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
+  val if_bpu_ghr_snapshot = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
   val fetch_fire = IO(Output(Bool()))
 
   val dispatch_fire = IO(Input(Vec(p(IssueWidth), Bool())))
@@ -51,8 +51,8 @@ class Ifu(implicit p: Parameters) extends Module {
     val pc              = UInt(p(XLen).W)
     val bpu_pred_taken  = Vec(p(IssueWidth), Bool())
     val bpu_pred_target = Vec(p(IssueWidth), UInt(p(XLen).W))
-    val bpu_pht_index   = Vec(p(IssueWidth), UInt(10.W))
-    val bpu_ghr_snapshot = Vec(p(IssueWidth), UInt(10.W))
+    val bpu_pht_index   = Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))
+    val bpu_ghr_snapshot = Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))
   }
 
   val meta_q = Module(new Queue(new FetchMeta, 8, hasFlush = true))

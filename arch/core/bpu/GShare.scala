@@ -4,28 +4,23 @@ import arch.configs._
 import chisel3._
 import chisel3.util._
 
-trait GShareConsts {
-  val GSHARE_GHR_WIDTH = 10
-}
-
-class GShare(implicit p: Parameters) extends Module with BHTConsts with GShareConsts {
+class GShare(implicit p: Parameters) extends Module with BHTConsts {
   val query_pc        = IO(Input(Vec(p(IssueWidth), UInt(p(XLen).W))))
   val query_is_branch = IO(Input(Vec(p(IssueWidth), Bool())))
   val query_accept    = IO(Input(Bool()))
   val flush           = IO(Input(Bool()))
   val taken           = IO(Output(Vec(p(IssueWidth), Bool())))
   val update          = IO(Input(new BpuUpdate))
-  val debug_ghr       = IO(Output(UInt(GSHARE_GHR_WIDTH.W)))
-  val index_out       = IO(Output(Vec(p(IssueWidth), UInt(GSHARE_GHR_WIDTH.W))))
-  val ghr_snapshot_out = IO(Output(Vec(p(IssueWidth), UInt(GSHARE_GHR_WIDTH.W))))
-  val query_hist_out   = IO(Output(Vec(p(IssueWidth), UInt(GSHARE_GHR_WIDTH.W))))
+  val index_out       = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
+  val ghr_snapshot_out = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
 
-  val ghrWidth = GSHARE_GHR_WIDTH
+  private val ghrWidth = p(GShareGhrWidth)
   val phtEntries = 1 << ghrWidth
+
+  require(ghrWidth >= 2, "GShareGhrWidth must be at least 2")
 
   val commitGhr = RegInit(0.U(ghrWidth.W))
   val specGhr   = RegInit(0.U(ghrWidth.W))
-  debug_ghr := specGhr
 
   // Initialize all counters to weakly-taken to reduce cold-start penalty.
   val pht = RegInit(VecInit(Seq.fill(phtEntries)(BHT_WT.value.U(SZ_BHT.W))))
@@ -54,7 +49,6 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts with GShareCo
     taken(w) := dirTaken
     index_out(w) := index
     ghr_snapshot_out(w) := queryGhr(w)
-    query_hist_out(w) := queryGhr(w)
     queryGhr(w + 1) := Mux(query_is_branch(w), shiftHist(queryGhr(w), dirTaken), queryGhr(w))
   }
 
