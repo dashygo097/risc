@@ -272,50 +272,6 @@ void DemuSimulator::clock_tick() {
       DEMU_DEBUG("RETIRE | Cycle {:6d} | PC=0x{:08x} | Inst=0x{:08x} ({})",
                  cycle_count(), static_cast<addr_t>(dut_->debug_pc),
                  dut_->debug_instr, inst.to_string());
-
-      if (static_cast<bool>(dut_->debug_gshare_update_valid)) {
-        DEMU_DEBUG(
-            "BR_UPDATE | Cycle {:6d} | PC=0x{:08x} | pred_taken={} | actual_taken={} | "
-            "pred_target=0x{:08x} | actual_target=0x{:08x} | snapshot=0x{:03x} | "
-            "update_idx=0x{:03x} | mispredict={} | flush={}",
-            cycle_count(), static_cast<addr_t>(dut_->debug_branch_source),
-            static_cast<bool>(dut_->debug_gshare_update_pred_taken),
-            static_cast<bool>(dut_->debug_gshare_update_taken),
-            static_cast<addr_t>(dut_->debug_gshare_update_pred_target),
-            static_cast<addr_t>(dut_->debug_gshare_update_actual_target),
-            static_cast<uint32_t>(dut_->debug_gshare_update_snapshot),
-            static_cast<uint32_t>(dut_->debug_gshare_update_index),
-            static_cast<bool>(dut_->debug_bpu_mispredict),
-            static_cast<bool>(dut_->debug_flush_cycle));
-      }
-    }
-  }
-
-  if (__builtin_expect(static_cast<bool>(dut_->debug_gshare_query_fire), 0)) {
-    auto &logger = ::demu::Logger::getDemuLogger();
-    if (logger->should_log(spdlog::level::info)) {
-      const auto log_query_lane = [&](int lane, uint32_t pc, uint32_t hist,
-                                      uint32_t idx, bool pred_taken,
-                                      bool is_branch) {
-        if (pc == 0x80000018u || pc == 0x80000020u || pc == 0x8000002cu ||
-            pc == 0x80000034u || pc == 0x80000040u || pc == 0x80000048u) {
-          DEMU_DEBUG(
-              "BR_QUERY  | Cycle {:6d} | lane={} | PC=0x{:08x} | hist=0x{:03x} | "
-              "idx=0x{:03x} | pred_taken={} | is_branch={}",
-              cycle_count(), lane, pc, hist, idx, pred_taken, is_branch);
-        }
-      };
-
-      log_query_lane(0, static_cast<uint32_t>(dut_->debug_gshare_query_pc_0),
-                     static_cast<uint32_t>(dut_->debug_gshare_query_hist_0),
-                     static_cast<uint32_t>(dut_->debug_gshare_query_index_vec_0),
-                     static_cast<bool>(dut_->debug_gshare_query_pred_vec_0),
-                     static_cast<bool>(dut_->debug_gshare_query_branch_vec_0));
-      log_query_lane(1, static_cast<uint32_t>(dut_->debug_gshare_query_pc_1),
-                     static_cast<uint32_t>(dut_->debug_gshare_query_hist_1),
-                     static_cast<uint32_t>(dut_->debug_gshare_query_index_vec_1),
-                     static_cast<bool>(dut_->debug_gshare_query_pred_vec_1),
-                     static_cast<bool>(dut_->debug_gshare_query_branch_vec_1));
     }
   }
 
