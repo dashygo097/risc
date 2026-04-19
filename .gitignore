@@ -44,3 +44,8 @@ tests/*.log
 *.so
 *.so.*
 *.dylib
+
+
+*.log
+*.jou
+sims/gen_awk.sh

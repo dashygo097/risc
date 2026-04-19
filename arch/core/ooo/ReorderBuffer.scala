@@ -16,8 +16,8 @@ class RobEnqIO(implicit p: Parameters) extends Bundle {
   val is_lsu          = Input(Bool())
   val bpu_pred_taken  = Input(Bool())
   val bpu_pred_target = Input(UInt(p(XLen).W))
-  val bpu_pht_index   = Input(UInt(10.W))
-  val bpu_ghr_snapshot = Input(UInt(10.W))
+  val bpu_pht_index   = Input(UInt(p(GShareGhrWidth).W))
+  val bpu_ghr_snapshot = Input(UInt(p(GShareGhrWidth).W))
   val rob_tag         = Output(UInt(log2Ceil(p(ROBSize)).W))
 }
 
@@ -51,8 +51,8 @@ class RobCommitIO(implicit p: Parameters) extends Bundle {
   val bpu_pred_target   = Output(UInt(p(XLen).W))
   val bpu_actual_taken  = Output(Bool())
   val bpu_actual_target = Output(UInt(p(XLen).W))
-  val bpu_pht_index     = Output(UInt(10.W))
-  val bpu_ghr_snapshot  = Output(UInt(10.W))
+  val bpu_pht_index     = Output(UInt(p(GShareGhrWidth).W))
+  val bpu_ghr_snapshot  = Output(UInt(p(GShareGhrWidth).W))
 }
 
 class RobBypassIO(implicit p: Parameters) extends Bundle {
@@ -74,8 +74,8 @@ class ROBEntry(implicit p: Parameters) extends Bundle {
   val is_lsu         = Bool()
   val pred_taken     = Bool()
   val pred_target    = UInt(p(XLen).W)
-  val pht_index      = UInt(10.W)
-  val ghr_snapshot   = UInt(10.W)
+  val pht_index      = UInt(p(GShareGhrWidth).W)
+  val ghr_snapshot   = UInt(p(GShareGhrWidth).W)
   val actual_taken   = Bool()
   val actual_target  = UInt(p(XLen).W)
   val flush_pipeline = Bool()

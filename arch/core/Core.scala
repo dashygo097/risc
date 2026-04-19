@@ -339,8 +339,8 @@ class RiscCore(implicit p: Parameters) extends Module {
   val bpu_update_pc     = WireDefault(0.U(p(XLen).W))
   val bpu_update_target = WireDefault(0.U(p(XLen).W))
   val bpu_update_taken  = WireDefault(false.B)
-  val bpu_update_pht_idx = WireDefault(0.U(10.W))
-  val bpu_update_ghr_snapshot = WireDefault(0.U(10.W))
+  val bpu_update_pht_idx = WireDefault(0.U(p(GShareGhrWidth).W))
+  val bpu_update_ghr_snapshot = WireDefault(0.U(p(GShareGhrWidth).W))
   val bpu_update_mispredict = WireDefault(false.B)
   val branchOpcode      = "b1100011".U(7.W)
 
@@ -502,24 +502,6 @@ class RiscCore(implicit p: Parameters) extends Module {
   val debug_frontend_stall = IO(Output(Bool()))
   val debug_backend_stall  = IO(Output(Bool()))
 
-  // GShare-focused debug taps (exposed directly from Core).
-  val debug_gshare_ghr          = IO(Output(UInt(10.W)))
-  val debug_gshare_query_index  = IO(Output(UInt(10.W)))
-  val debug_gshare_update_index = IO(Output(UInt(10.W)))
-  val debug_gshare_pred_taken   = IO(Output(Bool()))
-  val debug_gshare_update_valid = IO(Output(Bool()))
-  val debug_gshare_update_taken = IO(Output(Bool()))
-  val debug_gshare_update_pred_taken = IO(Output(Bool()))
-  val debug_gshare_update_snapshot   = IO(Output(UInt(10.W)))
-  val debug_gshare_update_pred_target = IO(Output(UInt(p(XLen).W)))
-  val debug_gshare_update_actual_target = IO(Output(UInt(p(XLen).W)))
-  val debug_gshare_query_fire        = IO(Output(Bool()))
-  val debug_gshare_query_pc          = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
-  val debug_gshare_query_hist        = IO(Output(Vec(p(IssueWidth), UInt(10.W))))
-  val debug_gshare_query_index_vec   = IO(Output(Vec(p(IssueWidth), UInt(10.W))))
-  val debug_gshare_query_pred_vec    = IO(Output(Vec(p(IssueWidth), Bool())))
-  val debug_gshare_query_branch_vec  = IO(Output(Vec(p(IssueWidth), Bool())))
-
   debug_bpu_mispredict := (0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).instr(6, 0) === branchOpcode && rob.io.commit(w).flush_pipeline).reduce(_ || _)
   debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).instr(6, 0) === branchOpcode))
   debug_flush_cycle    := global_flush
@@ -529,29 +511,4 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   debug_frontend_stall := wants_to_issue(0) && !lane_valid(0)
   debug_backend_stall  := !rob.io.empty && (commit_pop_count === 0.U)
-
-  val gshare_ghr_dbg = bpu.debug_gshare_ghr
-  val gshare_qidx_dbg = bpu.pht_index(0)
-  val gshare_uidx_dbg = bpu_update_pht_idx
-
-  debug_gshare_ghr          := gshare_ghr_dbg
-  debug_gshare_query_index  := gshare_qidx_dbg
-  debug_gshare_update_index := gshare_uidx_dbg
-  debug_gshare_pred_taken   := bpu.taken(0)
-  debug_gshare_update_valid := bpu_update_valid
-  debug_gshare_update_taken := bpu_update_taken
-  debug_gshare_update_pred_taken := Mux1H((0 until p(IssueWidth)).map(w =>
-    (rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).instr(6, 0) === branchOpcode) -> rob.io.commit(w).bpu_pred_taken
-  ))
-  debug_gshare_update_snapshot := bpu_update_ghr_snapshot
-  debug_gshare_update_pred_target := Mux1H((0 until p(IssueWidth)).map(w =>
-    (rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).instr(6, 0) === branchOpcode) -> rob.io.commit(w).bpu_pred_target
-  ))
-  debug_gshare_update_actual_target := bpu_update_target
-  debug_gshare_query_fire := ifu.fetch_fire
-  debug_gshare_query_pc := bpu.query_pc
-  debug_gshare_query_hist := bpu.query_hist
-  debug_gshare_query_index_vec := bpu.pht_index
-  debug_gshare_query_pred_vec := bpu.taken
-  debug_gshare_query_branch_vec := bpu.query_is_branch
 }

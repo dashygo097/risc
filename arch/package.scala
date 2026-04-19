@@ -49,6 +49,7 @@ package object configs {
   object BTBWays       extends Field[Int](4)
   object BTBSets       extends Field[Int](16)
   object BTBReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
+  object GShareGhrWidth extends Field[Int](10)
 
   // Cache Parameters
   object L1ICacheWays       extends Field[Int](2)
@@ -115,6 +116,12 @@ package object configs {
 
     // ROB
     ROBSize -> ROBSize(),
+
+    // Branch Prediction
+    BTBWays -> BTBWays(),
+    BTBSets -> BTBSets(),
+    BTBReplPolicy -> BTBReplPolicy(),
+    GShareGhrWidth -> GShareGhrWidth(),
 
     // Cache
     L1ICacheWays       -> L1ICacheWays(),

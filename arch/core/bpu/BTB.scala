@@ -23,13 +23,13 @@ object BtbEntry extends BHTConsts {
   }
 }
 
-class BpuUpdate(implicit p: Parameters) extends Bundle with GShareConsts {
+class BpuUpdate(implicit p: Parameters) extends Bundle {
   val valid     = Bool()
   val pc        = UInt(p(XLen).W)
   val target    = UInt(p(XLen).W)
   val taken     = Bool()
-  val pht_index = UInt(GSHARE_GHR_WIDTH.W)
-  val ghr_snapshot = UInt(GSHARE_GHR_WIDTH.W)
+  val pht_index = UInt(p(GShareGhrWidth).W)
+  val ghr_snapshot = UInt(p(GShareGhrWidth).W)
   val mispredict   = Bool()
 }
 
