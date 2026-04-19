@@ -16,13 +16,13 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
   val index_out        = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
   val ghr_snapshot_out = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
 
-  private val ghrWidth = p(GShareGhrWidth)
-  val phtEntries       = 1 << ghrWidth
+  val pc_align   = log2Ceil(p(IAlign))
+  val phtEntries = 1 << p(GShareGhrWidth)
 
-  require(ghrWidth >= 2, "GShareGhrWidth must be at least 2")
+  require(p(GShareGhrWidth) >= 2, "GShareGhrWidth must be at least 2")
 
-  val commitGhr = RegInit(0.U(ghrWidth.W))
-  val specGhr   = RegInit(0.U(ghrWidth.W))
+  val commitGhr = RegInit(0.U(p(GShareGhrWidth).W))
+  val specGhr   = RegInit(0.U(p(GShareGhrWidth).W))
 
   // Initialize all counters to weakly-taken to reduce cold-start penalty.
   val pht = RegInit(VecInit(Seq.fill(phtEntries)(BHT_WT.value.U(SZ_BHT.W))))
@@ -31,16 +31,16 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
   val st  = BHT_ST.value.U(SZ_BHT.W)
 
   def getIndex(pc: UInt, hist: UInt): UInt = {
-    val pcLow  = pc(ghrWidth + 1, 2)
+    val pcLow  = pc(p(GShareGhrWidth) + 1, pc_align)
     // Fold higher PC bits to reduce table aliasing for nearby hot loops.
-    val pcHigh = pc((2 * ghrWidth) + 1, ghrWidth + 2)
+    val pcHigh = pc((2 * p(GShareGhrWidth)) + 1, p(GShareGhrWidth) + 2)
     pcLow ^ pcHigh ^ hist
   }
 
   def shiftHist(hist: UInt, taken: Bool): UInt =
-    Cat(hist(ghrWidth - 2, 0), taken)
+    Cat(hist(p(GShareGhrWidth) - 2, 0), taken)
 
-  val queryGhr = Wire(Vec(p(IssueWidth) + 1, UInt(ghrWidth.W)))
+  val queryGhr = Wire(Vec(p(IssueWidth) + 1, UInt(p(GShareGhrWidth).W)))
   queryGhr(0) := specGhr
 
   for (w <- 0 until p(IssueWidth)) {

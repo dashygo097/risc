@@ -364,16 +364,18 @@ class RiscCore(implicit p: Parameters) extends Module {
   bpu.update.mispredict   := bpu_update_mispredict
 
   for (w <- 0 until p(IssueWidth)) {
-    rob.io.enq(w).valid           := lane_valid(w)
-    rob.io.enq(w).pc              := ifu.if_pc(w)
-    rob.io.enq(w).instr           := ifu.if_instr(w)
-    rob.io.enq(w).rd              := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
-    rob.io.enq(w).pd              := 0.U
-    rob.io.enq(w).old_pd          := 0.U
-    rob.io.enq(w).is_branch       := decoders(w).decoded.bru
-    rob.io.enq(w).is_lsu          := decoders(w).decoded.lsu
-    rob.io.enq(w).bpu_pred_taken  := ifu.if_bpu_pred_taken(w)
-    rob.io.enq(w).bpu_pred_target := ifu.if_bpu_pred_target(w)
+    rob.io.enq(w).valid            := lane_valid(w)
+    rob.io.enq(w).pc               := ifu.if_pc(w)
+    rob.io.enq(w).instr            := ifu.if_instr(w)
+    rob.io.enq(w).rd               := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
+    rob.io.enq(w).pd               := 0.U
+    rob.io.enq(w).old_pd           := 0.U
+    rob.io.enq(w).is_branch        := decoders(w).decoded.bru
+    rob.io.enq(w).is_lsu           := decoders(w).decoded.lsu
+    rob.io.enq(w).bpu_pred_taken   := ifu.if_bpu_pred_taken(w)
+    rob.io.enq(w).bpu_pred_target  := ifu.if_bpu_pred_target(w)
+    rob.io.enq(w).bpu_pht_index    := ifu.if_bpu_pht_index(w)
+    rob.io.enq(w).bpu_ghr_snapshot := ifu.if_bpu_ghr_snapshot(w)
 
     val rs1_bypassed = Mux(rob.io.rs1_bypass(w).valid, rob.io.rs1_bypass(w).data, regfile.rs1_data(w))
     val rs2_bypassed = Mux(rob.io.rs2_bypass(w).valid, rob.io.rs2_bypass(w).data, regfile.rs2_data(w))

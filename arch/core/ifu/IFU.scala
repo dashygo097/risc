@@ -13,9 +13,9 @@ class Ifu(implicit p: Parameters) extends Module {
   val bru_taken  = IO(Input(Bool()))
   val bru_target = IO(Input(UInt(p(XLen).W)))
 
-  val bpu_taken_in  = IO(Input(Vec(p(IssueWidth), Bool())))
-  val bpu_target_in = IO(Input(Vec(p(IssueWidth), UInt(p(XLen).W))))
-  val bpu_pht_index_in = IO(Input(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
+  val bpu_taken_in        = IO(Input(Vec(p(IssueWidth), Bool())))
+  val bpu_target_in       = IO(Input(Vec(p(IssueWidth), UInt(p(XLen).W))))
+  val bpu_pht_index_in    = IO(Input(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
   val bpu_ghr_snapshot_in = IO(Input(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
 
   val bru_not_taken = IO(Input(Bool()))
@@ -28,14 +28,14 @@ class Ifu(implicit p: Parameters) extends Module {
 
   val fronend_flush = IO(Output(Bool()))
 
-  val if_valid           = IO(Output(Vec(p(IssueWidth), Bool())))
-  val if_instr           = IO(Output(Vec(p(IssueWidth), UInt(p(ILen).W))))
-  val if_pc              = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
-  val if_bpu_pred_taken  = IO(Output(Vec(p(IssueWidth), Bool())))
-  val if_bpu_pred_target = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
-  val if_bpu_pht_index   = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
+  val if_valid            = IO(Output(Vec(p(IssueWidth), Bool())))
+  val if_instr            = IO(Output(Vec(p(IssueWidth), UInt(p(ILen).W))))
+  val if_pc               = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
+  val if_bpu_pred_taken   = IO(Output(Vec(p(IssueWidth), Bool())))
+  val if_bpu_pred_target  = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
+  val if_bpu_pht_index    = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
   val if_bpu_ghr_snapshot = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
-  val fetch_fire = IO(Output(Bool()))
+  val fetch_fire          = IO(Output(Bool()))
 
   val dispatch_fire = IO(Input(Vec(p(IssueWidth), Bool())))
 
@@ -48,10 +48,10 @@ class Ifu(implicit p: Parameters) extends Module {
   val do_redirect = take_trap || bru_taken || bru_not_taken
 
   class FetchMeta extends Bundle {
-    val pc              = UInt(p(XLen).W)
-    val bpu_pred_taken  = Vec(p(IssueWidth), Bool())
-    val bpu_pred_target = Vec(p(IssueWidth), UInt(p(XLen).W))
-    val bpu_pht_index   = Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))
+    val pc               = UInt(p(XLen).W)
+    val bpu_pred_taken   = Vec(p(IssueWidth), Bool())
+    val bpu_pred_target  = Vec(p(IssueWidth), UInt(p(XLen).W))
+    val bpu_pht_index    = Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))
     val bpu_ghr_snapshot = Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))
   }
 
@@ -87,29 +87,29 @@ class Ifu(implicit p: Parameters) extends Module {
   val is_valid_resp = (drop_count === 0.U) && !do_redirect
   meta_q.io.flush.get := do_redirect
 
-  val align_bytes   = p(IssueWidth) * (p(ILen) / 8)
-  val align_mask    = ~(align_bytes - 1).U(p(XLen).W)
-  val aligned_pc    = pc & align_mask
-  val next_block_pc = aligned_pc + align_bytes.U
-  val req_idx       = if (p(IssueWidth) > 1) pc(log2Ceil(align_bytes) - 1, log2Ceil(p(ILen) / 8)) else 0.U
+  val align_bytes          = p(IssueWidth) * (p(ILen) / 8)
+  val align_mask           = ~(align_bytes - 1).U(p(XLen).W)
+  val aligned_pc           = pc & align_mask
+  val next_block_pc        = aligned_pc + align_bytes.U
+  val req_idx              = if (p(IssueWidth) > 1) pc(log2Ceil(align_bytes) - 1, log2Ceil(p(ILen) / 8)) else 0.U
   val req_taken_candidates = VecInit((0 until p(IssueWidth)).map { w =>
     (w.U >= req_idx) && bpu_taken_in(w)
   })
-  val req_has_taken = req_taken_candidates.asUInt.orR
-  val req_taken_tgt = Mux(req_has_taken, Mux1H(req_taken_candidates, bpu_target_in), next_block_pc)
+  val req_has_taken        = req_taken_candidates.asUInt.orR
+  val req_taken_tgt        = Mux(req_has_taken, Mux1H(req_taken_candidates, bpu_target_in), next_block_pc)
 
   mem.req.valid     := meta_q.io.enq.ready && ibuffer.io.enq_ready && !do_redirect
   mem.req.bits.addr := aligned_pc
   mem.resp.ready    := ibuffer.io.enq_ready
 
-  fetch_pc := pc
+  fetch_pc   := pc
   fetch_fire := req_fire
 
-  meta_q.io.enq.valid                := req_fire
-  meta_q.io.enq.bits.pc              := pc
-  meta_q.io.enq.bits.bpu_pred_taken  := bpu_taken_in
-  meta_q.io.enq.bits.bpu_pred_target := bpu_target_in
-  meta_q.io.enq.bits.bpu_pht_index   := bpu_pht_index_in
+  meta_q.io.enq.valid                 := req_fire
+  meta_q.io.enq.bits.pc               := pc
+  meta_q.io.enq.bits.bpu_pred_taken   := bpu_taken_in
+  meta_q.io.enq.bits.bpu_pred_target  := bpu_target_in
+  meta_q.io.enq.bits.bpu_pht_index    := bpu_pht_index_in
   meta_q.io.enq.bits.bpu_ghr_snapshot := bpu_ghr_snapshot_in
 
   when(take_trap) {
@@ -124,23 +124,23 @@ class Ifu(implicit p: Parameters) extends Module {
 
   meta_q.io.deq.ready := resp_fire && is_valid_resp
 
-  val resp_pc  = meta_q.io.deq.bits.pc
-  val resp_idx = if (p(IssueWidth) > 1) resp_pc(log2Ceil(align_bytes) - 1, log2Ceil(p(ILen) / 8)) else 0.U
+  val resp_pc               = meta_q.io.deq.bits.pc
+  val resp_idx              = if (p(IssueWidth) > 1) resp_pc(log2Ceil(align_bytes) - 1, log2Ceil(p(ILen) / 8)) else 0.U
   val resp_taken_candidates = VecInit((0 until p(IssueWidth)).map { w =>
     (w.U >= resp_idx) && meta_q.io.deq.bits.bpu_pred_taken(w)
   })
-  val resp_has_taken = resp_taken_candidates.asUInt.orR
-  val resp_taken_slot = PriorityEncoder(resp_taken_candidates.asUInt)
+  val resp_has_taken        = resp_taken_candidates.asUInt.orR
+  val resp_taken_slot       = PriorityEncoder(resp_taken_candidates.asUInt)
 
   for (w <- 0 until p(IssueWidth)) {
     val is_valid_pos = w.U >= resp_idx
-    val beforeTaken = !resp_has_taken || (w.U <= resp_taken_slot)
-    ibuffer.io.enq_valid(w)                := resp_fire && is_valid_resp && meta_q.io.deq.valid && is_valid_pos && beforeTaken
-    ibuffer.io.enq_bits(w).pc              := (resp_pc & align_mask) + (w * (p(ILen) / 8)).U
-    ibuffer.io.enq_bits(w).instr           := mem.resp.bits.data(w)
-    ibuffer.io.enq_bits(w).bpu_pred_taken  := meta_q.io.deq.bits.bpu_pred_taken(w)
-    ibuffer.io.enq_bits(w).bpu_pred_target := meta_q.io.deq.bits.bpu_pred_target(w)
-    ibuffer.io.enq_bits(w).bpu_pht_index   := meta_q.io.deq.bits.bpu_pht_index(w)
+    val beforeTaken  = !resp_has_taken || (w.U <= resp_taken_slot)
+    ibuffer.io.enq_valid(w)                 := resp_fire && is_valid_resp && meta_q.io.deq.valid && is_valid_pos && beforeTaken
+    ibuffer.io.enq_bits(w).pc               := (resp_pc & align_mask) + (w * (p(ILen) / 8)).U
+    ibuffer.io.enq_bits(w).instr            := mem.resp.bits.data(w)
+    ibuffer.io.enq_bits(w).bpu_pred_taken   := meta_q.io.deq.bits.bpu_pred_taken(w)
+    ibuffer.io.enq_bits(w).bpu_pred_target  := meta_q.io.deq.bits.bpu_pred_target(w)
+    ibuffer.io.enq_bits(w).bpu_pht_index    := meta_q.io.deq.bits.bpu_pht_index(w)
     ibuffer.io.enq_bits(w).bpu_ghr_snapshot := meta_q.io.deq.bits.bpu_ghr_snapshot(w)
   }
 
@@ -151,12 +151,12 @@ class Ifu(implicit p: Parameters) extends Module {
   for (w <- 0 until p(IssueWidth)) {
     ibuffer.io.deq(w).ready := dispatch_fire(w)
 
-    if_valid(w)           := ibuffer.io.deq(w).valid && !flush_cond
-    if_instr(w)           := ibuffer.io.deq(w).bits.instr
-    if_pc(w)              := ibuffer.io.deq(w).bits.pc
-    if_bpu_pred_taken(w)  := ibuffer.io.deq(w).bits.bpu_pred_taken
-    if_bpu_pred_target(w) := ibuffer.io.deq(w).bits.bpu_pred_target
-    if_bpu_pht_index(w)   := ibuffer.io.deq(w).bits.bpu_pht_index
+    if_valid(w)            := ibuffer.io.deq(w).valid && !flush_cond
+    if_instr(w)            := ibuffer.io.deq(w).bits.instr
+    if_pc(w)               := ibuffer.io.deq(w).bits.pc
+    if_bpu_pred_taken(w)   := ibuffer.io.deq(w).bits.bpu_pred_taken
+    if_bpu_pred_target(w)  := ibuffer.io.deq(w).bits.bpu_pred_target
+    if_bpu_pht_index(w)    := ibuffer.io.deq(w).bits.bpu_pht_index
     if_bpu_ghr_snapshot(w) := ibuffer.io.deq(w).bits.bpu_ghr_snapshot
   }
 
