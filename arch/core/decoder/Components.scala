@@ -4,57 +4,7 @@ import arch.configs._
 import chisel3._
 import chisel3.util.BitPat
 
-class DecodedOutput(implicit p: Parameters) extends Bundle {
-  val bru_utils     = BruUtilitiesFactory.getOrThrow(p(ISA).name)
-  val imm_utils     = ImmUtilitiesFactory.getOrThrow(p(ISA).name)
-  val alu_utils     = AluUtilitiesFactory.getOrThrow(p(ISA).name)
-  val lsu_utils     = LsuUtilitiesFactory.getOrThrow(p(ISA).name)
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA).name)
-  val csr_utils     = CsrUtilitiesFactory.getOrThrow(p(ISA).name)
-
-  val legal = Bool()
-
-  // regfile
-  val regwrite = Bool()
-
-  // imm
-  val imm_type = UInt(imm_utils.immTypeWidth.W)
-
-  // branch
-  val branch  = Bool()
-  val br_type = UInt(bru_utils.branchTypeWidth.W)
-
-  // alu
-  val alu      = Bool()
-  val alu_sel1 = UInt(alu_utils.sel1Width.W)
-  val alu_sel2 = UInt(alu_utils.sel2Width.W)
-  val alu_mode = Bool()
-  val alu_fn   = UInt(alu_utils.fnTypeWidth.W)
-
-  // lsu
-  val lsu     = Bool()
-  val lsu_cmd = UInt(lsu_utils.cmdWidth.W)
-
-  // csr
-  val csr     = Bool()
-  val csr_cmd = UInt(csr_utils.cmdWidth.W)
-
-  // mul
-  val mult_en       = Bool()
-  val mult_high     = Bool()
-  val mult_a_signed = Bool()
-  val mult_b_signed = Bool()
-
-  // div
-  val div_en     = Bool()
-  val div_signed = Bool()
-  val div_rem    = Bool()
-
-  // system
-  val ret = Bool()
-}
-
-trait DecoderUtilities extends Utilities {
+trait DecoderUtils extends Utils {
   def default: List[BitPat]
   def decode(instr: UInt): DecodedOutput
   def table: Array[(BitPat, List[BitPat])]

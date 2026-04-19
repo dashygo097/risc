@@ -54,28 +54,15 @@ object RV32IDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IUOp {
       sigs.legal    := decoder(0).asBool
       sigs.regwrite := decoder(1).asBool
       sigs.imm_type := decoder(2)
-      sigs.branch   := decoder(3).asBool
-      sigs.br_type  := decoder(4)
-      sigs.alu      := decoder(5).asBool
-      sigs.alu_sel1 := decoder(6)
-      sigs.alu_sel2 := decoder(7)
-      sigs.alu_mode := decoder(8).asBool
-      sigs.alu_fn   := decoder(9)
-      sigs.lsu      := decoder(10).asBool
-      sigs.lsu_cmd  := decoder(11)
-      sigs.csr      := decoder(12).asBool
-      sigs.csr_cmd  := decoder(13)
 
-      sigs.mult_en       := decoder(14).asBool
-      sigs.mult_high     := decoder(15).asBool
-      sigs.mult_a_signed := decoder(16).asBool
-      sigs.mult_b_signed := decoder(17).asBool
+      sigs.alu  := decoder(3).asBool
+      sigs.mult := decoder(4).asBool
+      sigs.lsu  := decoder(5).asBool
+      sigs.bru  := decoder(6).asBool
+      sigs.csr  := decoder(7).asBool
+      sigs.ret  := decoder(8).asBool
 
-  sigs.div_en     := false.B
-  sigs.div_signed := false.B
-  sigs.div_rem    := false.B
-
-      sigs.ret := decoder(18).asBool
+      sigs.uop := decoder(9)
 
       sigs
     }

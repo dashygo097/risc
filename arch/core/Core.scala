@@ -236,13 +236,18 @@ class RiscCore(implicit p: Parameters) extends Module {
   for (w <- 0 until p(IssueWidth)) {
     wants_to_issue(w) := ifu.if_valid(w) && !hazard(w) && !global_flush && !kill_mask(w) && !mem_draining
 
+    val instr = ifu.if_instr(w)
+    val is_div_instr = (instr(6, 0) === "b0110011".U) &&
+      (instr(31, 25) === "b0000001".U) &&
+      instr(14, 12)(2)
+
     inst_type(w) := MuxCase(
       FUNCTIONAL_UNIT_TYPE_ALU.index.U,
       Seq(
         is_lsu(w)                                            -> FUNCTIONAL_UNIT_TYPE_LSU.index.U,
-        decoders(w).decoded.div_en                           -> FUNCTIONAL_UNIT_TYPE_DIV.index.U,
-        decoders(w).decoded.mult_en                          -> FUNCTIONAL_UNIT_TYPE_MULT.index.U,
-        decoders(w).decoded.branch                           -> FUNCTIONAL_UNIT_TYPE_BRU.index.U,
+        is_div_instr                                          -> FUNCTIONAL_UNIT_TYPE_DIV.index.U,
+        decoders(w).decoded.mult                             -> FUNCTIONAL_UNIT_TYPE_MULT.index.U,
+        decoders(w).decoded.bru                              -> FUNCTIONAL_UNIT_TYPE_BRU.index.U,
         (decoders(w).decoded.csr || decoders(w).decoded.ret) -> FUNCTIONAL_UNIT_TYPE_CSR.index.U
       )
     )

@@ -3,8 +3,8 @@ package arch.core.div
 import arch.configs._
 import chisel3._
 
-object RV32IDivUtilities extends RegisteredUtilities[DivUtilities] {
-  override def utils: DivUtilities = new DivUtilities {
+object RV32IDivUtils extends RegisteredUtils[DivUtils] {
+  override def utils: DivUtils = new DivUtils {
     override def name: String = "rv32i"
 
     // RV32I has no integer divide extension.
@@ -12,5 +12,5 @@ object RV32IDivUtilities extends RegisteredUtilities[DivUtilities] {
       (0.U(p(XLen).W), false.B, true.B)
   }
 
-  override def factory: UtilitiesFactory[DivUtilities] = DivUtilitiesFactory
+  override def factory: UtilsFactory[DivUtils] = DivUtilsFactory
 }

@@ -6,7 +6,7 @@ import chisel3._
 class Div(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_divider"
 
-  val utils = DivUtilitiesFactory.getOrThrow(p(ISA).name)
+  val utils = DivUtilsFactory.getOrThrow(p(ISA).name)
 
   val en = IO(Input(Bool()))
   val kill = IO(Input(Bool()))

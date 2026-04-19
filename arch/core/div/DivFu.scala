@@ -1,7 +1,6 @@
 package arch.core.div
 
 import arch.configs._
-import arch.core.decoder._
 import arch.core.ooo._
 import chisel3._
 import chisel3.util._
@@ -10,7 +9,6 @@ class DivFU(implicit p: Parameters) extends FunctionalUnit {
   override def desiredName: String = s"${p(ISA).name}_div_fu"
 
   val core_div = Module(new Div)
-  val decoder = Module(new Decoder)
 
   val req_reg = Reg(new MicroOp)
   val result_reg = Reg(UInt(p(XLen).W))
@@ -37,14 +35,18 @@ class DivFU(implicit p: Parameters) extends FunctionalUnit {
   }
 
   val current_instr = Mux(io.req.fire, io.req.bits.instr, req_reg.instr)
-  decoder.instr := current_instr
+
+  // RV32M: DIV=100, DIVU=101, REM=110, REMU=111 (funct3)
+  val funct3 = current_instr(14, 12)
+  val is_div_signed = !funct3(0)
+  val is_div_rem = funct3(1)
 
   core_div.en := io.req.fire
   core_div.kill := io.flush
   core_div.src1 := Mux(io.req.fire, io.req.bits.rs1_data, req_reg.rs1_data)
   core_div.src2 := Mux(io.req.fire, io.req.bits.rs2_data, req_reg.rs2_data)
-  core_div.is_signed := decoder.decoded.div_signed
-  core_div.is_rem := decoder.decoded.div_rem
+  core_div.is_signed := is_div_signed
+  core_div.is_rem := is_div_rem
 
   io.resp.valid := (state === state_done)
   io.resp.bits.result := result_reg
