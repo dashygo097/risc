@@ -4,10 +4,36 @@ import arch.configs._
 import chisel3._
 import chisel3.util.Fill
 import vopts.math.RestoringDivider
+import chisel3.util.BitPat
 
-object RV32IMDivUtils extends RegisteredUtils[DivUtils] {
+trait RV32IMDivUOpConsts {
+  private def cat(bps: BitPat*): BitPat = bps.reduce(_ ## _)
+  private def P_X                       = BitPat("b??????")
+
+  def DR_X = BitPat("b?")
+  def DR_0 = BitPat("b0") // quotient
+  def DR_1 = BitPat("b1") // remainder
+  def DS_X = BitPat("b?")
+  def DS_0 = BitPat("b0") // unsigned
+  def DS_1 = BitPat("b1") // signed
+
+  // Format: uop[7:2] = 0 | uop[1] = signed_bit | uop[0] = rem_bit
+  def UOP_DIV  = cat(P_X, DS_1, DR_0)
+  def UOP_DIVU = cat(P_X, DS_0, DR_0)
+  def UOP_REM  = cat(P_X, DS_1, DR_1)
+  def UOP_REMU = cat(P_X, DS_0, DR_1)
+}
+
+object RV32IMDivUtils extends RegisteredUtils[DivUtils] with RV32IMDivUOpConsts {
   override def utils: DivUtils = new DivUtils {
     override def name: String = "rv32im"
+
+    override def decode(uop: UInt): DivCtrl = {
+      val ctrl = Wire(new DivCtrl)
+      ctrl.is_signed := uop(1)
+      ctrl.is_rem    := uop(0)
+      ctrl
+    }
 
     override def fn(en: Bool, kill: Bool, src1: UInt, src2: UInt, is_signed: Bool, is_rem: Bool): (UInt, Bool, Bool) = {
       val result = WireDefault(0.U(p(XLen).W))
@@ -42,7 +68,7 @@ object RV32IMDivUtils extends RegisteredUtils[DivUtils] {
       div.dividend := src1
       div.divisor := src2
       div.is_signed := is_signed
-  div.select_remainder := is_rem
+    div.select_remainder := is_rem
 
       result := Mux(
         special_case,

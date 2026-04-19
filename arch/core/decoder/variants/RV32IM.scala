@@ -1,13 +1,14 @@
 package arch.core.decoder.riscv
 
 import arch.core.mult.riscv._
+import arch.core.div._
 import arch.core.decoder._
 import arch.configs._
 import arch.isa._
 import chisel3._
 import chisel3.util.BitPat
 
-trait RV32IMUOp extends RV32IUOp with RV32IMMultUOpConsts {}
+trait RV32IMUOp extends RV32IUOp with RV32IMMultUOpConsts with RV32IMDivUOpConsts {}
 
 object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
 
@@ -66,10 +67,10 @@ object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
         enc("MULHU")  -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MULHU),
 
         // R-Type: Div/Rem
-        enc("DIV")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_X),
-        enc("DIVU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_X),
-        enc("REM")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_X),
-        enc("REMU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_X)
+        enc("DIV")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_DIV),
+        enc("DIVU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_DIVU),
+        enc("REM")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_REM),
+        enc("REMU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_REMU)
       )
   }
 
