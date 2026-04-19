@@ -41,11 +41,16 @@ object RV32IDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IUOp {
     BitPat("b" + bits)
   }
 
+  // Base layout: [legal, regwrite, imm_type, alu, mult, lsu, bru, csr, ret, uop]
+  // Full layout: [legal, regwrite, imm_type, alu, mult, div, lsu, bru, csr, ret, uop]
+  private def withDivColumn(sigs: List[BitPat]): List[BitPat] =
+    List(sigs(0), sigs(1), sigs(2), sigs(3), sigs(4), N, sigs(5), sigs(6), sigs(7), sigs(8), sigs(9))
+
   override def utils: DecoderUtils = new DecoderUtils {
     override def name: String = "rv32i"
 
     override def default: List[BitPat] =
-      List(N, N, IMM_X, X, X, X, X, X, X, UOP_X)
+      withDivColumn(List(N, N, IMM_X, X, X, X, X, X, X, UOP_X))
 
     override def decode(instr: UInt): DecodedOutput = {
       val sigs    = Wire(new DecodedOutput)
@@ -57,17 +62,18 @@ object RV32IDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IUOp {
 
       sigs.alu  := decoder(3).asBool
       sigs.mult := decoder(4).asBool
-      sigs.lsu  := decoder(5).asBool
-      sigs.bru  := decoder(6).asBool
-      sigs.csr  := decoder(7).asBool
-      sigs.ret  := decoder(8).asBool
+  sigs.div  := decoder(5).asBool
+  sigs.lsu  := decoder(6).asBool
+  sigs.bru  := decoder(7).asBool
+  sigs.csr  := decoder(8).asBool
+  sigs.ret  := decoder(9).asBool
 
-      sigs.uop := decoder(9)
+  sigs.uop := decoder(10)
 
       sigs
     }
 
-    override def table: Array[(BitPat, List[BitPat])] = Array(
+  override def table: Array[(BitPat, List[BitPat])] = Array(
       // R-Type
       enc("ADD")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_ADD),
       enc("SUB")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_SUB),
@@ -131,7 +137,7 @@ object RV32IDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IUOp {
 
       // SYSTEM
       enc("MRET") -> List(Y, N, IMM_X, N, N, N, N, N, Y, UOP_MRET)
-    )
+    ).map { case (pattern, sigs) => pattern -> withDivColumn(sigs) }
   }
 
   override def factory: UtilsFactory[DecoderUtils] = DecoderUtilsFactory
