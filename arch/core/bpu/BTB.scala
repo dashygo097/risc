@@ -24,11 +24,11 @@ object BtbEntry extends BHTConsts {
 }
 
 class BpuUpdate(implicit p: Parameters) extends Bundle {
-  val valid     = Bool()
-  val pc        = UInt(p(XLen).W)
-  val target    = UInt(p(XLen).W)
-  val taken     = Bool()
-  val pht_index = UInt(p(GShareGhrWidth).W)
+  val valid        = Bool()
+  val pc           = UInt(p(XLen).W)
+  val target       = UInt(p(XLen).W)
+  val taken        = Bool()
+  val pht_index    = UInt(p(GShareGhrWidth).W)
   val ghr_snapshot = UInt(p(GShareGhrWidth).W)
   val mispredict   = Bool()
 }
@@ -70,8 +70,8 @@ class Btb(implicit p: Parameters) extends Module with BHTConsts {
     val hitBits: Seq[Bool] = (0 until p(BTBWays)).map { w =>
       qSet(w).valid && (qSet(w).tag === qTag)
     }
-    val anyHit = hitBits.reduce(_ || _)
-    val hitWay = PriorityEncoder(VecInit(hitBits))
+    val anyHit             = hitBits.reduce(_ || _)
+    val hitWay             = PriorityEncoder(VecInit(hitBits))
 
     hit(q)       := anyHit
     entry_out(q) := Mux(anyHit, qSet(hitWay), 0.U.asTypeOf(new BtbEntry(tagWidth)))

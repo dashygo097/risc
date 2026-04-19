@@ -46,9 +46,9 @@ package object configs {
   object ROBSize extends Field[Int](16)
 
   // Branch Prediction
-  object BTBWays       extends Field[Int](4)
-  object BTBSets       extends Field[Int](16)
-  object BTBReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
+  object BTBWays        extends Field[Int](4)
+  object BTBSets        extends Field[Int](16)
+  object BTBReplPolicy  extends Field[ReplacementPolicy](PseudoLRU)
   object GShareGhrWidth extends Field[Int](10)
 
   // Cache Parameters
@@ -118,9 +118,9 @@ package object configs {
     ROBSize -> ROBSize(),
 
     // Branch Prediction
-    BTBWays -> BTBWays(),
-    BTBSets -> BTBSets(),
-    BTBReplPolicy -> BTBReplPolicy(),
+    BTBWays        -> BTBWays(),
+    BTBSets        -> BTBSets(),
+    BTBReplPolicy  -> BTBReplPolicy(),
     GShareGhrWidth -> GShareGhrWidth(),
 
     // Cache

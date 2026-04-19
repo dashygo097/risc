@@ -166,14 +166,14 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   ifu.mem <> l1_icache.upper
 
-  val bpuQueryBase = ifu.fetch_pc & ~((p(IssueWidth) * (p(ILen) / 8) - 1).U(p(XLen).W))
+  val bpuQueryBase = ifu.fetch_pc & ~(p(IssueWidth) * (p(ILen) / 8) - 1).U(p(XLen).W)
   for (w <- 0 until p(IssueWidth))
     bpu.query_pc(w) := bpuQueryBase + (w * (p(ILen) / 8)).U
-  bpu.advance_valid := ifu.fetch_fire
-  bpu.flush := global_flush
-  ifu.bpu_taken_in  := bpu.taken
-  ifu.bpu_target_in := bpu.target
-  ifu.bpu_pht_index_in := bpu.pht_index
+  bpu.advance_valid       := ifu.fetch_fire
+  bpu.flush               := global_flush
+  ifu.bpu_taken_in        := bpu.taken
+  ifu.bpu_target_in       := bpu.target
+  ifu.bpu_pht_index_in    := bpu.pht_index
   ifu.bpu_ghr_snapshot_in := bpu.ghr_snapshot
 
   ifu.take_trap     := global_flush
@@ -335,46 +335,46 @@ class RiscCore(implicit p: Parameters) extends Module {
   if (aluIds.nonEmpty) alu_rr := (alu_rr + alu_disp) % aluIds.length.U
   if (lsuIds.nonEmpty) lsu_rr := (lsu_rr + lsu_disp) % lsuIds.length.U
 
-  val bpu_update_valid  = WireDefault(false.B)
-  val bpu_update_pc     = WireDefault(0.U(p(XLen).W))
-  val bpu_update_target = WireDefault(0.U(p(XLen).W))
-  val bpu_update_taken  = WireDefault(false.B)
-  val bpu_update_pht_idx = WireDefault(0.U(p(GShareGhrWidth).W))
+  val bpu_update_valid        = WireDefault(false.B)
+  val bpu_update_pc           = WireDefault(0.U(p(XLen).W))
+  val bpu_update_target       = WireDefault(0.U(p(XLen).W))
+  val bpu_update_taken        = WireDefault(false.B)
+  val bpu_update_pht_idx      = WireDefault(0.U(p(GShareGhrWidth).W))
   val bpu_update_ghr_snapshot = WireDefault(0.U(p(GShareGhrWidth).W))
-  val bpu_update_mispredict = WireDefault(false.B)
-  val branchOpcode      = "b1100011".U(7.W)
+  val bpu_update_mispredict   = WireDefault(false.B)
+  val branchOpcode            = "b1100011".U(7.W)
 
   for (w <- p(IssueWidth) - 1 to 0 by -1)
     when(rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).instr(6, 0) === branchOpcode) {
-      bpu_update_valid  := true.B
-      bpu_update_pc     := rob.io.commit(w).pc
-      bpu_update_target := rob.io.commit(w).bpu_actual_target
-      bpu_update_taken  := rob.io.commit(w).bpu_actual_taken
-      bpu_update_pht_idx := rob.io.commit(w).bpu_pht_index
+      bpu_update_valid        := true.B
+      bpu_update_pc           := rob.io.commit(w).pc
+      bpu_update_target       := rob.io.commit(w).bpu_actual_target
+      bpu_update_taken        := rob.io.commit(w).bpu_actual_taken
+      bpu_update_pht_idx      := rob.io.commit(w).bpu_pht_index
       bpu_update_ghr_snapshot := rob.io.commit(w).bpu_ghr_snapshot
-      bpu_update_mispredict := rob.io.commit(w).flush_pipeline
+      bpu_update_mispredict   := rob.io.commit(w).flush_pipeline
     }
 
-  bpu.update.valid  := bpu_update_valid
-  bpu.update.pc     := bpu_update_pc
-  bpu.update.target := bpu_update_target
-  bpu.update.taken  := bpu_update_taken
-  bpu.update.pht_index := bpu_update_pht_idx
+  bpu.update.valid        := bpu_update_valid
+  bpu.update.pc           := bpu_update_pc
+  bpu.update.target       := bpu_update_target
+  bpu.update.taken        := bpu_update_taken
+  bpu.update.pht_index    := bpu_update_pht_idx
   bpu.update.ghr_snapshot := bpu_update_ghr_snapshot
-  bpu.update.mispredict := bpu_update_mispredict
+  bpu.update.mispredict   := bpu_update_mispredict
 
   for (w <- 0 until p(IssueWidth)) {
-    rob.io.enq(w).valid           := lane_valid(w)
-    rob.io.enq(w).pc              := ifu.if_pc(w)
-    rob.io.enq(w).instr           := ifu.if_instr(w)
-    rob.io.enq(w).rd              := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
-    rob.io.enq(w).pd              := 0.U
-    rob.io.enq(w).old_pd          := 0.U
-    rob.io.enq(w).is_branch       := decoders(w).decoded.branch
-    rob.io.enq(w).is_lsu          := decoders(w).decoded.lsu
-    rob.io.enq(w).bpu_pred_taken  := ifu.if_bpu_pred_taken(w)
-    rob.io.enq(w).bpu_pred_target := ifu.if_bpu_pred_target(w)
-    rob.io.enq(w).bpu_pht_index   := ifu.if_bpu_pht_index(w)
+    rob.io.enq(w).valid            := lane_valid(w)
+    rob.io.enq(w).pc               := ifu.if_pc(w)
+    rob.io.enq(w).instr            := ifu.if_instr(w)
+    rob.io.enq(w).rd               := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
+    rob.io.enq(w).pd               := 0.U
+    rob.io.enq(w).old_pd           := 0.U
+    rob.io.enq(w).is_branch        := decoders(w).decoded.branch
+    rob.io.enq(w).is_lsu           := decoders(w).decoded.lsu
+    rob.io.enq(w).bpu_pred_taken   := ifu.if_bpu_pred_taken(w)
+    rob.io.enq(w).bpu_pred_target  := ifu.if_bpu_pred_target(w)
+    rob.io.enq(w).bpu_pht_index    := ifu.if_bpu_pht_index(w)
     rob.io.enq(w).bpu_ghr_snapshot := ifu.if_bpu_ghr_snapshot(w)
 
     val rs1_bypassed = Mux(rob.io.rs1_bypass(w).valid, rob.io.rs1_bypass(w).data, regfile.rs1_data(w))
@@ -502,7 +502,9 @@ class RiscCore(implicit p: Parameters) extends Module {
   val debug_frontend_stall = IO(Output(Bool()))
   val debug_backend_stall  = IO(Output(Bool()))
 
-  debug_bpu_mispredict := (0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).instr(6, 0) === branchOpcode && rob.io.commit(w).flush_pipeline).reduce(_ || _)
+  debug_bpu_mispredict := (0 until p(IssueWidth))
+    .map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).instr(6, 0) === branchOpcode && rob.io.commit(w).flush_pipeline)
+    .reduce(_ || _)
   debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).instr(6, 0) === branchOpcode))
   debug_flush_cycle    := global_flush
   debug_rob_empty      := rob.io.empty

@@ -5,17 +5,19 @@ import chisel3._
 import chisel3.util._
 
 class GShare(implicit p: Parameters) extends Module with BHTConsts {
-  val query_pc        = IO(Input(Vec(p(IssueWidth), UInt(p(XLen).W))))
-  val query_is_branch = IO(Input(Vec(p(IssueWidth), Bool())))
-  val query_accept    = IO(Input(Bool()))
-  val flush           = IO(Input(Bool()))
-  val taken           = IO(Output(Vec(p(IssueWidth), Bool())))
-  val update          = IO(Input(new BpuUpdate))
-  val index_out       = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
+  override def desiredName: String = s"${p(ISA).name}_gshare"
+
+  val query_pc         = IO(Input(Vec(p(IssueWidth), UInt(p(XLen).W))))
+  val query_is_branch  = IO(Input(Vec(p(IssueWidth), Bool())))
+  val query_accept     = IO(Input(Bool()))
+  val flush            = IO(Input(Bool()))
+  val taken            = IO(Output(Vec(p(IssueWidth), Bool())))
+  val update           = IO(Input(new BpuUpdate))
+  val index_out        = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
   val ghr_snapshot_out = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
 
   private val ghrWidth = p(GShareGhrWidth)
-  val phtEntries = 1 << ghrWidth
+  val phtEntries       = 1 << ghrWidth
 
   require(ghrWidth >= 2, "GShareGhrWidth must be at least 2")
 
@@ -29,7 +31,7 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
   val st  = BHT_ST.value.U(SZ_BHT.W)
 
   def getIndex(pc: UInt, hist: UInt): UInt = {
-    val pcLow = pc(ghrWidth + 1, 2)
+    val pcLow  = pc(ghrWidth + 1, 2)
     // Fold higher PC bits to reduce table aliasing for nearby hot loops.
     val pcHigh = pc((2 * ghrWidth) + 1, ghrWidth + 2)
     pcLow ^ pcHigh ^ hist
@@ -42,14 +44,14 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
   queryGhr(0) := specGhr
 
   for (w <- 0 until p(IssueWidth)) {
-    val index = getIndex(query_pc(w), queryGhr(w))
-    val counter = pht(index)
+    val index    = getIndex(query_pc(w), queryGhr(w))
+    val counter  = pht(index)
     val dirTaken = counter(1)
 
-    taken(w) := dirTaken
-    index_out(w) := index
+    taken(w)            := dirTaken
+    index_out(w)        := index
     ghr_snapshot_out(w) := queryGhr(w)
-    queryGhr(w + 1) := Mux(query_is_branch(w), shiftHist(queryGhr(w), dirTaken), queryGhr(w))
+    queryGhr(w + 1)     := Mux(query_is_branch(w), shiftHist(queryGhr(w), dirTaken), queryGhr(w))
   }
 
   when(update.valid) {
@@ -57,12 +59,9 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
 
     // Update PHT with saturating 2-bit counter.
     val oldCnt = pht(uIndex)
-    val newCnt = Mux(update.taken,
-      Mux(oldCnt === st, st, oldCnt + 1.U),
-      Mux(oldCnt === snt, snt, oldCnt - 1.U)
-    )
+    val newCnt = Mux(update.taken, Mux(oldCnt === st, st, oldCnt + 1.U), Mux(oldCnt === snt, snt, oldCnt - 1.U))
     pht(uIndex) := newCnt
-    commitGhr := shiftHist(update.ghr_snapshot, update.taken)
+    commitGhr   := shiftHist(update.ghr_snapshot, update.taken)
   }
 
   when(query_accept) {
