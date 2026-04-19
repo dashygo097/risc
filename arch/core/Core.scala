@@ -277,7 +277,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   for (w <- 0 until p(IssueWidth)) {
     val alu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_ALU.index.U && !struct_hazard(i)))
     val lsu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_LSU.index.U && !struct_hazard(i)))
-  val div_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_DIV.index.U && !struct_hazard(i)))
+    val div_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_DIV.index.U && !struct_hazard(i)))
     val mult_used = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_MULT.index.U && !struct_hazard(i)))
     val bru_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_BRU.index.U && !struct_hazard(i)))
     val csr_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_CSR.index.U && !struct_hazard(i)))
