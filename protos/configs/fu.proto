@@ -12,6 +12,7 @@ enum FunctionalUnitType {
   FUNCTIONAL_UNIT_TYPE_LSU = 3;
   FUNCTIONAL_UNIT_TYPE_BRU = 4;
   FUNCTIONAL_UNIT_TYPE_CSR = 5;
+  FUNCTIONAL_UNIT_TYPE_DIV = 6;
 }
 
 message FunctionalUnitDescriptor {
