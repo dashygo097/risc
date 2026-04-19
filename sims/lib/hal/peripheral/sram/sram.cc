@@ -1,4 +1,5 @@
 #include "demu/hal/peripheral/sram/sram.hh"
+#include <iomanip>
 
 namespace demu::hal::sram {
 

@@ -9,6 +9,8 @@ class IBufferEntry(implicit p: Parameters) extends Bundle {
   val instr           = UInt(p(ILen).W)
   val bpu_pred_taken  = Bool()
   val bpu_pred_target = UInt(p(XLen).W)
+  val bpu_pht_index   = UInt(10.W)
+  val bpu_ghr_snapshot = UInt(10.W)
 }
 
 class IBuffer(implicit p: Parameters) extends Module {

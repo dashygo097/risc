@@ -64,6 +64,23 @@ class RiscSystem(implicit p: Parameters) extends Module {
   val debug_frontend_stall = IO(Output(Bool()))
   val debug_backend_stall  = IO(Output(Bool()))
 
+  val debug_gshare_ghr          = IO(Output(UInt(10.W)))
+  val debug_gshare_query_index  = IO(Output(UInt(10.W)))
+  val debug_gshare_update_index = IO(Output(UInt(10.W)))
+  val debug_gshare_pred_taken   = IO(Output(Bool()))
+  val debug_gshare_update_valid = IO(Output(Bool()))
+  val debug_gshare_update_taken = IO(Output(Bool()))
+  val debug_gshare_update_pred_taken = IO(Output(Bool()))
+  val debug_gshare_update_snapshot   = IO(Output(UInt(10.W)))
+  val debug_gshare_update_pred_target = IO(Output(UInt(p(XLen).W)))
+  val debug_gshare_update_actual_target = IO(Output(UInt(p(XLen).W)))
+  val debug_gshare_query_fire        = IO(Output(Bool()))
+  val debug_gshare_query_pc          = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
+  val debug_gshare_query_hist        = IO(Output(Vec(p(IssueWidth), UInt(10.W))))
+  val debug_gshare_query_index_vec   = IO(Output(Vec(p(IssueWidth), UInt(10.W))))
+  val debug_gshare_query_pred_vec    = IO(Output(Vec(p(IssueWidth), Bool())))
+  val debug_gshare_query_branch_vec  = IO(Output(Vec(p(IssueWidth), Bool())))
+
   debug_cycle_count   := cpu.debug_cycle_count
   debug_instret_count := cpu.debug_instret_count
   debug_instret       := cpu.debug_instret
@@ -90,4 +107,21 @@ class RiscSystem(implicit p: Parameters) extends Module {
 
   debug_frontend_stall := cpu.debug_frontend_stall
   debug_backend_stall  := cpu.debug_backend_stall
+
+  debug_gshare_ghr          := cpu.debug_gshare_ghr
+  debug_gshare_query_index  := cpu.debug_gshare_query_index
+  debug_gshare_update_index := cpu.debug_gshare_update_index
+  debug_gshare_pred_taken   := cpu.debug_gshare_pred_taken
+  debug_gshare_update_valid := cpu.debug_gshare_update_valid
+  debug_gshare_update_taken := cpu.debug_gshare_update_taken
+  debug_gshare_update_pred_taken := cpu.debug_gshare_update_pred_taken
+  debug_gshare_update_snapshot   := cpu.debug_gshare_update_snapshot
+  debug_gshare_update_pred_target := cpu.debug_gshare_update_pred_target
+  debug_gshare_update_actual_target := cpu.debug_gshare_update_actual_target
+  debug_gshare_query_fire        := cpu.debug_gshare_query_fire
+  debug_gshare_query_pc          := cpu.debug_gshare_query_pc
+  debug_gshare_query_hist        := cpu.debug_gshare_query_hist
+  debug_gshare_query_index_vec   := cpu.debug_gshare_query_index_vec
+  debug_gshare_query_pred_vec    := cpu.debug_gshare_query_pred_vec
+  debug_gshare_query_branch_vec  := cpu.debug_gshare_query_branch_vec
 }

@@ -4,8 +4,8 @@ BUILD_DIR = $(PROJECT_DIR)/build
 TESTS_DIR = $(PROJECT_DIR)/tests
 
 # Build configuration
-BUILD_TYPE ?= Release 
-GENERATOR ?= Ninja 
+BUILD_TYPE ?= Release
+GENERATOR ?= Ninja
 
 # Detect generator command
 ifeq ($(GENERATOR),Ninja)
@@ -32,7 +32,7 @@ config:
 # Build the project
 build: config
 	@mkdir -p $(BUILD_DIR)
-	@if [ ! -f $(BUILD_DIR)/CMakeCache.txt ]; then \
+	@if [ ! -f $(BUILD_DIR)/CMakeCache.txt ] || { [ "$(GENERATOR)" = "Ninja" ] && [ ! -f $(BUILD_DIR)/build.ninja ]; }; then \
 		echo "Running CMake with generator: $(GENERATOR)"; \
 		cd $(BUILD_DIR) && cmake $(PROJECT_DIR) \
 			-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \

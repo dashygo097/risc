@@ -23,23 +23,26 @@ object BtbEntry extends BHTConsts {
   }
 }
 
-class BpuUpdate(implicit p: Parameters) extends Bundle {
-  val valid  = Bool()
-  val pc     = UInt(p(XLen).W)
-  val target = UInt(p(XLen).W)
-  val taken  = Bool()
+class BpuUpdate(implicit p: Parameters) extends Bundle with GShareConsts {
+  val valid     = Bool()
+  val pc        = UInt(p(XLen).W)
+  val target    = UInt(p(XLen).W)
+  val taken     = Bool()
+  val pht_index = UInt(GSHARE_GHR_WIDTH.W)
+  val ghr_snapshot = UInt(GSHARE_GHR_WIDTH.W)
+  val mispredict   = Bool()
 }
 
-class Btb(implicit p: Parameters) extends Module {
+class Btb(implicit p: Parameters) extends Module with BHTConsts {
   override def desiredName: String = s"${p(ISA).name}_btb"
 
   private val iAlignWidth = log2Ceil(p(IAlign))
   private val indexWidth  = log2Ceil(p(BTBSets))
   private val tagWidth    = p(XLen) - indexWidth - iAlignWidth
 
-  val query_pc  = IO(Input(UInt(p(XLen).W)))
-  val hit       = IO(Output(Bool()))
-  val entry_out = IO(Output(new BtbEntry(tagWidth)))
+  val query_pc  = IO(Input(Vec(p(IssueWidth), UInt(p(XLen).W))))
+  val hit       = IO(Output(Vec(p(IssueWidth), Bool())))
+  val entry_out = IO(Output(Vec(p(IssueWidth), new BtbEntry(tagWidth))))
   val update    = IO(Input(new BpuUpdate))
 
   val entries = RegInit(
@@ -59,20 +62,22 @@ class Btb(implicit p: Parameters) extends Module {
   def getIndex(pc: UInt): UInt = pc(indexWidth + 1, iAlignWidth)
   def getTag(pc: UInt): UInt   = pc(p(XLen) - 1, indexWidth + iAlignWidth)
 
-  val qIndex = getIndex(query_pc)
-  val qTag   = getTag(query_pc)
-  val qSet   = entries(qIndex)
+  for (q <- 0 until p(IssueWidth)) {
+    val qIndex = getIndex(query_pc(q))
+    val qTag   = getTag(query_pc(q))
+    val qSet   = entries(qIndex)
 
-  val hitBits: Seq[Bool] = (0 until p(BTBWays)).map { w =>
-    qSet(w).valid && (qSet(w).tag === qTag)
+    val hitBits: Seq[Bool] = (0 until p(BTBWays)).map { w =>
+      qSet(w).valid && (qSet(w).tag === qTag)
+    }
+    val anyHit = hitBits.reduce(_ || _)
+    val hitWay = PriorityEncoder(VecInit(hitBits))
+
+    hit(q)       := anyHit
+    entry_out(q) := Mux(anyHit, qSet(hitWay), 0.U.asTypeOf(new BtbEntry(tagWidth)))
   }
-  val anyHit             = hitBits.reduce(_ || _)
-  val hitWay             = PriorityEncoder(VecInit(hitBits))
 
-  hit       := anyHit
-  entry_out := Mux(anyHit, qSet(hitWay), 0.U.asTypeOf(new BtbEntry(tagWidth)))
-
-  when(update.valid) {
+  when(update.valid && update.taken) {
     val uIndex = getIndex(update.pc)
     val uTag   = getTag(update.pc)
     val uSet   = entries(uIndex)
@@ -95,7 +100,7 @@ class Btb(implicit p: Parameters) extends Module {
     newEntry.tag    := uTag
     newEntry.target := update.target
 
-    val oldCtrl = uSet(writeWay).ctrl
+    val oldCtrl = Mux(uAnyHit, uSet(writeWay).ctrl, Mux(update.taken, BHT_WNT.value.U, BHT_WT.value.U))
     newEntry.ctrl := Mux(update.taken, Mux(oldCtrl === 3.U, 3.U, oldCtrl + 1.U), Mux(oldCtrl === 0.U, 0.U, oldCtrl - 1.U))
 
     entries(uIndex)(writeWay) := newEntry

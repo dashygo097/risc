@@ -4,6 +4,9 @@
 .bsp/
 .metals/
 .cache/
+.codex
+.sbt-local/
+.coursier-cache/
 
 project/project
 build/
@@ -11,11 +14,17 @@ target/
 obj_dir/
 logs/
 synth/
+demu.log
+sims/demu.log
 
 hex/
 elf/
 bin/
 dump/
+sims/tests/logs/
+sims/tests/*.log
+sims/tests/Configuring
+tests/*.log
 
 # Object files
 *.o

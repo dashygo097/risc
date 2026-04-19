@@ -12,8 +12,10 @@ file(GLOB_RECURSE DEMU_HEADERS
   ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
 )
 
-file(GLOB RTL_SOURCE ${RTL_DIR}/*.sv)
-if(NOT EXISTS ${RTL_SOURCE})
+# Use ISA-specific top RTL only to avoid duplicate module definitions
+# from multiple generated system variants in ../build.
+set(RTL_SOURCE "${RTL_DIR}/${ISA_TARGET}_system.sv")
+if(NOT EXISTS "${RTL_SOURCE}")
   message(WARNING "RTL file not found: ${RTL_SOURCE}")
   message(WARNING "Please make sure your Chisel design has been generated")
 endif()

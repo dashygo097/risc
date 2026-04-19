@@ -16,6 +16,8 @@ class RobEnqIO(implicit p: Parameters) extends Bundle {
   val is_lsu          = Input(Bool())
   val bpu_pred_taken  = Input(Bool())
   val bpu_pred_target = Input(UInt(p(XLen).W))
+  val bpu_pht_index   = Input(UInt(10.W))
+  val bpu_ghr_snapshot = Input(UInt(10.W))
   val rob_tag         = Output(UInt(log2Ceil(p(ROBSize)).W))
 }
 
@@ -45,8 +47,12 @@ class RobCommitIO(implicit p: Parameters) extends Bundle {
   val flush_target      = Output(UInt(p(XLen).W))
   val is_branch         = Output(Bool())
   val is_lsu            = Output(Bool())
+  val bpu_pred_taken    = Output(Bool())
+  val bpu_pred_target   = Output(UInt(p(XLen).W))
   val bpu_actual_taken  = Output(Bool())
   val bpu_actual_target = Output(UInt(p(XLen).W))
+  val bpu_pht_index     = Output(UInt(10.W))
+  val bpu_ghr_snapshot  = Output(UInt(10.W))
 }
 
 class RobBypassIO(implicit p: Parameters) extends Bundle {
@@ -68,6 +74,8 @@ class ROBEntry(implicit p: Parameters) extends Bundle {
   val is_lsu         = Bool()
   val pred_taken     = Bool()
   val pred_target    = UInt(p(XLen).W)
+  val pht_index      = UInt(10.W)
+  val ghr_snapshot   = UInt(10.W)
   val actual_taken   = Bool()
   val actual_target  = UInt(p(XLen).W)
   val flush_pipeline = Bool()
@@ -127,6 +135,8 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
       buffer(idx).is_lsu         := io.enq(w).is_lsu
       buffer(idx).pred_taken     := io.enq(w).bpu_pred_taken
       buffer(idx).pred_target    := io.enq(w).bpu_pred_target
+      buffer(idx).pht_index      := io.enq(w).bpu_pht_index
+      buffer(idx).ghr_snapshot   := io.enq(w).bpu_ghr_snapshot
       buffer(idx).actual_taken   := false.B
       buffer(idx).actual_target  := 0.U
       buffer(idx).flush_pipeline := false.B
@@ -172,6 +182,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   var commit_valid_acc = true.B
   for (w <- 0 until p(IssueWidth)) {
     val idx = ((head + w.U) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
+    val isCondBranch = buffer(idx).is_branch && buffer(idx).instr(6, 0) === "b1100011".U
 
     val committable = (count > w.U) && buffer(idx).valid && buffer(idx).ready && !stop_commit && commit_valid_acc
 
@@ -186,10 +197,14 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     io.commit(w).flush_target      := buffer(idx).flush_target
     io.commit(w).is_branch         := buffer(idx).is_branch
     io.commit(w).is_lsu            := buffer(idx).is_lsu
+    io.commit(w).bpu_pred_taken    := buffer(idx).pred_taken
+    io.commit(w).bpu_pred_target   := buffer(idx).pred_target
     io.commit(w).bpu_actual_taken  := buffer(idx).actual_taken
     io.commit(w).bpu_actual_target := buffer(idx).actual_target
+    io.commit(w).bpu_pht_index     := buffer(idx).pht_index
+    io.commit(w).bpu_ghr_snapshot  := buffer(idx).ghr_snapshot
 
-    when(committable && buffer(idx).flush_pipeline) { stop_commit = true.B }
+    when(committable && (buffer(idx).flush_pipeline || isCondBranch)) { stop_commit = true.B }
     commit_valid_acc = committable
 
     when(io.commit(w).pop) {
