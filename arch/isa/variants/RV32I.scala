@@ -11,6 +11,7 @@ object RV32I extends IsaWrapper {
     iAlign = 4,
     numArchRegs = 32,
     isBigEndian = false,
+    microOpWidth = 8,
     instrSet = Some(
       InstructionSet(
         nop = Some(enc("NOP", BitPat("b0000000_00000_00000_000_00000_0010011"))),

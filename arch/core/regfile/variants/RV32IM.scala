@@ -1,19 +1,20 @@
-package arch.core.regfile
+package arch.core.regfile.riscv
 
+import arch.core.regfile._
 import arch.configs._
 import vopts.utils.Register
 import chisel3._
 
-object RV32IMRegfileUtilities extends RegisteredUtilities[RegfileUtilities] {
-  override def utils: RegfileUtilities = new RegfileUtilities {
+object RV32IMRegfileUtils extends RegisteredUtils[RegfileUtils] {
+  override def utils: RegfileUtils = new RegfileUtils {
     override def name: String               = "rv32im"
-    override def getRs1(instr: UInt): UInt  = RV32IRegfileUtilities.utils.getRs1(instr)
-    override def getRs2(instr: UInt): UInt  = RV32IRegfileUtilities.utils.getRs2(instr)
-    override def getRd(instr: UInt): UInt   = RV32IRegfileUtilities.utils.getRd(instr)
-    override def extraInfo: Seq[Register]   = RV32IRegfileUtilities.utils.extraInfo
-    override def writable(addr: UInt): Bool = RV32IRegfileUtilities.utils.writable(addr)
-    override def readable(addr: UInt): Bool = RV32IRegfileUtilities.utils.readable(addr)
+    override def getRs1(instr: UInt): UInt  = RV32IRegfileUtils.utils.getRs1(instr)
+    override def getRs2(instr: UInt): UInt  = RV32IRegfileUtils.utils.getRs2(instr)
+    override def getRd(instr: UInt): UInt   = RV32IRegfileUtils.utils.getRd(instr)
+    override def extraInfo: Seq[Register]   = RV32IRegfileUtils.utils.extraInfo
+    override def writable(addr: UInt): Bool = RV32IRegfileUtils.utils.writable(addr)
+    override def readable(addr: UInt): Bool = RV32IRegfileUtils.utils.readable(addr)
   }
 
-  override def factory: UtilitiesFactory[RegfileUtilities] = RegfileUtilitiesFactory
+  override def factory: UtilsFactory[RegfileUtils] = RegfileUtilsFactory
 }

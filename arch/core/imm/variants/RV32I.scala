@@ -1,5 +1,6 @@
-package arch.core.imm
+package arch.core.imm.riscv
 
+import arch.core.imm._
 import arch.configs._
 import chisel3._
 import chisel3.util.{ BitPat, MuxLookup, Cat, Fill }
@@ -14,8 +15,8 @@ trait RV32IImmConsts {
   def IMM_J  = BitPat("b100")
 }
 
-object RV32IImmUtilities extends RegisteredUtilities[ImmUtilities] with RV32IImmConsts {
-  override def utils: ImmUtilities = new ImmUtilities {
+object RV32IImmUtils extends RegisteredUtils[ImmUtils] with RV32IImmConsts {
+  override def utils: ImmUtils = new ImmUtils {
     override def name: String = "rv32i"
 
     override def immTypeWidth: Int = SZ_IMM
@@ -47,5 +48,5 @@ object RV32IImmUtilities extends RegisteredUtilities[ImmUtilities] with RV32IImm
     override def genCsrImm(instr: UInt): UInt             = Cat(Fill(27, 0.U), instr(19, 15))
   }
 
-  override def factory: UtilitiesFactory[ImmUtilities] = ImmUtilitiesFactory
+  override def factory: UtilsFactory[ImmUtils] = ImmUtilsFactory
 }

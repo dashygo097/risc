@@ -20,7 +20,7 @@ class ScoreboardEntry(implicit p: Parameters) extends Bundle {
 class Scoreboard(implicit p: Parameters) extends Scheduler {
   override def desiredName: String = s"${p(ISA).name}_scoreboard"
 
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA).name)
+  val regfile_utils = RegfileUtilsFactory.getOrThrow(p(ISA).name)
 
   val numRegs = p(NumArchRegs)
   val numFUs  = p(FunctionalUnits).size

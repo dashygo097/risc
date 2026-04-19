@@ -1,11 +1,12 @@
-package arch.core.regfile
+package arch.core.regfile.riscv
 
+import arch.core.regfile._
 import arch.configs._
 import vopts.utils._
 import chisel3._
 
-object RV32IRegfileUtilities extends RegisteredUtilities[RegfileUtilities] {
-  override def utils: RegfileUtilities = new RegfileUtilities {
+object RV32IRegfileUtils extends RegisteredUtils[RegfileUtils] {
+  override def utils: RegfileUtils = new RegfileUtils {
     override def name: String = "rv32i"
 
     override def getRs1(instr: UInt): UInt = instr(19, 15)
@@ -59,5 +60,5 @@ object RV32IRegfileUtilities extends RegisteredUtilities[RegfileUtilities] {
     override def readable(addr: UInt): Bool = addr =/= 0.U
   }
 
-  override def factory: UtilitiesFactory[RegfileUtilities] = RegfileUtilitiesFactory
+  override def factory: UtilsFactory[RegfileUtils] = RegfileUtilsFactory
 }

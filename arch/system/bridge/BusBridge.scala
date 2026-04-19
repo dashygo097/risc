@@ -7,7 +7,7 @@ import chisel3._
 class BusBridge(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(BusType)}_bridge"
 
-  val utils = BusBridgeUtilitiesFactory.getOrThrow(p(BusType))
+  val utils = BusBridgeUtilsFactory.getOrThrow(p(BusType))
 
   val imem = IO(Flipped(new CacheReadOnlyIO(Vec(p(IssueWidth), UInt(p(ILen).W)), p(XLen))))
   val dmem = IO(Flipped(new CacheIO(UInt(p(XLen).W), p(XLen))))

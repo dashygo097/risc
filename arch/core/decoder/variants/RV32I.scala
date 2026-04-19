@@ -1,22 +1,26 @@
-package arch.core.decoder
+package arch.core.decoder.riscv
 
-import arch.core.imm.RV32IImmConsts
-import arch.core.alu.RV32IAluConsts
-import arch.core.lsu.RV32ILsuConsts
-import arch.core.bru.RV32IBranchConsts
-import arch.core.csr.RV32ICsrConsts
+import arch.core.imm.riscv._
+import arch.core.alu.riscv._
+import arch.core.lsu.riscv._
+import arch.core.bru.riscv._
+import arch.core.csr.riscv._
+import arch.core.decoder._
 import arch.configs._
 import arch.isa._
 import chisel3._
 import chisel3.util.BitPat
 
-trait RV32IDecoderConsts extends RV32IImmConsts with RV32IAluConsts with RV32ILsuConsts with RV32IBranchConsts with RV32ICsrConsts {
+trait RV32IUOp extends RV32IImmConsts with RV32IAluUopConsts with RV32ILsuUOpConsts with RV32ICsrUOpConsts with RV32IBruUOpConsts {
+  def UOP_X = BitPat("b????????")
+
+  // Common Booleans
   def X = BitPat("b?")
-  def N = BitPat("b0")
   def Y = BitPat("b1")
+  def N = BitPat("b0")
 }
 
-object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with RV32IDecoderConsts {
+object RV32IDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IUOp {
 
   private val allEncodings =
     RV32I.isa.instrSet
@@ -37,11 +41,11 @@ object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with 
     BitPat("b" + bits)
   }
 
-  override def utils: DecoderUtilities = new DecoderUtilities {
+  override def utils: DecoderUtils = new DecoderUtils {
     override def name: String = "rv32i"
 
     override def default: List[BitPat] =
-      List(N, N, IMM_X, X, BR_X, X, A1_X, A2_X, X, AFN_X, X, M_X, X, C_X, X, X, X, X, X)
+      List(N, N, IMM_X, X, X, X, X, X, X, UOP_X)
 
     override def decode(instr: UInt): DecodedOutput = {
       val sigs    = Wire(new DecodedOutput)
@@ -50,85 +54,85 @@ object RV32IDecoderUtilities extends RegisteredUtilities[DecoderUtilities] with 
       sigs.legal    := decoder(0).asBool
       sigs.regwrite := decoder(1).asBool
       sigs.imm_type := decoder(2)
-      sigs.branch   := decoder(3).asBool
-      sigs.br_type  := decoder(4)
-      sigs.alu      := decoder(5).asBool
-      sigs.alu_sel1 := decoder(6)
-      sigs.alu_sel2 := decoder(7)
-      sigs.alu_mode := decoder(8).asBool
-      sigs.alu_fn   := decoder(9)
-      sigs.lsu      := decoder(10).asBool
-      sigs.lsu_cmd  := decoder(11)
-      sigs.csr      := decoder(12).asBool
-      sigs.csr_cmd  := decoder(13)
 
-      sigs.mult_en       := decoder(14).asBool
-      sigs.mult_high     := decoder(15).asBool
-      sigs.mult_a_signed := decoder(16).asBool
-      sigs.mult_b_signed := decoder(17).asBool
+      sigs.alu  := decoder(3).asBool
+      sigs.mult := decoder(4).asBool
+      sigs.lsu  := decoder(5).asBool
+      sigs.bru  := decoder(6).asBool
+      sigs.csr  := decoder(7).asBool
+      sigs.ret  := decoder(8).asBool
 
-      sigs.ret := decoder(18).asBool
+      sigs.uop := decoder(9)
 
       sigs
     }
 
     override def table: Array[(BitPat, List[BitPat])] = Array(
       // R-Type
-      enc("ADD")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SUB")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, Y, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SLL")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_SLL, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SLT")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_SLT, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SLTU")   -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_SLTU, N, M_X, N, C_X, N, N, N, N, N),
-      enc("XOR")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_XOR, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SRL")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_SRL, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SRA")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, Y, AFN_SRL, N, M_X, N, C_X, N, N, N, N, N),
-      enc("OR")     -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_OR, N, M_X, N, C_X, N, N, N, N, N),
-      enc("AND")    -> List(Y, Y, IMM_X, N, BR_X, Y, A1_RS1, A2_RS2, N, AFN_AND, N, M_X, N, C_X, N, N, N, N, N),
+      enc("ADD")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_ADD),
+      enc("SUB")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_SUB),
+      enc("SLL")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_SLL),
+      enc("SLT")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_SLT),
+      enc("SLTU") -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_SLTU),
+      enc("XOR")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_XOR),
+      enc("SRL")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_SRL),
+      enc("SRA")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_SRA),
+      enc("OR")   -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_OR),
+      enc("AND")  -> List(Y, Y, IMM_X, Y, N, N, N, N, N, UOP_AND),
+
       // I-Type: Arithmetic
-      enc("ADDI")   -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SLLI")   -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_SLL, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SLTI")   -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_SLT, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SLTIU")  -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_SLTU, N, M_X, N, C_X, N, N, N, N, N),
-      enc("XORI")   -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_XOR, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SRLI")   -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_SRL, N, M_X, N, C_X, N, N, N, N, N),
-      enc("SRAI")   -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, Y, AFN_SRL, N, M_X, N, C_X, N, N, N, N, N),
-      enc("ORI")    -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_OR, N, M_X, N, C_X, N, N, N, N, N),
-      enc("ANDI")   -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_AND, N, M_X, N, C_X, N, N, N, N, N),
+      enc("ADDI")  -> List(Y, Y, IMM_I, Y, N, N, N, N, N, UOP_ADDI),
+      enc("SLLI")  -> List(Y, Y, IMM_I, Y, N, N, N, N, N, UOP_SLLI),
+      enc("SLTI")  -> List(Y, Y, IMM_I, Y, N, N, N, N, N, UOP_SLTI),
+      enc("SLTIU") -> List(Y, Y, IMM_I, Y, N, N, N, N, N, UOP_SLTIU),
+      enc("XORI")  -> List(Y, Y, IMM_I, Y, N, N, N, N, N, UOP_XORI),
+      enc("SRLI")  -> List(Y, Y, IMM_I, Y, N, N, N, N, N, UOP_SRLI),
+      enc("SRAI")  -> List(Y, Y, IMM_I, Y, N, N, N, N, N, UOP_SRAI),
+      enc("ORI")   -> List(Y, Y, IMM_I, Y, N, N, N, N, N, UOP_ORI),
+      enc("ANDI")  -> List(Y, Y, IMM_I, Y, N, N, N, N, N, UOP_ANDI),
+
       // I-Type: Load
-      enc("LB")     -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_LB, N, C_X, N, N, N, N, N),
-      enc("LH")     -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_LH, N, C_X, N, N, N, N, N),
-      enc("LW")     -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_LW, N, C_X, N, N, N, N, N),
-      enc("LBU")    -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_LBU, N, C_X, N, N, N, N, N),
-      enc("LHU")    -> List(Y, Y, IMM_I, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_LHU, N, C_X, N, N, N, N, N),
+      enc("LB")  -> List(Y, Y, IMM_I, N, N, Y, N, N, N, UOP_LB),
+      enc("LH")  -> List(Y, Y, IMM_I, N, N, Y, N, N, N, UOP_LH),
+      enc("LW")  -> List(Y, Y, IMM_I, N, N, Y, N, N, N, UOP_LW),
+      enc("LBU") -> List(Y, Y, IMM_I, N, N, Y, N, N, N, UOP_LBU),
+      enc("LHU") -> List(Y, Y, IMM_I, N, N, Y, N, N, N, UOP_LHU),
+
       // I-Type: Jump
-      enc("JALR")   -> List(Y, Y, IMM_I, Y, BR_JALR, Y, A1_PC, A2_PCSTEP, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
+      enc("JALR") -> List(Y, Y, IMM_I, N, N, N, Y, N, N, UOP_JALR),
+
       // I-Type: CSR
-      enc("CSRRW")  -> List(Y, Y, IMM_I, N, BR_X, N, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RW, N, N, N, N, N),
-      enc("CSRRS")  -> List(Y, Y, IMM_I, N, BR_X, N, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RS, N, N, N, N, N),
-      enc("CSRRC")  -> List(Y, Y, IMM_I, N, BR_X, N, A1_RS1, A2_IMM, N, AFN_X, N, M_X, Y, C_RC, N, N, N, N, N),
-      enc("CSRRWI") -> List(Y, Y, IMM_I, N, BR_X, N, A1_ZERO, A2_IMM, N, AFN_X, N, M_X, Y, C_RWI, N, N, N, N, N),
-      enc("CSRRSI") -> List(Y, Y, IMM_I, N, BR_X, N, A1_ZERO, A2_IMM, N, AFN_X, N, M_X, Y, C_RSI, N, N, N, N, N),
-      enc("CSRRCI") -> List(Y, Y, IMM_I, N, BR_X, N, A1_ZERO, A2_IMM, N, AFN_X, N, M_X, Y, C_RCI, N, N, N, N, N),
+      enc("CSRRW")  -> List(Y, Y, IMM_I, N, N, N, N, Y, N, UOP_CSRRW),
+      enc("CSRRS")  -> List(Y, Y, IMM_I, N, N, N, N, Y, N, UOP_CSRRS),
+      enc("CSRRC")  -> List(Y, Y, IMM_I, N, N, N, N, Y, N, UOP_CSRRC),
+      enc("CSRRWI") -> List(Y, Y, IMM_I, N, N, N, N, Y, N, UOP_CSRRWI),
+      enc("CSRRSI") -> List(Y, Y, IMM_I, N, N, N, N, Y, N, UOP_CSRRSI),
+      enc("CSRRCI") -> List(Y, Y, IMM_I, N, N, N, N, Y, N, UOP_CSRRCI),
+
       // S-Type
-      enc("SB")     -> List(Y, N, IMM_S, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_SB, N, C_X, N, N, N, N, N),
-      enc("SH")     -> List(Y, N, IMM_S, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_SH, N, C_X, N, N, N, N, N),
-      enc("SW")     -> List(Y, N, IMM_S, N, BR_X, Y, A1_RS1, A2_IMM, N, AFN_ADD, Y, M_SW, N, C_X, N, N, N, N, N),
+      enc("SB") -> List(Y, N, IMM_S, N, N, Y, N, N, N, UOP_SB),
+      enc("SH") -> List(Y, N, IMM_S, N, N, Y, N, N, N, UOP_SH),
+      enc("SW") -> List(Y, N, IMM_S, N, N, Y, N, N, N, UOP_SW),
+
       // B-Type
-      enc("BEQ")    -> List(Y, N, IMM_B, Y, BR_EQ, N, A1_PC, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
-      enc("BNE")    -> List(Y, N, IMM_B, Y, BR_NE, N, A1_PC, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
-      enc("BLT")    -> List(Y, N, IMM_B, Y, BR_LT, N, A1_PC, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
-      enc("BGE")    -> List(Y, N, IMM_B, Y, BR_GE, N, A1_PC, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
-      enc("BLTU")   -> List(Y, N, IMM_B, Y, BR_LTU, N, A1_PC, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
-      enc("BGEU")   -> List(Y, N, IMM_B, Y, BR_GEU, N, A1_PC, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
+      enc("BEQ")  -> List(Y, N, IMM_B, N, N, N, Y, N, N, UOP_BEQ),
+      enc("BNE")  -> List(Y, N, IMM_B, N, N, N, Y, N, N, UOP_BNE),
+      enc("BLT")  -> List(Y, N, IMM_B, N, N, N, Y, N, N, UOP_BLT),
+      enc("BGE")  -> List(Y, N, IMM_B, N, N, N, Y, N, N, UOP_BGE),
+      enc("BLTU") -> List(Y, N, IMM_B, N, N, N, Y, N, N, UOP_BLTU),
+      enc("BGEU") -> List(Y, N, IMM_B, N, N, N, Y, N, N, UOP_BGEU),
+
       // U-Type
-      enc("LUI")    -> List(Y, Y, IMM_U, N, BR_X, Y, A1_ZERO, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
-      enc("AUIPC")  -> List(Y, Y, IMM_U, N, BR_X, Y, A1_PC, A2_IMM, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
+      enc("LUI")   -> List(Y, Y, IMM_U, Y, N, N, N, N, N, UOP_LUI),
+      enc("AUIPC") -> List(Y, Y, IMM_U, Y, N, N, N, N, N, UOP_AUIPC),
+
       // J-Type
-      enc("JAL")    -> List(Y, Y, IMM_J, Y, BR_JAL, Y, A1_PC, A2_PCSTEP, N, AFN_ADD, N, M_X, N, C_X, N, N, N, N, N),
+      enc("JAL") -> List(Y, Y, IMM_J, N, N, N, Y, N, N, UOP_JAL),
+
       // SYSTEM
-      enc("MRET")   -> List(Y, N, IMM_X, N, BR_X, N, A1_X, A2_X, N, AFN_X, N, M_X, N, C_X, N, N, N, N, Y),
+      enc("MRET") -> List(Y, N, IMM_X, N, N, N, N, N, Y, UOP_MRET)
     )
   }
 
-  override def factory: UtilitiesFactory[DecoderUtilities] = DecoderUtilitiesFactory
+  override def factory: UtilsFactory[DecoderUtils] = DecoderUtilsFactory
 }

@@ -79,24 +79,26 @@ package object configs {
 
   // NOTE: You should not modify the parameters below, as they are derived from the user options above
   // Derived Parameters
-  object XLen        extends Field[Int](ISA().xlen)
-  object ILen        extends Field[Int](ISA().ilen)
-  object IAlign      extends Field[Int](ISA().iAlign)
-  object NumArchRegs extends Field[Int](ISA().numArchRegs)
-  object IsBigEndian extends Field[Boolean](ISA().isBigEndian)
-  object Bubble      extends Field[BitPat](ISA().bubble)
+  object XLen         extends Field[Int](ISA().xlen)
+  object ILen         extends Field[Int](ISA().ilen)
+  object IAlign       extends Field[Int](ISA().iAlign)
+  object NumArchRegs  extends Field[Int](ISA().numArchRegs)
+  object IsBigEndian  extends Field[Boolean](ISA().isBigEndian)
+  object MicroOpWidth extends Field[Int](ISA().microOpWidth)
+  object Bubble       extends Field[BitPat](ISA().bubble)
 
   implicit val p: Parameters = Parameters.empty ++ Map(
     ISA       -> ISA(),
     Frequency -> Frequency(),
 
     // ISA
-    XLen        -> XLen(),
-    ILen        -> ILen(),
-    IAlign      -> IAlign(),
-    NumArchRegs -> NumArchRegs(),
-    IsBigEndian -> IsBigEndian(),
-    Bubble      -> Bubble(),
+    XLen         -> XLen(),
+    ILen         -> ILen(),
+    IAlign       -> IAlign(),
+    NumArchRegs  -> NumArchRegs(),
+    IsBigEndian  -> IsBigEndian(),
+    MicroOpWidth -> MicroOpWidth(),
+    Bubble       -> Bubble(),
 
     // IFU
     IBufferSize -> IBufferSize(),

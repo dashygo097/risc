@@ -19,17 +19,18 @@ trait AluConsts {
   def A2_PCSTEP = BitPat("b11")
 }
 
-trait AluUtilities extends Utilities {
+trait AluUtils extends Utils {
   def sel1Width: Int
   def sel2Width: Int
   def fnTypeWidth: Int
 
+  def decode(uop: UInt): AluCtrl
   def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt
 }
 
-object AluUtilitiesFactory extends UtilitiesFactory[AluUtilities]("ALU")
+object AluUtilsFactory extends UtilsFactory[AluUtils]("ALU")
 
 object AluInit {
-  val rv32iUtils  = RV32IAluUtilities
-  val rv32imUtils = RV32IMAluUtilities
+  val rv32iUtils  = riscv.RV32IAluUtils
+  val rv32imUtils = riscv.RV32IMAluUtils
 }

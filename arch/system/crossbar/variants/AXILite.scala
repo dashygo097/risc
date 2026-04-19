@@ -4,8 +4,8 @@ import arch.configs._
 import vopts.com.amba._
 import chisel3._
 
-object AXILiteCrossbarUtilities extends RegisteredUtilities[BusCrossbarUtilities] {
-  override def utils: BusCrossbarUtilities = new BusCrossbarUtilities {
+object AXILiteCrossbarUtils extends RegisteredUtils[BusCrossbarUtils] {
+  override def utils: BusCrossbarUtils = new BusCrossbarUtils {
     override def name: String = "axil"
 
     override def masterType: Bundle            =
@@ -31,5 +31,5 @@ object AXILiteCrossbarUtilities extends RegisteredUtilities[BusCrossbarUtilities
       ext.asInstanceOf[AXILiteMasterExtIO].connect(intf.asInstanceOf[AXILiteMasterIO])
   }
 
-  override def factory: UtilitiesFactory[BusCrossbarUtilities] = BusCrossbarUtilitiesFactory
+  override def factory: UtilsFactory[BusCrossbarUtils] = BusCrossbarUtilsFactory
 }

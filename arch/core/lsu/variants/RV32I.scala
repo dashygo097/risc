@@ -1,42 +1,60 @@
-package arch.core.lsu
+package arch.core.lsu.riscv
 
+import arch.core.lsu._
 import arch.configs._
 import chisel3._
 import chisel3.util.{ BitPat, MuxLookup }
 
-trait RV32ILsuConsts {
-  def M_X   = BitPat("b????")
-  def SZ_M  = M_X.getWidth
-  def M_SB  = BitPat("b0000")
-  def M_SH  = BitPat("b0001")
-  def M_SW  = BitPat("b0010")
-  def M_LB  = BitPat("b1000")
-  def M_LH  = BitPat("b1001")
-  def M_LW  = BitPat("b1010")
-  def M_LBU = BitPat("b1100")
-  def M_LHU = BitPat("b1101")
+// Format: uop[7:4] = 0 | uop[3] = is_read | uop[2] = is_unsigned | uop[1:0] = size
+trait RV32ILsuUOpConsts {
+  private def cat(bps: BitPat*): BitPat = bps.reduce(_ ## _)
+  private def P_X                       = BitPat("b????")
+
+  def L_RD = BitPat("b1") // Read
+  def L_WR = BitPat("b0") // Write
+
+  def L_U = BitPat("b1") // Unsigned
+  def L_S = BitPat("b0") // Signed
+
+  def L_B = BitPat("b00") // Byte
+  def L_H = BitPat("b01") // Half
+  def L_W = BitPat("b10") // Word
+
+  def UOP_LB  = cat(P_X, L_RD, L_S, L_B)
+  def UOP_LH  = cat(P_X, L_RD, L_S, L_H)
+  def UOP_LW  = cat(P_X, L_RD, L_S, L_W)
+  def UOP_LBU = cat(P_X, L_RD, L_U, L_B)
+  def UOP_LHU = cat(P_X, L_RD, L_U, L_H)
+  def UOP_SB  = cat(P_X, L_WR, L_S, L_B)
+  def UOP_SH  = cat(P_X, L_WR, L_S, L_H)
+  def UOP_SW  = cat(P_X, L_WR, L_S, L_W)
 }
 
-object RV32ILsuUtilities extends RegisteredUtilities[LsuUtilities] with RV32ILsuConsts {
-  override def utils: LsuUtilities = new LsuUtilities {
+object RV32ILsuUtils extends RegisteredUtils[LsuUtils] with RV32ILsuUOpConsts {
+  override def utils: LsuUtils = new LsuUtils {
     override def name: String = "rv32i"
 
-    override def cmdWidth: Int               = SZ_M
-    override def strb(cmd: UInt)             =
-      MuxLookup(cmd(1, 0), "b0000".U(4.W))(
+    override def decode(uop: UInt): LsuCtrl = {
+      val ctrl = Wire(new LsuCtrl)
+      val size = uop(1, 0)
+
+      ctrl.is_byte     := size === "b00".U
+      ctrl.is_half     := size === "b01".U
+      ctrl.is_word     := size === "b10".U
+      ctrl.is_unsigned := uop(2)
+      ctrl.is_read     := uop(3)
+      ctrl.is_write    := !uop(3)
+
+      ctrl.strb := MuxLookup(size, "b0000".U(4.W))(
         Seq(
           "b00".U -> "b0001".U(4.W),
           "b01".U -> "b0011".U(4.W),
           "b10".U -> "b1111".U(4.W)
         )
       )
-    override def isByte(cmd: UInt): Bool     = cmd(1, 0) === "b00".U
-    override def isHalf(cmd: UInt): Bool     = cmd(1, 0) === "b01".U
-    override def isWord(cmd: UInt): Bool     = cmd(1, 0) === "b10".U
-    override def isUnsigned(cmd: UInt): Bool = cmd(2)
-    override def isRead(cmd: UInt): Bool     = cmd(3)
-    override def isWrite(cmd: UInt): Bool    = !cmd(3)
+      ctrl
+    }
   }
 
-  override def factory: UtilitiesFactory[LsuUtilities] = LsuUtilitiesFactory
+  override def factory: UtilsFactory[LsuUtils] = LsuUtilsFactory
 }

@@ -23,5 +23,6 @@ message Isa {
   uint32 iAlign = 4;
   uint32 num_arch_regs = 5;
   bool is_big_endian = 6;
-  InstructionSet instr_set = 7;
+  uint32 micro_op_width = 7;
+  InstructionSet instr_set = 8;
 }

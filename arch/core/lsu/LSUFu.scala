@@ -1,13 +1,15 @@
 package arch.core.lsu
 
 import arch.core.ooo._
-import arch.configs._
-import arch.core.decoder._
 import arch.core.imm._
 import arch.core.pma._
+import arch.configs._
 import vopts.mem.cache.CacheIO
 import chisel3._
-import chisel3.util._
+
+object LsuFuState extends ChiselEnum {
+  val IDLE, WAIT_RESP, DONE = Value
+}
 
 class LsuFU(implicit p: Parameters) extends FunctionalUnit {
   override def desiredName: String = s"${p(ISA).name}_lsu_fu"
@@ -16,40 +18,36 @@ class LsuFU(implicit p: Parameters) extends FunctionalUnit {
   val mmio = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
 
   val core_lsu  = Module(new Lsu)
-  val decoder   = Module(new Decoder)
-  val imm_utils = ImmUtilitiesFactory.getOrThrow(p(ISA).name)
+  val imm_utils = ImmUtilsFactory.getOrThrow(p(ISA).name)
 
-  val req_reg                                            = Reg(new MicroOp)
-  val state_idle :: state_wait_resp :: state_done :: Nil = Enum(3)
-  val state                                              = RegInit(state_idle)
+  val req_reg = Reg(new MicroOp)
+  val state   = RegInit(LsuFuState.IDLE)
 
-  io.req.ready := (state === state_idle) || (state === state_done && io.resp.fire)
+  io.req.ready := (state === LsuFuState.IDLE) || (state === LsuFuState.DONE && io.resp.fire)
 
   when(io.req.fire) {
-    state   := state_wait_resp
+    state   := LsuFuState.WAIT_RESP
     req_reg := io.req.bits
   }.elsewhen(io.flush) {
-    state := state_idle
+    state := LsuFuState.IDLE
   }.otherwise {
-    when(state === state_wait_resp) {
+    when(state === LsuFuState.WAIT_RESP) {
       val resp_fired = core_lsu.mem.resp.fire || core_lsu.mmio.resp.fire
       when(resp_fired) {
-        state := state_done
+        state := LsuFuState.DONE
       }
-    }.elsewhen(state === state_done && io.resp.fire) {
-      state := state_idle
+    }.elsewhen(state === LsuFuState.DONE && io.resp.fire) {
+      state := LsuFuState.IDLE
     }
   }
 
-  core_lsu.en := (state === state_wait_resp)
+  val imm  = imm_utils.genImm(req_reg.instr, req_reg.imm_type)
+  val addr = req_reg.rs1_data + imm
 
-  decoder.instr := req_reg.instr
-
-  val imm                                            = imm_utils.genImm(req_reg.instr, decoder.decoded.imm_type)
-  val addr                                           = req_reg.rs1_data + imm
   val (_, pma_readable, pma_writable, pma_cacheable) = PmaChecker(addr)
 
-  core_lsu.cmd           := decoder.decoded.lsu_cmd
+  core_lsu.en            := (state === LsuFuState.WAIT_RESP)
+  core_lsu.uop           := req_reg.uop
   core_lsu.addr          := addr
   core_lsu.wdata         := req_reg.rs2_data
   core_lsu.pma_readable  := pma_readable
@@ -59,7 +57,7 @@ class LsuFU(implicit p: Parameters) extends FunctionalUnit {
   mem <> core_lsu.mem
   mmio <> core_lsu.mmio
 
-  io.resp.valid        := (state === state_done)
+  io.resp.valid        := (state === LsuFuState.DONE)
   io.resp.bits.result  := core_lsu.rdata
   io.resp.bits.rd      := req_reg.rd
   io.resp.bits.pc      := req_reg.pc

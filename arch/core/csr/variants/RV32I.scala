@@ -1,19 +1,36 @@
-package arch.core.csr
+package arch.core.csr.riscv
 
+import arch.core.csr._
 import arch.configs._
 import vopts.utils.Register
 import chisel3._
-import chisel3.util.{ BitPat, MuxCase, Cat, Fill }
+import chisel3.util.{ BitPat, MuxCase, Cat }
 
-trait RV32ICsrConsts {
-  def C_X   = BitPat("b???")
-  def SZ_C  = C_X.getWidth
-  def C_RW  = BitPat("b000")
-  def C_RS  = BitPat("b001")
-  def C_RC  = BitPat("b010")
-  def C_RWI = BitPat("b100")
-  def C_RSI = BitPat("b101")
-  def C_RCI = BitPat("b110")
+// Format: uop[7:4] = 0 | uop[3] = is_sys | uop[2] = is_imm | uop[1:0] = op
+trait RV32ICsrUOpConsts {
+  private def cat(bps: BitPat*): BitPat = bps.reduce(_ ## _)
+  private def P_X                       = BitPat("b????")
+
+  def CS_0 = BitPat("b0") // Normal CSR
+  def CS_1 = BitPat("b1") // System
+
+  def CSRC_X   = BitPat("b?")
+  def CSRC_REG = BitPat("b0") // Register
+  def CSRC_IMM = BitPat("b1") // Immediate
+
+  def COP_X  = BitPat("b??")
+  def COP_RW = BitPat("b00") // Write
+  def COP_RS = BitPat("b01") // Set
+  def COP_RC = BitPat("b10") // Clear
+
+  def UOP_CSRRW  = cat(P_X, CS_0, CSRC_REG, COP_RW)
+  def UOP_CSRRS  = cat(P_X, CS_0, CSRC_REG, COP_RS)
+  def UOP_CSRRC  = cat(P_X, CS_0, CSRC_REG, COP_RC)
+  def UOP_CSRRWI = cat(P_X, CS_0, CSRC_IMM, COP_RW)
+  def UOP_CSRRSI = cat(P_X, CS_0, CSRC_IMM, COP_RS)
+  def UOP_CSRRCI = cat(P_X, CS_0, CSRC_IMM, COP_RC)
+
+  def UOP_MRET = cat(P_X, CS_1, CSRC_X, COP_X)
 }
 
 trait RV32ICsrMap {
@@ -28,10 +45,6 @@ trait RV32ICsrMap {
   def CSR_INSTRET  = BitPat("b1100_0000_0010")
   def CSR_CYCLEH   = BitPat("b1100_1000_0000")
   def CSR_INSTRETH = BitPat("b1100_1000_0010")
-
-  // S-mode
-
-  // H-mode
 
   // M-mode
   def CSR_MSTATUS   = BitPat("b0011_0000_0000")
@@ -52,35 +65,41 @@ trait RV32ICsrMap {
   def CSR_MINSTRETH = BitPat("b1011_1000_0010")
 }
 
-object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsrConsts with RV32ICsrMap {
-  override def utils: CsrUtilities = new CsrUtilities {
+object RV32ICsrUtils extends RegisteredUtils[CsrUtils] with RV32ICsrUOpConsts with RV32ICsrMap {
+  override def utils: CsrUtils = new CsrUtils {
     override def name: String = "rv32i"
 
-    override def cmdWidth: Int              = SZ_C
-    override def addrWidth: Int             = SZ_CSR
-    override def immWidth: Int              = 5
-    override def isImm(cmd: UInt): Bool     = cmd(2)
-    override def genImm(imm: UInt): UInt    = Cat(Fill(27, 0.U), imm(4, 0))
+    override def addrWidth: Int = SZ_CSR
+    override def opWidth: Int   = 2
+
+    override def genImm(instr: UInt): UInt = {
+      val zimm = instr(19, 15)
+      Cat(0.U((p(XLen) - 5).W), zimm)
+    }
+
     override def getAddr(instr: UInt): UInt = instr(31, 20)
 
-    override def fn(cmd: UInt, csr_data: UInt, src_data: UInt): UInt =
+    override def decode(uop: UInt): CsrCtrl = {
+      val ctrl = Wire(new CsrCtrl(opWidth))
+      ctrl.is_sys := uop(3)
+      ctrl.is_imm := uop(2)
+      ctrl.op     := uop(1, 0)
+      ctrl
+    }
+
+    override def fn(op: UInt, csr_data: UInt, src_data: UInt): UInt =
       MuxCase(
         csr_data,
         Seq(
-          (cmd === C_RW)  -> src_data,
-          (cmd === C_RS)  -> (csr_data | src_data),
-          (cmd === C_RC)  -> (csr_data & ~src_data),
-          (cmd === C_RWI) -> src_data,
-          (cmd === C_RSI) -> (csr_data | src_data),
-          (cmd === C_RCI) -> (csr_data & ~src_data)
+          (op === "b00".U) -> src_data,              // RW
+          (op === "b01".U) -> (csr_data | src_data), // RS
+          (op === "b10".U) -> (csr_data & ~src_data) // RC
         )
       )
 
     override def extraInputs: Seq[(String, Int)] = Seq(
-      "cycle"   -> 64,
-      "instret" -> 64,
-
-      // Interrupts
+      "cycle"     -> 64,
+      "instret"   -> 64,
       "timer_irq" -> 1,
       "soft_irq"  -> 1,
       "ext_irq"   -> 1
@@ -171,5 +190,5 @@ object RV32ICsrUtilities extends RegisteredUtilities[CsrUtilities] with RV32ICsr
     }
   }
 
-  override def factory: UtilitiesFactory[CsrUtilities] = CsrUtilitiesFactory
+  override def factory: UtilsFactory[CsrUtils] = CsrUtilsFactory
 }

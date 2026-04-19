@@ -1,14 +1,19 @@
 package arch.core.ooo
 
+import arch.core.imm._
 import arch.configs._
 import chisel3._
 import chisel3.util.log2Ceil
 
 class MicroOp(implicit p: Parameters) extends Bundle {
+  val imm_utils = ImmUtilsFactory.getOrThrow(p(ISA).name)
+
   val pc    = UInt(p(XLen).W)
   val instr = UInt(p(ILen).W)
 
-  val fu_id = UInt(log2Ceil(p(FunctionalUnits).size).W)
+  val fu_id    = UInt(log2Ceil(p(FunctionalUnits).size).W)
+  val uop      = UInt(p(MicroOpWidth).W)
+  val imm_type = UInt(imm_utils.immTypeWidth.W)
 
   val rs1      = UInt(log2Ceil(p(NumArchRegs)).W)
   val rs2      = UInt(log2Ceil(p(NumArchRegs)).W)

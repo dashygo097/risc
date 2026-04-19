@@ -12,6 +12,7 @@ abstract class IsaWrapper {
   final def iAlign: Int          = isa.iAlign.toInt
   final def numArchRegs: Int     = isa.numArchRegs.toInt
   final def isBigEndian: Boolean = isa.isBigEndian
+  final def microOpWidth: Int    = isa.microOpWidth
 
   final def bubble: BitPat           = {
     val nop = isa.instrSet
@@ -55,6 +56,7 @@ object IsaFactory {
   def iAlign(isa: String): Int              = get(isa).iAlign
   def numArchRegs(isa: String): Int         = get(isa).numArchRegs
   def isBigEndian(isa: String): Boolean     = get(isa).isBigEndian
+  def microOpWidth(isa: String): Int        = get(isa).microOpWidth
   def bubble(isa: String): BitPat           = get(isa).bubble
   def instrSet(isa: String): InstructionSet = get(isa).instrSet
 }

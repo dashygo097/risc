@@ -3,10 +3,16 @@ package arch.core.mult
 import arch.configs._
 import chisel3._
 
+class MultCtrl extends Bundle {
+  val a_signed = Bool()
+  val b_signed = Bool()
+  val high     = Bool()
+}
+
 class Mult(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_multiplier"
 
-  val utils = MultUtilitiesFactory.getOrThrow(p(ISA).name)
+  val utils = MultUtilsFactory.getOrThrow(p(ISA).name)
 
   val en   = IO(Input(Bool()))
   val kill = IO(Input(Bool()))

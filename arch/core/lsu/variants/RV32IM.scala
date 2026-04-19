@@ -1,20 +1,15 @@
-package arch.core.lsu
+package arch.core.lsu.riscv
 
+import arch.core.lsu._
 import arch.configs._
 import chisel3._
 
-object RV32IMLsuUtilities extends RegisteredUtilities[LsuUtilities] with RV32ILsuConsts {
-  override def utils: LsuUtilities = new LsuUtilities {
-    override def name: String                              = "rv32im"
-    override def cmdWidth: Int                             = RV32ILsuUtilities.utils.cmdWidth
-    override def strb(cmd: UInt)                           = RV32ILsuUtilities.utils.strb(cmd)
-    override def isByte(cmd: UInt): Bool                   = RV32ILsuUtilities.utils.isByte(cmd)
-    override def isHalf(cmd: UInt): Bool                   = RV32ILsuUtilities.utils.isHalf(cmd)
-    override def isWord(cmd: UInt): Bool                   = RV32ILsuUtilities.utils.isWord(cmd)
-    override def isUnsigned(cmd: UInt): Bool               = RV32ILsuUtilities.utils.isUnsigned(cmd)
-    override def isRead(cmd: UInt): Bool                   = RV32ILsuUtilities.utils.isRead(cmd)
-    override def isWrite(cmd: UInt): Bool                  = RV32ILsuUtilities.utils.isWrite(cmd)
+object RV32IMLsuUtils extends RegisteredUtils[LsuUtils] with RV32ILsuUOpConsts {
+  override def utils: LsuUtils = new LsuUtils {
+    override def name: String = "rv32im"
+
+    override def decode(uop: UInt): LsuCtrl = RV32ILsuUtils.utils.decode(uop)
   }
 
-  override def factory: UtilitiesFactory[LsuUtilities] = LsuUtilitiesFactory
+  override def factory: UtilsFactory[LsuUtils] = LsuUtilsFactory
 }

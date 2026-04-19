@@ -8,7 +8,7 @@ import chisel3.util.{ PriorityEncoder, PopCount }
 class Inorder(implicit p: Parameters) extends Scheduler {
   override def desiredName: String = s"${p(ISA).name}_in_order"
 
-  val regfile_utils = RegfileUtilitiesFactory.getOrThrow(p(ISA).name)
+  val regfile_utils = RegfileUtilsFactory.getOrThrow(p(ISA).name)
 
   val numRegs = p(NumArchRegs)
   val numFUs  = p(FunctionalUnits).size
