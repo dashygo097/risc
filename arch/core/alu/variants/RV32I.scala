@@ -9,11 +9,13 @@ import chisel3.util.{ BitPat, MuxLookup }
 trait RV32IAluUopConsts extends AluConsts {
   private def cat(bps: BitPat*): BitPat = bps.reduce(_ ## _)
 
-  def AX_X = BitPat("b?")
-  def AM_0 = BitPat("b0")
-  def AM_1 = BitPat("b1")
+  def AM_X  = BitPat("b?")
+  def SZ_AM = AM_X.getWidth
+  def AM_0  = BitPat("b0")
+  def AM_1  = BitPat("b1")
 
   def AFN_X    = BitPat("b???")
+  def SZ_AFN   = AFN_X.getWidth
   def AFN_ADD  = BitPat("b000")
   def AFN_SLL  = BitPat("b001")
   def AFN_SLT  = BitPat("b010")
@@ -57,7 +59,7 @@ object RV32IAluUtils extends RegisteredUtils[AluUtils] with RV32IAluUopConsts {
 
     override def sel1Width: Int   = SZ_A1
     override def sel2Width: Int   = SZ_A2
-    override def fnTypeWidth: Int = 3
+    override def fnTypeWidth: Int = SZ_AFN
 
     override def decode(uop: UInt): AluCtrl = {
       val ctrl = Wire(new AluCtrl(fnTypeWidth))
@@ -69,17 +71,11 @@ object RV32IAluUtils extends RegisteredUtils[AluUtils] with RV32IAluUopConsts {
     }
 
     override def fn(src1: UInt, src2: UInt, fnType: UInt, mode: Bool): UInt = {
-      val src2_inv = Mux(mode, ~src2, src2)
-      val sum_res  = src1 +& src2_inv + mode.asUInt
+      val lt  = src1.asSInt < src2.asSInt
+      val ltu = src1 < src2
 
-      val sum   = sum_res(p(XLen) - 1, 0)
-      val carry = sum_res(p(XLen))
-
-      val sign1 = src1(p(XLen) - 1)
-      val sign2 = src2(p(XLen) - 1)
-
-      val lt  = Mux(sign1 === sign2, sum(p(XLen) - 1), sign1)
-      val ltu = !carry
+      val src2_inv  = Mux(mode, ~src2, src2)
+      val adder_out = (src1 + src2_inv + mode.asUInt)(p(XLen) - 1, 0)
 
       val shamt   = src2(4, 0)
       val sll_out = (src1 << shamt)(p(XLen) - 1, 0)
@@ -89,18 +85,20 @@ object RV32IAluUtils extends RegisteredUtils[AluUtils] with RV32IAluUopConsts {
         src1 >> shamt
       )(p(XLen) - 1, 0)
 
-      MuxLookup(fnType, 0.U(p(XLen).W))(
+      val arith_result = MuxLookup(fnType, 0.U(p(XLen).W))(
         Seq(
-          AFN_ADD.value.U  -> sum,
-          AFN_SLL.value.U  -> sll_out,
-          AFN_SLT.value.U  -> lt.asUInt,
-          AFN_SLTU.value.U -> ltu.asUInt,
-          AFN_XOR.value.U  -> (src1 ^ src2),
-          AFN_SRL.value.U  -> srl_out,
-          AFN_OR.value.U   -> (src1 | src2),
-          AFN_AND.value.U  -> (src1 & src2)
+          AFN_ADD.value.U(SZ_AFN.W)  -> adder_out,
+          AFN_SLL.value.U(SZ_AFN.W)  -> sll_out,
+          AFN_SLT.value.U(SZ_AFN.W)  -> lt.asUInt,
+          AFN_SLTU.value.U(SZ_AFN.W) -> ltu.asUInt,
+          AFN_XOR.value.U(SZ_AFN.W)  -> (src1 ^ src2),
+          AFN_SRL.value.U(SZ_AFN.W)  -> srl_out,
+          AFN_OR.value.U(SZ_AFN.W)   -> (src1 | src2),
+          AFN_AND.value.U(SZ_AFN.W)  -> (src1 & src2)
         )
       )
+
+      arith_result
     }
   }
 
