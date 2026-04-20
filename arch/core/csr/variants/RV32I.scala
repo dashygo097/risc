@@ -4,33 +4,30 @@ import arch.core.csr._
 import arch.configs._
 import vopts.utils.Register
 import chisel3._
-import chisel3.util.{ BitPat, MuxCase, Cat }
+import chisel3.util.{ BitPat, MuxLookup, Cat }
 
 // Format: uop[7:4] = 0 | uop[3] = is_sys | uop[2] = is_imm | uop[1:0] = op
 trait RV32ICsrUOpConsts {
   private def cat(bps: BitPat*): BitPat = bps.reduce(_ ## _)
+  private def X                         = BitPat("b?")
+  private def N                         = BitPat("b0")
+  private def Y                         = BitPat("b1")
   private def P_X                       = BitPat("b????")
 
-  def CS_0 = BitPat("b0") // Normal CSR
-  def CS_1 = BitPat("b1") // System
+  def C_X  = BitPat("b??")
+  def SZ_C = C_X.getWidth
+  def C_RW = BitPat("b00") // Write
+  def C_RS = BitPat("b01") // Set
+  def C_RC = BitPat("b10") // Clear
 
-  def CSRC_X   = BitPat("b?")
-  def CSRC_REG = BitPat("b0") // Register
-  def CSRC_IMM = BitPat("b1") // Immediate
+  def UOP_CSRRW  = cat(P_X, N, N, C_RW)
+  def UOP_CSRRS  = cat(P_X, N, N, C_RS)
+  def UOP_CSRRC  = cat(P_X, N, N, C_RC)
+  def UOP_CSRRWI = cat(P_X, N, Y, C_RW)
+  def UOP_CSRRSI = cat(P_X, N, Y, C_RS)
+  def UOP_CSRRCI = cat(P_X, N, Y, C_RC)
 
-  def COP_X  = BitPat("b??")
-  def COP_RW = BitPat("b00") // Write
-  def COP_RS = BitPat("b01") // Set
-  def COP_RC = BitPat("b10") // Clear
-
-  def UOP_CSRRW  = cat(P_X, CS_0, CSRC_REG, COP_RW)
-  def UOP_CSRRS  = cat(P_X, CS_0, CSRC_REG, COP_RS)
-  def UOP_CSRRC  = cat(P_X, CS_0, CSRC_REG, COP_RC)
-  def UOP_CSRRWI = cat(P_X, CS_0, CSRC_IMM, COP_RW)
-  def UOP_CSRRSI = cat(P_X, CS_0, CSRC_IMM, COP_RS)
-  def UOP_CSRRCI = cat(P_X, CS_0, CSRC_IMM, COP_RC)
-
-  def UOP_MRET = cat(P_X, CS_1, CSRC_X, COP_X)
+  def UOP_MRET = cat(P_X, Y, X, C_X)
 }
 
 trait RV32ICsrMap {
@@ -70,7 +67,7 @@ object RV32ICsrUtils extends RegisteredUtils[CsrUtils] with RV32ICsrUOpConsts wi
     override def name: String = "rv32i"
 
     override def addrWidth: Int = SZ_CSR
-    override def opWidth: Int   = 2
+    override def opWidth: Int   = SZ_C
 
     override def genImm(instr: UInt): UInt = {
       val zimm = instr(19, 15)
@@ -88,12 +85,11 @@ object RV32ICsrUtils extends RegisteredUtils[CsrUtils] with RV32ICsrUOpConsts wi
     }
 
     override def fn(op: UInt, csr_data: UInt, src_data: UInt): UInt =
-      MuxCase(
-        csr_data,
+      MuxLookup(op, 0.U(p(XLen).W))(
         Seq(
-          (op === "b00".U) -> src_data,              // RW
-          (op === "b01".U) -> (csr_data | src_data), // RS
-          (op === "b10".U) -> (csr_data & ~src_data) // RC
+          C_RW.value.U(SZ_C.W) -> src_data,
+          C_RS.value.U(SZ_C.W) -> (csr_data | src_data),
+          C_RC.value.U(SZ_C.W) -> (csr_data & ~src_data),
         )
       )
 
