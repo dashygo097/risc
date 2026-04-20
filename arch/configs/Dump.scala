@@ -13,7 +13,6 @@ object RiscDump {
       ifu = Some(
         IfuConfig(
           ibufferSize = p(IBufferSize),
-          issueWidth = p(IssueWidth),
           resetVector = p(ResetVector),
         )
       ),

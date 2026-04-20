@@ -9,6 +9,7 @@ import csr._
 import lsu._
 import alu._
 import mult._
+import div._
 import ooo._
 import arch.configs._
 import arch.configs.proto.FunctionalUnitType._
@@ -52,6 +53,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     fuDesc.`type` match {
       case FUNCTIONAL_UNIT_TYPE_ALU  => Module(new AluFU)
       case FUNCTIONAL_UNIT_TYPE_MULT => Module(new MultFU)
+      case FUNCTIONAL_UNIT_TYPE_DIV  => Module(new DivFU)
       case FUNCTIONAL_UNIT_TYPE_BRU  => Module(new BruFU)
       case FUNCTIONAL_UNIT_TYPE_LSU  => Module(new LsuFU)
       case FUNCTIONAL_UNIT_TYPE_CSR  => Module(new CsrFU)
@@ -185,6 +187,7 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   val aluIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_ALU).map(_._2.U)
   val multIds = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_MULT).map(_._2.U)
+  val divIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_DIV).map(_._2.U)
   val lsuIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_LSU).map(_._2.U)
   val bruIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_BRU).map(_._2.U)
   val csrIds  = p(FunctionalUnits).zipWithIndex.filter(_._1.`type` == FUNCTIONAL_UNIT_TYPE_CSR).map(_._2.U)
@@ -243,6 +246,7 @@ class RiscCore(implicit p: Parameters) extends Module {
       FUNCTIONAL_UNIT_TYPE_ALU.index.U,
       Seq(
         is_lsu(w)                                            -> FUNCTIONAL_UNIT_TYPE_LSU.index.U,
+        decoders(w).decoded.div                              -> FUNCTIONAL_UNIT_TYPE_DIV.index.U,
         decoders(w).decoded.mult                             -> FUNCTIONAL_UNIT_TYPE_MULT.index.U,
         decoders(w).decoded.bru                              -> FUNCTIONAL_UNIT_TYPE_BRU.index.U,
         (decoders(w).decoded.csr || decoders(w).decoded.ret) -> FUNCTIONAL_UNIT_TYPE_CSR.index.U
@@ -279,6 +283,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   for (w <- 0 until p(IssueWidth)) {
     val alu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_ALU.index.U && !struct_hazard(i)))
     val lsu_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_LSU.index.U && !struct_hazard(i)))
+    val div_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_DIV.index.U && !struct_hazard(i)))
     val mult_used = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_MULT.index.U && !struct_hazard(i)))
     val bru_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_BRU.index.U && !struct_hazard(i)))
     val csr_used  = PopCount((0 until w).map(i => wants_to_issue(i) && !intra_hazard(i) && inst_type(i) === FUNCTIONAL_UNIT_TYPE_CSR.index.U && !struct_hazard(i)))
@@ -288,6 +293,7 @@ class RiscCore(implicit p: Parameters) extends Module {
       Seq(
         (inst_type(w) === FUNCTIONAL_UNIT_TYPE_ALU.index.U)  -> (alu_used >= aluIds.length.U),
         (inst_type(w) === FUNCTIONAL_UNIT_TYPE_LSU.index.U)  -> (lsu_used >= lsuIds.length.U),
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_DIV.index.U)  -> (div_used >= divIds.length.U),
         (inst_type(w) === FUNCTIONAL_UNIT_TYPE_MULT.index.U) -> (mult_used >= multIds.length.U),
         (inst_type(w) === FUNCTIONAL_UNIT_TYPE_BRU.index.U)  -> (bru_used >= bruIds.length.U),
         (inst_type(w) === FUNCTIONAL_UNIT_TYPE_CSR.index.U)  -> (csr_used >= csrIds.length.U)
@@ -298,6 +304,7 @@ class RiscCore(implicit p: Parameters) extends Module {
       getId(alu_used, aluIds, alu_rr),
       Seq(
         (inst_type(w) === FUNCTIONAL_UNIT_TYPE_LSU.index.U)  -> getId(lsu_used, lsuIds, lsu_rr),
+        (inst_type(w) === FUNCTIONAL_UNIT_TYPE_DIV.index.U)  -> getId(div_used, divIds, 0.U),
         (inst_type(w) === FUNCTIONAL_UNIT_TYPE_MULT.index.U) -> getId(mult_used, multIds, 0.U),
         (inst_type(w) === FUNCTIONAL_UNIT_TYPE_BRU.index.U)  -> getId(bru_used, bruIds, 0.U),
         (inst_type(w) === FUNCTIONAL_UNIT_TYPE_CSR.index.U)  -> getId(csr_used, csrIds, 0.U)

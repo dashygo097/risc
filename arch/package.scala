@@ -32,6 +32,7 @@ package object configs {
           FunctionalUnitDescriptor(name = "ALU_0", `type` = FUNCTIONAL_UNIT_TYPE_ALU),
           FunctionalUnitDescriptor(name = "ALU_1", `type` = FUNCTIONAL_UNIT_TYPE_ALU),
           FunctionalUnitDescriptor(name = "MULT_0", `type` = FUNCTIONAL_UNIT_TYPE_MULT),
+          FunctionalUnitDescriptor(name = "DIV_0", `type` = FUNCTIONAL_UNIT_TYPE_DIV),
           FunctionalUnitDescriptor(name = "LSU_0", `type` = FUNCTIONAL_UNIT_TYPE_LSU),
           FunctionalUnitDescriptor(name = "LSU_1", `type` = FUNCTIONAL_UNIT_TYPE_LSU),
           FunctionalUnitDescriptor(name = "BRU_0", `type` = FUNCTIONAL_UNIT_TYPE_BRU),

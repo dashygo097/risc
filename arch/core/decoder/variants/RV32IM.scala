@@ -1,13 +1,14 @@
 package arch.core.decoder.riscv
 
 import arch.core.mult.riscv._
+import arch.core.div._
 import arch.core.decoder._
 import arch.configs._
 import arch.isa._
 import chisel3._
 import chisel3.util.BitPat
 
-trait RV32IMUOp extends RV32IUOp with RV32IMMultUOpConsts {}
+trait RV32IMUOp extends RV32IUOp with RV32IMMultUOpConsts with RV32IMDivUOpConsts {}
 
 object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
 
@@ -31,7 +32,9 @@ object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
   }
 
   override def utils: DecoderUtils = new DecoderUtils {
-    override def name: String          = "rv32im"
+    override def name: String = "rv32im"
+
+    // [legal, regwrite, imm_type, alu, mult, div, lsu, bru, csr, ret, uop]
     override def default: List[BitPat] = RV32IDecoderUtils.utils.default
 
     override def decode(instr: UInt): DecodedOutput = {
@@ -44,23 +47,30 @@ object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
 
       sigs.alu  := decoder(3).asBool
       sigs.mult := decoder(4).asBool
-      sigs.lsu  := decoder(5).asBool
-      sigs.bru  := decoder(6).asBool
-      sigs.csr  := decoder(7).asBool
-      sigs.ret  := decoder(8).asBool
+      sigs.div  := decoder(5).asBool
+      sigs.lsu  := decoder(6).asBool
+      sigs.bru  := decoder(7).asBool
+      sigs.csr  := decoder(8).asBool
+      sigs.ret  := decoder(9).asBool
 
-      sigs.uop := decoder(9)
+      sigs.uop := decoder(10)
 
       sigs
     }
 
-    override def table: Array[(BitPat, List[BitPat])] = RV32IDecoderUtils.utils.table ++
-      Array(
+    override def table: Array[(BitPat, List[BitPat])] =
+      RV32IDecoderUtils.utils.table ++ Array(
         // R-Type: Mul
-        enc("MUL")    -> List(Y, N, IMM_X, N, N, N, N, N, Y, UOP_MUL),
-        enc("MULH")   -> List(Y, N, IMM_X, N, N, N, N, N, Y, UOP_MULH),
-        enc("MULHSU") -> List(Y, N, IMM_X, N, N, N, N, N, Y, UOP_MULHSU),
-        enc("MULHU")  -> List(Y, N, IMM_X, N, N, N, N, N, Y, UOP_MULHU)
+        enc("MUL")    -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MUL),
+        enc("MULH")   -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MULH),
+        enc("MULHSU") -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MULHSU),
+        enc("MULHU")  -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MULHU),
+
+        // R-Type: Div/Rem
+        enc("DIV")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_DIV),
+        enc("DIVU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_DIVU),
+        enc("REM")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_REM),
+        enc("REMU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_REMU)
       )
   }
 

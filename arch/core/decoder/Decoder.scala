@@ -14,6 +14,7 @@ class DecodedOutput(implicit p: Parameters) extends Bundle {
   // Execution Routing Flags
   val alu  = Bool()
   val mult = Bool()
+  val div  = Bool()
   val lsu  = Bool()
   val bru  = Bool()
   val csr  = Bool()

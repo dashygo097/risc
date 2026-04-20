@@ -9,6 +9,7 @@ import core.bru._
 import core.regfile._
 import core.alu._
 import core.mult._
+import core.div._
 import core.lsu._
 import core.imm._
 import core.csr._
@@ -22,6 +23,7 @@ object MainCore extends App {
   RegfileInit
   AluInit
   MultInit
+  DivInit
   LsuInit
   ImmInit
   CsrInit
@@ -48,6 +50,7 @@ object MainSystem extends App {
   RegfileInit
   AluInit
   MultInit
+  DivInit
   LsuInit
   ImmInit
   CsrInit

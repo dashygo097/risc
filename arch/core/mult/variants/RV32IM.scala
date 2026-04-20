@@ -9,19 +9,14 @@ import chisel3.util.BitPat
 // Format: uop[7:3] = 0 | uop[2] = signed_bit | uop[1] = signed_bit | uop[0] = bit_sel
 trait RV32IMMultUOpConsts {
   private def cat(bps: BitPat*): BitPat = bps.reduce(_ ## _)
+  private def N                         = BitPat("b0")
+  private def Y                         = BitPat("b1")
   private def P_X                       = BitPat("b?????")
 
-  def MH_X = BitPat("b?")
-  def MH_0 = BitPat("b0") // Low 32 bits
-  def MH_1 = BitPat("b1") // High 32 bits
-  def MS_X = BitPat("b?")
-  def MS_0 = BitPat("b0") // Unsigned
-  def MS_1 = BitPat("b1") // Signed
-
-  def UOP_MUL    = cat(P_X, MS_1, MS_1, MH_0)
-  def UOP_MULH   = cat(P_X, MS_1, MS_1, MH_1)
-  def UOP_MULHSU = cat(P_X, MS_1, MS_0, MH_1)
-  def UOP_MULHU  = cat(P_X, MS_0, MS_0, MH_1)
+  def UOP_MUL    = cat(P_X, Y, Y, N)
+  def UOP_MULH   = cat(P_X, Y, Y, Y)
+  def UOP_MULHSU = cat(P_X, Y, N, Y)
+  def UOP_MULHU  = cat(P_X, N, N, Y)
 }
 
 object RV32IMMultUtils extends RegisteredUtils[MultUtils] with RV32IMMultUOpConsts {
