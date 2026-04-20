@@ -1,4 +1,5 @@
 package arch.core
+
 import ifu._
 import decoder._
 import imm._
@@ -200,7 +201,10 @@ class RiscCore(implicit p: Parameters) extends Module {
   val is_lsu = Wire(Vec(p(IssueWidth), Bool()))
   val hazard = Wire(Vec(p(IssueWidth), Bool()))
 
+  val lsu_unready_count = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
+
   var csr_active = !rob.io.empty
+  var lsu_active = lsu_unready_count =/= 0.U
 
   for (w <- 0 until p(IssueWidth)) {
     decoders(w).instr   := ifu.if_instr(w)
@@ -221,13 +225,18 @@ class RiscCore(implicit p: Parameters) extends Module {
     is_lsu(w) := decoders(w).decoded.lsu
 
     val csr_haz = is_csr(w) && (csr_active || w.U > 0.U)
+    val lsu_haz = is_lsu(w) && lsu_active
 
-    hazard(w) := csr_haz
+    hazard(w) := csr_haz || lsu_haz
 
     if (w > 0) {
       val next_csr = WireDefault(csr_active)
       when(is_csr(w))(next_csr := true.B)
       csr_active = next_csr
+
+      val next_lsu = WireDefault(lsu_active)
+      when(is_lsu(w))(next_lsu := true.B)
+      lsu_active = next_lsu
     }
   }
 
@@ -237,7 +246,11 @@ class RiscCore(implicit p: Parameters) extends Module {
   val kill_mask = Wire(Vec(p(IssueWidth), Bool()))
   kill_mask(0)   := false.B
   for (w <- 1 until p(IssueWidth))
-    kill_mask(w) := kill_mask(w - 1) || (ifu.if_valid(w - 1) && ifu.if_bpu_pred_taken(w - 1))
+    kill_mask(w) := kill_mask(w - 1) || (
+      ifu.if_valid(w - 1) &&
+        ifu.if_bpu_pred_taken(w - 1) &&
+        ifu.if_pc(w) === (ifu.if_pc(w - 1) + p(IAlign).U)
+    )
 
   for (w <- 0 until p(IssueWidth)) {
     wants_to_issue(w) := ifu.if_valid(w) && !hazard(w) && !global_flush && !kill_mask(w) && !mem_draining
@@ -336,6 +349,15 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   ifu.dispatch_fire := ifu_fire
 
+  val lsu_dispatched = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && is_lsu(w)))
+  val lsu_finished   = PopCount(lsus.map(_.io.resp.valid))
+
+  when(global_flush) {
+    lsu_unready_count := 0.U
+  }.otherwise {
+    lsu_unready_count := lsu_unready_count + lsu_dispatched - lsu_finished
+  }
+
   val alu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === FUNCTIONAL_UNIT_TYPE_ALU.index.U))
   val lsu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === FUNCTIONAL_UNIT_TYPE_LSU.index.U))
 
@@ -370,6 +392,21 @@ class RiscCore(implicit p: Parameters) extends Module {
   bpu.update.ghr_snapshot := bpu_update_ghr_snapshot
   bpu.update.mispredict   := bpu_update_mispredict
 
+  val rs1_commit_match = Wire(Vec(p(IssueWidth), Bool()))
+  val rs2_commit_match = Wire(Vec(p(IssueWidth), Bool()))
+  val rs1_commit_data  = Wire(Vec(p(IssueWidth), UInt(p(XLen).W)))
+  val rs2_commit_data  = Wire(Vec(p(IssueWidth), UInt(p(XLen).W)))
+
+  for (w <- 0 until p(IssueWidth)) {
+    val match1 = (0 until p(IssueWidth)).map(cw => rob.io.commit(cw).pop && rob.io.commit(cw).rd === rs1s(w) && rs1s(w) =/= 0.U)
+    rs1_commit_match(w) := match1.reduce(_ || _)
+    rs1_commit_data(w)  := Mux1H(match1, rob.io.commit.map(_.data))
+
+    val match2 = (0 until p(IssueWidth)).map(cw => rob.io.commit(cw).pop && rob.io.commit(cw).rd === rs2s(w) && rs2s(w) =/= 0.U)
+    rs2_commit_match(w) := match2.reduce(_ || _)
+    rs2_commit_data(w)  := Mux1H(match2, rob.io.commit.map(_.data))
+  }
+
   for (w <- 0 until p(IssueWidth)) {
     rob.io.enq(w).valid            := lane_valid(w)
     rob.io.enq(w).pc               := ifu.if_pc(w)
@@ -387,6 +424,9 @@ class RiscCore(implicit p: Parameters) extends Module {
     val rs1_bypassed = Mux(rob.io.rs1_bypass(w).valid, rob.io.rs1_bypass(w).data, regfile.rs1_data(w))
     val rs2_bypassed = Mux(rob.io.rs2_bypass(w).valid, rob.io.rs2_bypass(w).data, regfile.rs2_data(w))
 
+    val rs1_fully_bypassed = Mux(rs1_commit_match(w), rs1_commit_data(w), rs1_bypassed)
+    val rs2_fully_bypassed = Mux(rs2_commit_match(w), rs2_commit_data(w), rs2_bypassed)
+
     val dis = scheduler.dis_reqs(w)
     dis.valid         := lane_valid(w)
     dis.bits.pc       := ifu.if_pc(w)
@@ -397,8 +437,8 @@ class RiscCore(implicit p: Parameters) extends Module {
     dis.bits.imm_type := decoders(w).decoded.imm_type
     dis.bits.rs2      := rs2s(w)
     dis.bits.rd       := Mux(decoders(w).decoded.regwrite && regfile_utils.writable(rds(w)), rds(w), 0.U)
-    dis.bits.rs1_data := rs1_bypassed
-    dis.bits.rs2_data := rs2_bypassed
+    dis.bits.rs1_data := rs1_fully_bypassed
+    dis.bits.rs2_data := rs2_fully_bypassed
     dis.bits.rob_tag  := rob.io.enq(w).rob_tag
   }
 
