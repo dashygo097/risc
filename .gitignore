@@ -8,14 +8,13 @@
 .sbt-local/
 .coursier-cache/
 
-project/project
+project/project/
 build/
 target/
 obj_dir/
 logs/
 synth/
 demu.log
-sims/demu.log
 
 hex/
 elf/
