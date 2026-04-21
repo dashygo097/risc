@@ -204,10 +204,10 @@ class RiscCore(implicit p: Parameters) extends Module {
   val is_store = Wire(Vec(p(IssueWidth), Bool()))
   val hazard   = Wire(Vec(p(IssueWidth), Bool()))
 
-  val lsu_inflight = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
+  val stores_inflight = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
 
-  var csr_active = !rob.io.empty
-  var lsu_active = lsu_inflight =/= 0.U
+  var csr_active   = !rob.io.empty
+  var store_active = stores_inflight =/= 0.U
 
   for (w <- 0 until p(IssueWidth)) {
     decoders(w).instr   := ifu.if_instr(w)
@@ -230,23 +230,23 @@ class RiscCore(implicit p: Parameters) extends Module {
     is_lsu(w)   := decoders(w).decoded.lsu
     is_store(w) := is_lsu(w) && lsu_ctrl.is_write
 
-    val rs1_pend = rob.io.rs1_bypass(w).pending
-    val rs2_pend = rob.io.rs2_bypass(w).pending
+    val rs1_pend        = rob.io.rs1_bypass(w).pending
+    val rs2_pend        = rob.io.rs2_bypass(w).pending
     val lsu_operand_haz = is_lsu(w) && (rs1_pend || (is_store(w) && rs2_pend))
 
-    val csr_haz = is_csr(w) && (csr_active || w.U > 0.U)
-    val lsu_haz = is_lsu(w) && lsu_active
+    val csr_haz       = is_csr(w) && (csr_active || w.U > 0.U)
+    val mem_order_haz = is_lsu(w) && store_active
 
-    hazard(w) := csr_haz || lsu_haz || lsu_operand_haz
+    hazard(w) := csr_haz || mem_order_haz || lsu_operand_haz
 
     if (w > 0) {
       val next_csr = WireDefault(csr_active)
       when(is_csr(w))(next_csr := true.B)
       csr_active = next_csr
 
-      val next_lsu = WireDefault(lsu_active)
-      when(is_lsu(w))(next_lsu := true.B)
-      lsu_active = next_lsu
+      val next_store = WireDefault(store_active)
+      when(is_store(w))(next_store := true.B)
+      store_active = next_store
     }
   }
 
@@ -359,26 +359,27 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   ifu.dispatch_fire := ifu_fire
 
-  val commit_is_lsu         = Wire(Vec(p(IssueWidth), Bool()))
+  val commit_is_store       = Wire(Vec(p(IssueWidth), Bool()))
   val commit_is_cond_branch = Wire(Vec(p(IssueWidth), Bool()))
 
   for (w <- 0 until p(IssueWidth)) {
     val dec = Module(new Decoder)
     dec.instr := rob.io.commit(w).instr
-    
-    val c_bru_ctrl = bru_utils.decode(dec.decoded.uop)
 
-    commit_is_lsu(w)         := dec.decoded.lsu
+    val c_bru_ctrl = bru_utils.decode(dec.decoded.uop)
+    val c_lsu_ctrl = lsu_utils.decode(dec.decoded.uop)
+
+    commit_is_store(w)       := dec.decoded.lsu && c_lsu_ctrl.is_write
     commit_is_cond_branch(w) := dec.decoded.bru && !c_bru_ctrl.is_jump
   }
 
-  val lsu_dispatched = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && is_lsu(w)))
-  val lsu_committed  = PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && commit_is_lsu(w)))
+  val stores_dispatched = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && is_store(w)))
+  val stores_committed  = PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && commit_is_store(w)))
 
   when(global_flush) {
-    lsu_inflight := 0.U
+    stores_inflight := 0.U
   }.otherwise {
-    lsu_inflight := lsu_inflight + lsu_dispatched - lsu_committed
+    stores_inflight := stores_inflight + stores_dispatched - stores_committed
   }
 
   val alu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === FUNCTIONAL_UNIT_TYPE_ALU.index.U))
