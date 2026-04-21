@@ -46,6 +46,8 @@ class RiscCore(implicit p: Parameters) extends Module {
   val l1_dcache = Module(new SetAssociativeCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
   val regfile_utils = RegfileUtilsFactory.getOrThrow(p(ISA).name)
+  val bru_utils     = BruUtilsFactory.getOrThrow(p(ISA).name)
+  val lsu_utils     = LsuUtilsFactory.getOrThrow(p(ISA).name)
 
   val scheduler = Scheduler()
   val rob       = Module(new ReorderBuffer)
@@ -197,20 +199,22 @@ class RiscCore(implicit p: Parameters) extends Module {
   val rs2s = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
   val rds  = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
 
-  val is_csr = Wire(Vec(p(IssueWidth), Bool()))
-  val is_lsu = Wire(Vec(p(IssueWidth), Bool()))
+  val is_csr   = Wire(Vec(p(IssueWidth), Bool()))
+  val is_lsu   = Wire(Vec(p(IssueWidth), Bool()))
   val is_store = Wire(Vec(p(IssueWidth), Bool()))
-  val hazard = Wire(Vec(p(IssueWidth), Bool()))
+  val hazard   = Wire(Vec(p(IssueWidth), Bool()))
 
-  val stores_inflight = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
+  val lsu_inflight = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
 
   var csr_active = !rob.io.empty
-  var store_active = stores_inflight =/= 0.U
+  var lsu_active = lsu_inflight =/= 0.U
 
   for (w <- 0 until p(IssueWidth)) {
     decoders(w).instr   := ifu.if_instr(w)
     imm_gens(w).instr   := ifu.if_instr(w)
     imm_gens(w).immType := decoders(w).decoded.imm_type
+
+    val lsu_ctrl = lsu_utils.decode(decoders(w).decoded.uop)
 
     rs1s(w) := regfile_utils.getRs1(ifu.if_instr(w))
     rs2s(w) := regfile_utils.getRs2(ifu.if_instr(w))
@@ -222,28 +226,27 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.rs1_addr(w) := rs1s(w)
     rob.io.rs2_addr(w) := rs2s(w)
 
-    is_csr(w) := decoders(w).decoded.csr || decoders(w).decoded.ret
-    is_lsu(w) := decoders(w).decoded.lsu
-    is_store(w) := is_lsu(w) && !decoders(w).decoded.regwrite
+    is_csr(w)   := decoders(w).decoded.csr || decoders(w).decoded.ret
+    is_lsu(w)   := decoders(w).decoded.lsu
+    is_store(w) := is_lsu(w) && lsu_ctrl.is_write
 
     val rs1_pend = rob.io.rs1_bypass(w).pending
     val rs2_pend = rob.io.rs2_bypass(w).pending
     val lsu_operand_haz = is_lsu(w) && (rs1_pend || (is_store(w) && rs2_pend))
 
     val csr_haz = is_csr(w) && (csr_active || w.U > 0.U)
-    val mem_order_haz = is_lsu(w) && store_active
-    val store_spec_haz = is_store(w) && (!rob.io.empty || w.U > 0.U)
+    val lsu_haz = is_lsu(w) && lsu_active
 
-    hazard(w) := csr_haz || mem_order_haz || store_spec_haz || lsu_operand_haz
+    hazard(w) := csr_haz || lsu_haz || lsu_operand_haz
 
     if (w > 0) {
       val next_csr = WireDefault(csr_active)
       when(is_csr(w))(next_csr := true.B)
       csr_active = next_csr
 
-      val next_store = WireDefault(store_active)
-      when(is_store(w))(next_store := true.B)
-      store_active = next_store
+      val next_lsu = WireDefault(lsu_active)
+      when(is_lsu(w))(next_lsu := true.B)
+      lsu_active = next_lsu
     }
   }
 
@@ -356,20 +359,26 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   ifu.dispatch_fire := ifu_fire
 
-  val commit_is_store = Wire(Vec(p(IssueWidth), Bool()))
+  val commit_is_lsu         = Wire(Vec(p(IssueWidth), Bool()))
+  val commit_is_cond_branch = Wire(Vec(p(IssueWidth), Bool()))
+
   for (w <- 0 until p(IssueWidth)) {
     val dec = Module(new Decoder)
     dec.instr := rob.io.commit(w).instr
-    commit_is_store(w) := dec.decoded.lsu && !dec.decoded.regwrite
+    
+    val c_bru_ctrl = bru_utils.decode(dec.decoded.uop)
+
+    commit_is_lsu(w)         := dec.decoded.lsu
+    commit_is_cond_branch(w) := dec.decoded.bru && !c_bru_ctrl.is_jump
   }
 
-  val stores_dispatched = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && is_store(w)))
-  val stores_committed  = PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && commit_is_store(w)))
+  val lsu_dispatched = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && is_lsu(w)))
+  val lsu_committed  = PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && commit_is_lsu(w)))
 
   when(global_flush) {
-    stores_inflight := 0.U
+    lsu_inflight := 0.U
   }.otherwise {
-    stores_inflight := stores_inflight + stores_dispatched - stores_committed
+    lsu_inflight := lsu_inflight + lsu_dispatched - lsu_committed
   }
 
   val alu_disp = PopCount((0 until p(IssueWidth)).map(w => lane_valid(w) && inst_type(w) === FUNCTIONAL_UNIT_TYPE_ALU.index.U))
@@ -386,8 +395,12 @@ class RiscCore(implicit p: Parameters) extends Module {
   val bpu_update_ghr_snapshot = WireDefault(0.U(p(GShareGhrWidth).W))
   val bpu_update_mispredict   = WireDefault(false.B)
 
-  for (w <- p(IssueWidth) - 1 to 0 by -1)
-    when(rob.io.commit(w).pop && rob.io.commit(w).is_branch) {
+  for (w <- p(IssueWidth) - 1 to 0 by -1) {
+    val is_bru_commit           = rob.io.commit(w).is_branch
+    val is_cond_branch_commit   = commit_is_cond_branch(w)
+    val mispredicted_non_branch = !is_bru_commit && rob.io.commit(w).bpu_pred_taken
+
+    when(rob.io.commit(w).pop && (is_cond_branch_commit || mispredicted_non_branch)) {
       bpu_update_valid        := true.B
       bpu_update_pc           := rob.io.commit(w).pc
       bpu_update_target       := rob.io.commit(w).bpu_actual_target
@@ -396,6 +409,7 @@ class RiscCore(implicit p: Parameters) extends Module {
       bpu_update_ghr_snapshot := rob.io.commit(w).bpu_ghr_snapshot
       bpu_update_mispredict   := rob.io.commit(w).flush_pipeline
     }
+  }
 
   bpu.update.valid        := bpu_update_valid
   bpu.update.pc           := bpu_update_pc
@@ -565,9 +579,9 @@ class RiscCore(implicit p: Parameters) extends Module {
   val debug_backend_stall  = IO(Output(Bool()))
 
   debug_bpu_mispredict := (0 until p(IssueWidth))
-    .map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch && rob.io.commit(w).flush_pipeline)
+    .map(w => rob.io.commit(w).pop && (commit_is_cond_branch(w) || (!rob.io.commit(w).is_branch && rob.io.commit(w).bpu_pred_taken)) && rob.io.commit(w).flush_pipeline)
     .reduce(_ || _)
-  debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch))
+  debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && commit_is_cond_branch(w)))
   debug_flush_cycle    := global_flush
   debug_rob_empty      := rob.io.empty
   debug_issue_count    := PopCount(lane_valid)
