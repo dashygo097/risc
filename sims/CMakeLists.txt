@@ -21,4 +21,6 @@ include(SourceCollections)
 include(LibraryTargets)
 
 add_subdirectory(tools)
-add_subdirectory(tests)
+if (ENABLE_TESTING)
+  add_subdirectory(tests)
+endif()

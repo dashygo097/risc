@@ -7,8 +7,13 @@ option(USE_CCACHE "Use ccache to speed up recompilation" ON)
 set(TARGET_CPU "rv32im")
 set(RTL_DIR "${CMAKE_SOURCE_DIR}/../build")
 
+option(ENABLE_SIM "Enable simulator" ON)
+option(ENABLE_DBG "Enable debugger" ON)
+option(ENALBE_DIFFTEST "Enable difftest" ON)
+
 # options
 set(NUM_THREADS 1)
 set(NUM_TRACE_THREADS 2)
+option(ENABLE_TESTING "Enable Testing" ON)
 option(ENABLE_TRACE "Enable VCD tracing" ON)
 option(ENABLE_COVERAGE "Enable coverage collection" ON)

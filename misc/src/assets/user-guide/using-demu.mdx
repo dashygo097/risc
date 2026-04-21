@@ -11,7 +11,9 @@ This project is still under active development.
 ## Prerequisites
 
 - **Make/CMake**
+- **[spdlog](https://github.com/gabime/spdlog.git)**
 - **[Verilator](https://github.com/verilator/verilator.git)**
+- **lit(optional)**
 
 ## Building the Simulator
 
@@ -31,21 +33,3 @@ cd build
 cmake .. -G Ninja
 ninja
 ```
-
-## Writing and Running Tests
-
-All tests live under the `tests/` directory. You can write your own assembly or c tests under `tests/asm/`, then run:
-
-```bash
-make all
-```
-
-This generates hex dumps, ELF binaries, disassembly, and other artifacts for every test in the directory.
-
-```tip
-Keep your assembly source or c source files under `tests/asm/` so the build system picks them up automatically.
-```
-
-## Logging
-
-See the [Logging System](./demu-logging) page for full details on log levels and per-option verbosity.

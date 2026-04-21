@@ -10,7 +10,6 @@ import UsingDEMUPage from "@assets/user-guide/using-demu.mdx";
 import DevGuidePage from "@assets/dev-guide/root.mdx";
 import DEMULoggingPage from "@assets/dev-guide/demu-logging.mdx";
 import HowToDrawWaveforms from "@assets/dev-guide/how-to-draw-waveforms.mdx";
-import TodoListPage from "@assets/dev-guide/todo-list.mdx";
 
 const App: React.FC = () => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -40,7 +39,6 @@ const App: React.FC = () => {
               path="/dev-guide/how-to-draw-waveforms"
               element={<HowToDrawWaveforms />}
             />
-            <Route path="/dev-guide/todo-list" element={<TodoListPage />} />
           </Routes>
         </Layout>
       </div>

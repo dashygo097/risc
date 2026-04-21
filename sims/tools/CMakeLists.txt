@@ -1,7 +1,15 @@
 # Apps
-add_subdirectory(simulator)
-add_subdirectory(debugger)
-add_subdirectory(difftest)
+if(ENABLE_SIM)
+  add_subdirectory(simulator)
+endif()
+
+if(ENABLE_DBG)
+  add_subdirectory(debugger)
+endif()
+
+if(ENABLE_DIFFTEST)
+  add_subdirectory(difftest)
+endif()
 
 # Configuration 
 print_info("Configuration: \n" "92" "0")
@@ -12,3 +20,6 @@ print_info("  Verilator: ${VERILATOR_ROOT}\n" "92" "1")
 print_info("  RTL Source: ${RTL_SOURCE}\n" "92" "1")
 print_info("  Enable Trace: ${ENABLE_TRACE}\n" "94" "2")
 print_info("  Enable Coverage: ${ENABLE_COVERAGE}\n" "94" "2")
+print_info("  Enable Sim: ${ENABLE_SIM}\n" "94" "2")
+print_info("  Enable Dbg: ${ENABLE_DBG}\n" "94" "2")
+print_info("  Enable Difftest: ${ENABLE_DIFFTEST}\n" "94" "2")
