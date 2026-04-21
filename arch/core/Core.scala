@@ -214,8 +214,6 @@ class RiscCore(implicit p: Parameters) extends Module {
     imm_gens(w).instr   := ifu.if_instr(w)
     imm_gens(w).immType := decoders(w).decoded.imm_type
 
-    val lsu_ctrl = lsu_utils.decode(decoders(w).decoded.uop)
-
     rs1s(w) := regfile_utils.getRs1(ifu.if_instr(w))
     rs2s(w) := regfile_utils.getRs2(ifu.if_instr(w))
     rds(w)  := regfile_utils.getRd(ifu.if_instr(w))
@@ -230,8 +228,8 @@ class RiscCore(implicit p: Parameters) extends Module {
     is_lsu(w)   := decoders(w).decoded.lsu
     is_store(w) := is_lsu(w) && !decoders(w).decoded.regwrite
 
-    val rs1_pend = rob.io.rs1_bypass(w).pending
-    val rs2_pend = rob.io.rs2_bypass(w).pending
+    val rs1_pend        = rob.io.rs1_bypass(w).pending
+    val rs2_pend        = rob.io.rs2_bypass(w).pending
     val lsu_operand_haz = is_lsu(w) && (rs1_pend || (is_store(w) && rs2_pend))
 
     val csr_haz        = is_csr(w) && (csr_active || w.U > 0.U)
@@ -366,7 +364,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   for (w <- 0 until p(IssueWidth)) {
     val dec = Module(new Decoder)
     dec.instr := rob.io.commit(w).instr
-    
+
     val c_bru_ctrl = bru_utils.decode(dec.decoded.uop)
 
     commit_is_store(w)       := dec.decoded.lsu && !dec.decoded.regwrite
