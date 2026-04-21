@@ -228,16 +228,17 @@ class RiscCore(implicit p: Parameters) extends Module {
 
     is_csr(w)   := decoders(w).decoded.csr || decoders(w).decoded.ret
     is_lsu(w)   := decoders(w).decoded.lsu
-    is_store(w) := is_lsu(w) && lsu_ctrl.is_write
+    is_store(w) := is_lsu(w) && !decoders(w).decoded.regwrite
 
-    val rs1_pend        = rob.io.rs1_bypass(w).pending
-    val rs2_pend        = rob.io.rs2_bypass(w).pending
+    val rs1_pend = rob.io.rs1_bypass(w).pending
+    val rs2_pend = rob.io.rs2_bypass(w).pending
     val lsu_operand_haz = is_lsu(w) && (rs1_pend || (is_store(w) && rs2_pend))
 
-    val csr_haz       = is_csr(w) && (csr_active || w.U > 0.U)
-    val mem_order_haz = is_lsu(w) && store_active
+    val csr_haz        = is_csr(w) && (csr_active || w.U > 0.U)
+    val mem_order_haz  = is_lsu(w) && store_active
+    val store_spec_haz = is_store(w) && (!rob.io.empty || w.U > 0.U)
 
-    hazard(w) := csr_haz || mem_order_haz || lsu_operand_haz
+    hazard(w) := csr_haz || mem_order_haz || store_spec_haz || lsu_operand_haz
 
     if (w > 0) {
       val next_csr = WireDefault(csr_active)
@@ -365,11 +366,10 @@ class RiscCore(implicit p: Parameters) extends Module {
   for (w <- 0 until p(IssueWidth)) {
     val dec = Module(new Decoder)
     dec.instr := rob.io.commit(w).instr
-
+    
     val c_bru_ctrl = bru_utils.decode(dec.decoded.uop)
-    val c_lsu_ctrl = lsu_utils.decode(dec.decoded.uop)
 
-    commit_is_store(w)       := dec.decoded.lsu && c_lsu_ctrl.is_write
+    commit_is_store(w)       := dec.decoded.lsu && !dec.decoded.regwrite
     commit_is_cond_branch(w) := dec.decoded.bru && !c_bru_ctrl.is_jump
   }
 
