@@ -18,6 +18,10 @@
     "path": "/dev-guide",
     "sections": [
       {
+        "title": "GShare Branch Predictor",
+        "path": "/dev-guide/gshare-branch-predictor"
+      },
+      {
         "title": "Draw Waveforms",
         "path": "/dev-guide/how-to-draw-waveforms"
       },
