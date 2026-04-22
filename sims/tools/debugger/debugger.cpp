@@ -124,12 +124,7 @@ auto Debugger::parse_reg(const std::string &s) -> int {
   return -1;
 }
 
-void Debugger::print_stop_banner() {
-  fmt::print("\n  PC      : 0x{:08x}\n", sim_.pc());
-  fmt::print("  Cycle   : {}\n", sim_.cycle_count());
-  fmt::print("  Instret : {}\n\n", sim_.instret_count());
-  print_auto_display();
-}
+void Debugger::print_stop_banner() { print_auto_display(); }
 
 void Debugger::print_registers() {
   fmt::print("\n  PC = 0x{:08x}\n\n", sim_.pc());

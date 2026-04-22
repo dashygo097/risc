@@ -5,7 +5,7 @@ import arch.configs._
 import chisel3._
 
 object RV32IMBruUtils extends RegisteredUtils[BruUtils] {
-  override def utils: BruUtils                     = new BruUtils {
+  override def utils: BruUtils                 = new BruUtils {
     override def name: String                               = "rv32im"
     override def opWidth: Int                               = RV32IBruUtils.utils.opWidth
     override def hasJump: Boolean                           = RV32IBruUtils.utils.hasJump

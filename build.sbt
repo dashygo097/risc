@@ -26,7 +26,7 @@ lazy val arch = (project in file("arch"))
       "dashygo097"        %% "math"   % "0.1.0",
       "dashygo097"        %% "com"    % "0.1.0",
       "dashygo097"        %% "mem"    % "0.1.0",
-      "org.chipsalliance" %% "chisel" % chiselVersion,
+      "org.chipsalliance" %% "chisel" % chiselVersion
     ),
     Compile / unmanagedSourceDirectories += baseDirectory.value,
     addCompilerPlugin(
@@ -40,6 +40,6 @@ lazy val arch = (project in file("arch"))
     libraryDependencies ++= Seq(
       "com.thesamet.scalapb" %% "scalapb-runtime"      % scalapb.compiler.Version.scalapbVersion % "protobuf",
       "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
-      "com.thesamet.scalapb" %% "scalapb-json4s"       % "0.12.1",
-    ),
+      "com.thesamet.scalapb" %% "scalapb-json4s"       % "0.12.1"
+    )
   )
