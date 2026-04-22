@@ -1,0 +1,271 @@
+import { InfoBox, TipBox, WaveDromChart } from '@components'
+
+# GShare Branch Predictor
+
+```info
+This note documents the current `gshare` direction predictor implementation in `arch/core/bpu/GShare.scala` and its integration in `arch/core/bpu/BPU.scala`.
+```
+
+## Overview
+The branch prediction unit in this project is split into two parts:
+
+- `BTB` identifies whether the queried PC matches a known control-flow instruction and provides the predicted target.
+- `GShare` predicts the branch direction with a global-history-based pattern history table (`PHT`).
+
+The final front-end prediction is:
+
+```text
+predTaken = btb.hit && gshare.taken
+predTarget = predTaken ? btb.target : pc + IAlign
+```
+
+This means `gshare` only advances history for slots that are recognized as branches by the `BTB`.
+
+## Main State
+The current implementation keeps three pieces of predictor state:
+
+| State | Location | Purpose |
+| --- | --- | --- |
+| `pht` | `GShare.scala` | Table of 2-bit saturating counters, one entry per `gshare` index. |
+| `specGhr` | `GShare.scala` | Speculative global history used during fetch/query. |
+| `commitGhr` | `GShare.scala` | Non-speculative history rebuilt from resolved branch updates. |
+
+All `PHT` entries are initialized to `weakly taken` (`BHT_WT`) to reduce cold-start penalty.
+
+## Why Speculative History Matters
+`specGhr` is the speculative global history register used before earlier branches are fully resolved.
+
+Its main purpose is to let a later branch benefit from the predicted outcome of an earlier unresolved branch. If two nearby branches are correlated, the second branch does not need to wait for the first one to retire before getting a prediction. Instead, the predictor can shift the first branch's predicted direction into `specGhr` immediately and use that updated history for the next branch query.
+
+This behavior is especially important in a multi-issue front end:
+
+- slot `0` can predict a branch
+- slot `1` can immediately use the updated speculative history
+- later cycles can continue fetching and predicting without waiting for branch resolution
+
+If the earlier prediction is correct, the speculative history was the right history all along. If the earlier prediction is wrong, the predictor repairs the history through misprediction recovery and `flush`, so wrong-path speculative state does not permanently pollute future predictions.
+
+## Index Function
+`gshare` uses a `GShareGhrWidth`-bit global history register. The number of `PHT` entries is:
+
+```text
+PHT entries = 2 ^ GShareGhrWidth
+```
+
+The table index is computed by XORing folded PC bits with the current history:
+
+```scala
+val pcLow  = pc(GShareGhrWidth + 1, pc_align)
+val pcHigh = pc((2 * GShareGhrWidth) + 1, GShareGhrWidth + 2)
+index = pcLow ^ pcHigh ^ hist
+```
+
+Compared with using only low PC bits, the extra `pcHigh` fold helps reduce aliasing between nearby hot loops.
+
+```tip
+The implementation requires `GShareGhrWidth >= 2`.
+```
+
+## Query Path
+During prediction, `GShare` handles up to `IssueWidth` fetch slots in one cycle.
+
+For each slot `w`:
+
+1. Use `queryGhr(w)` as the current history snapshot.
+2. Compute the `PHT` index from `query_pc(w)` and `queryGhr(w)`.
+3. Read the 2-bit counter and use its MSB as the taken/not-taken prediction.
+4. Export both `index_out(w)` and `ghr_snapshot_out(w)` so the resolved branch can update the same `PHT` entry later.
+5. If this slot is considered a branch, shift the predicted result into `queryGhr(w + 1)`.
+
+In code, whether a slot is a branch is not decided by decoding in `GShare`. Instead, `BPU.scala` feeds:
+
+```scala
+gshare.query_is_branch := branchMask
+```
+
+and `branchMask(w)` is simply `btb.hit(w)`.
+
+So the speculative history only changes when the `BTB` hits.
+
+## Core Signals
+The following waveforms summarize the most important `gshare` signals in the query, update, and recovery paths.
+
+### Query Path Signals
+This diagram shows one accepted fetch query. `query_is_branch[0]` is asserted by a `BTB` hit, so slot 0 shifts its predicted result into the speculative history used by slot 1 in the same group.
+
+```wavedrom
+{ "signal": [
+  { "name": "clk",                "wave": "p......." },
+  { "name": "query_accept",       "wave": "01......" },
+  { "name": "query_pc[0]",        "wave": "x=......", "data": ["pc0"] },
+  { "name": "query_is_branch[0]", "wave": "x1......" },
+  { "name": "ghr_snapshot_out[0]","wave": "x=......", "data": ["specGhr=ghr0"] },
+  { "name": "taken[0]",           "wave": "x1......" },
+  { "name": "query_pc[1]",        "wave": "x=......", "data": ["pc1"] },
+  { "name": "query_is_branch[1]", "wave": "x1......" },
+  { "name": "ghr_snapshot_out[1]","wave": "x=......", "data": ["shift(ghr0,1)"] },
+  { "name": "taken[1]",           "wave": "x0......" },
+  { "name": "specGhr(next)",      "wave": "x.=.....", "data": ["after slot1"] }
+]}
+```
+
+In other words, the second branch can be predicted using the first branch's predicted outcome even though the first branch has not been resolved yet.
+
+### Correct Prediction Update
+When a branch resolves, the same `pht_index` and `ghr_snapshot` captured during query are sent back through `update`. On a correct prediction, the counter is updated and `commitGhr` advances, while `specGhr` can keep running forward.
+
+```wavedrom
+{ "signal": [
+  { "name": "clk",             "wave": "p......." },
+  { "name": "update.valid",    "wave": "0.1....." },
+  { "name": "update.pht_index","wave": "x.=.....", "data": ["idx0"] },
+  { "name": "update.ghr_snapshot","wave": "x.=.....", "data": ["ghr0"] },
+  { "name": "update.taken",    "wave": "x.1....." },
+  { "name": "update.mispredict","wave": "x.0....." },
+  { "name": "pht[idx0]",       "wave": "x.=.=...", "data": ["WT", "ST"] },
+  { "name": "commitGhr",       "wave": "x..=....", "data": ["shift(ghr0,1)"] },
+  { "name": "specGhr",         "wave": "x..=....", "data": ["spec next"] }
+]}
+```
+
+### Mispredict Recovery
+On a misprediction, `specGhr` is rebuilt from the saved history snapshot and the real branch outcome. This corrects the speculative history that may already have been used by later branch predictions. A later `flush` can also align the speculative history back to `commitGhr`.
+
+```wavedrom
+{ "signal": [
+  { "name": "clk",            "wave": "p........" },
+  { "name": "older br pred",  "wave": "0.1......" },
+  { "name": "later br uses hist","wave": "0..1....." },
+  { "name": "update.valid",   "wave": "0...1...." },
+  { "name": "update.taken",   "wave": "x...0...." },
+  { "name": "update.mispred", "wave": "x...1...." },
+  { "name": "update.ghr",     "wave": "x...=....", "data": ["ghr_old"] },
+  { "name": "specGhr",        "wave": "x.=.=.=..", "data": ["pred", "used", "fix"] },
+  { "name": "flush",          "wave": "0.....1.." },
+  { "name": "commitGhr",      "wave": "x....=...", "data": ["resolved"] },
+  { "name": "specGhr(flush)", "wave": "x......=.", "data": ["commit"] }
+]}
+```
+
+This shows the full intent of speculative history: later branches can move forward early, but the predictor still has a recovery path when the older branch outcome disagrees with the prediction.
+
+## Update And Recovery
+When a branch resolves, `BpuUpdate` sends back:
+
+- `pht_index`: the index used at prediction time
+- `ghr_snapshot`: the history snapshot captured at prediction time
+- `taken`: actual branch direction
+- `mispredict`: whether the prediction was wrong
+
+`GShare` then performs two actions:
+
+1. Update the selected `PHT` entry with a 2-bit saturating counter.
+2. Rebuild architectural history with `commitGhr := shiftHist(update.ghr_snapshot, update.taken)`.
+
+Recovery behavior is split into two cases:
+
+- `flush`: reset `specGhr` to `commitGhr`
+- `update.valid && update.mispredict`: reset `specGhr` directly from the resolved branch snapshot plus the actual outcome
+
+This keeps fast speculative prediction in the common case while still allowing precise rollback after wrong-path fetches.
+
+## Counter Encoding
+The direction counters use the standard 2-bit FSM:
+
+| State | Value | Meaning |
+| --- | --- | --- |
+| `BHT_SNT` | `00` | Strongly not taken |
+| `BHT_WNT` | `01` | Weakly not taken |
+| `BHT_WT` | `10` | Weakly taken |
+| `BHT_ST` | `11` | Strongly taken |
+
+Prediction uses the high bit:
+
+```text
+counter[1] = 1 => taken
+counter[1] = 0 => not taken
+```
+
+## Interaction With BTB
+It is important to read `gshare` together with the `BTB` design in this repository:
+
+- `BTB` miss: the front end falls through to `pc + IAlign`, even if `gshare` alone would say taken.
+- `BTB` hit: `gshare` decides direction, and the `BTB` provides the target.
+- Because `branchMask = btb.hit`, only recognized branch PCs contribute to speculative global history.
+
+This is a practical design choice: it avoids polluting the global history with non-branch instructions in a multi-issue fetch group.
+
+## Configuration Knobs
+The main user-visible parameter is defined in `arch/package.scala`:
+
+```scala
+object GShareGhrWidth extends Field[Int](10)
+```
+
+With the default value:
+
+- GHR width = `10`
+- PHT entries = `1024`
+- Counter bits = `2`
+- Raw PHT storage = `2048` bits
+
+Other related knobs are:
+
+- `IssueWidth`: number of slots queried in parallel
+- `BTBSets`
+- `BTBWays`
+
+## Suggested Validation
+The repository already contains a history-sensitive bare-metal test:
+
+```text
+sims/runtime/bare-metal/riscv32/src/test_correlated_branch_history.asm
+```
+
+That test makes a later branch depend on the outcomes of the previous five branches, which is useful for observing how different `GShareGhrWidth` values affect correlation sensitivity.
+
+## Experimental Results
+The following results first compare the presence or absence of `gshare`, and then analyze the effect of different history widths.
+
+### `gshare` Versus Simple 2-bit Predictor
+
+#### `test_interval_loop`
+
+| Predictor | IPC | BPU Hit Rate |
+| --- | --- | --- |
+| `gshare (width = 10)` | `0.693` | `99.00%` |
+| `2-bit saturating counter` | `0.479` | `56.19%` |
+
+#### `test_c_short_loop`
+
+| Predictor | IPC | BPU Hit Rate |
+| --- | --- | --- |
+| `gshare (width = 10)` | `0.382` | `94.29%` |
+| `2-bit saturating counter` | `0.377` | `49.76%` |
+
+### Gshare Width Sensitivity
+
+#### `test_interval_loop`
+
+| gsharewidth | IPC | BPU Hit Rate |
+| --- | --- | --- |
+| `4` | `0.578` | `85.15%` |
+| `6` | `0.578` | `85.15%` |
+| `8` | `0.525` | `70.88%` |
+| `10` | `0.694` | `99.00%` |
+
+#### `test_c_short_loop`
+
+| gsharewidth | IPC | BPU Hit Rate |
+| --- | --- | --- |
+| `4` | `0.411` | `98.75%` |
+| `6` | `0.411` | `98.75%` |
+| `8` | `0.411` | `98.75%` |
+| `10` | `0.411` | `98.75%` |
+
+## Code References
+- `arch/core/bpu/GShare.scala`
+- `arch/core/bpu/BPU.scala`
+- `arch/core/bpu/BTB.scala`
+- `arch/core/bpu/Components.scala`
+- `arch/package.scala`

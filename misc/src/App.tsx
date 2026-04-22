@@ -9,6 +9,7 @@ import QuickStartPage from "@assets/user-guide/getting-started.mdx";
 import UsingDEMUPage from "@assets/user-guide/using-demu.mdx";
 import DevGuidePage from "@assets/dev-guide/root.mdx";
 import DEMULoggingPage from "@assets/dev-guide/demu-logging.mdx";
+import GShareBranchPredictorPage from "@assets/dev-guide/gshare-branch-predictor.mdx";
 import HowToDrawWaveforms from "@assets/dev-guide/how-to-draw-waveforms.mdx";
 
 const App: React.FC = () => {
@@ -34,6 +35,10 @@ const App: React.FC = () => {
             <Route
               path="/dev-guide/demu-logging"
               element={<DEMULoggingPage />}
+            />
+            <Route
+              path="/dev-guide/gshare-branch-predictor"
+              element={<GShareBranchPredictorPage />}
             />
             <Route
               path="/dev-guide/how-to-draw-waveforms"
