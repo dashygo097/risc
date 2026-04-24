@@ -5,17 +5,21 @@ import lit.formats
 config.name = 'Demu-Difftest'
 config.test_format = lit.formats.ShTest(not bool(os.environ.get('LIT_USE_INTERNAL_SHELL')))
 config.suffixes = ['.c', '.S', '.asm']
-config.excludes = ['CMakeLists.txt', 'env']
+
 config.available_features.add(config.arch)
 
 TOOLCHAINS = {
     "rv32i": {
+        "family": "riscv32",
+        "excludes": ["m"],
         "cc": "riscv64-unknown-elf-gcc",
         "cflags": f"-march=rv32i_zicsr -mabi=ilp32 -mcmodel=medany -static -nostartfiles -nostdlib",
         "linker": f"{config.src_root}/runtime/bare-metal/riscv32/linker.ld",
         "start": f"{config.src_root}/runtime/bare-metal/riscv32/start.S"
     },
     "rv32im": {
+        "family": "riscv32",
+        "excludes": [],
         "cc": "riscv64-unknown-elf-gcc",
         "cflags": f"-march=rv32im_zicsr -mabi=ilp32 -mcmodel=medany -static -nostartfiles -nostdlib",
         "linker": f"{config.src_root}/runtime/bare-metal/riscv32/linker.ld",
@@ -37,6 +41,7 @@ config.substitutions.append(('%bare_asm', bare_asm))
 difftest_cmd = f"{config.difftest} -R gdb %t.elf -L5"
 config.substitutions.append(('%difftest', difftest_cmd))
 
-for arch_dir in TOOLCHAINS.keys():
-    if arch_dir != config.arch:
-        config.excludes.append(arch_dir)
+config.test_source_root = os.path.join(config.src_root, "tests/difftest", tc["family"])
+config.excludes = []
+for exclude_dir in tc['excludes']:
+    config.excludes.append(exclude_dir)
