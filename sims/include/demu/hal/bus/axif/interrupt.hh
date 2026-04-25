@@ -16,7 +16,7 @@ enum ClintRegisters : addr_t {
   CLINT_MTIMECMP_LO = 0x4000,
   CLINT_MTIMECMP_HI = 0x4004,
   CLINT_MTIME_LO = 0xBFF8,
-  CLINT_MTIME_HI = 0x8FFC
+  CLINT_MTIME_HI = 0xBFFC
 };
 
 constexpr const uint64_t TICK_MS_DIVIDER = 1000;
