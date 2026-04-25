@@ -14,90 +14,161 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
       new AXIFullMasterIO(addrWidth = p(XLen), dataWidth = p(XLen), idWidth = 4)
 
     override def createBridge[T <: Data](gen: T, memory: CacheIO[T], isMmio: Boolean = false): Bundle = {
-      val axi = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
+      val axi = Wire(new AXIFullMasterIO(addrWidth = p(XLen), dataWidth = p(XLen), idWidth = 4))
 
-      val beats        = (gen.getWidth / p(XLen)).max(1)
-      val bytesPerBeat = p(XLen) / 8
+      val bytesPerAxiBeat = p(XLen) / 8
+      val bytesPerGen     = memory.req.bits.data.getWidth / 8
+      val axiBeatsPerGen  = bytesPerGen / bytesPerAxiBeat
+
+      val wordsPerLine  = if (isMmio) 1 else p(L1DCacheLineSize) / bytesPerGen
+      val totalAxiBeats = wordsPerLine * axiBeatsPerGen
+      val burstLen      = (totalAxiBeats - 1).max(0).U(8.W)
 
       val state    = RegInit(AXIBridgeState.IDLE)
       val req_addr = RegInit(0.U(p(XLen).W))
-      val req_op   = RegInit(CacheOp.READ)
 
-      val w_data = Reg(UInt(gen.getWidth.max(p(XLen)).W))
-      val w_strb = Reg(UInt((gen.getWidth / 8).max(p(XLen) / 8).W))
-      val r_data = Reg(Vec(beats, UInt(p(XLen).W)))
+      val w_beat_count  = RegInit(0.U(8.W))
+      val w_data_buffer = Reg(UInt(memory.req.bits.data.getWidth.W))
+      val w_strb_buffer = Reg(UInt(memory.req.bits.strb.getWidth.W))
 
-      val beat = RegInit(0.U(log2Ceil(beats + 1).max(1).W))
-
-      axi.ar.valid := false.B; axi.ar.bits := DontCare; axi.r.ready := false.B
-      axi.aw.valid := false.B; axi.aw.bits := DontCare; axi.w.valid := false.B; axi.w.bits := DontCare; axi.b.ready := false.B
+      axi.aw.valid := false.B
+      axi.aw.bits  := DontCare
+      axi.w.valid  := false.B
+      axi.w.bits   := DontCare
+      axi.b.ready  := false.B
+      axi.ar.valid := false.B
+      axi.ar.bits  := DontCare
+      axi.r.ready  := false.B
 
       memory.req.ready      := false.B
       memory.resp.valid     := false.B
       memory.resp.bits.data := DontCare
+      memory.resp.bits.last := false.B
       memory.resp.bits.hit  := false.B
-      memory.resp.bits.last := true.B
 
       switch(state) {
         is(AXIBridgeState.IDLE) {
           memory.req.ready := true.B
           when(memory.req.fire) {
             req_addr := memory.req.bits.addr
-            req_op   := memory.req.bits.op
-            w_data   := memory.req.bits.data.asUInt
-            w_strb   := memory.req.bits.strb
-            beat     := 0.U
-            state    := Mux(memory.req.bits.op === CacheOp.READ, AXIBridgeState.AR, AXIBridgeState.AW)
+            when(memory.req.bits.op === CacheOp.READ) {
+              state := AXIBridgeState.AR
+            }.otherwise {
+              state         := AXIBridgeState.AW
+              w_beat_count  := 0.U
+              w_data_buffer := memory.req.bits.data.asUInt
+              w_strb_buffer := memory.req.bits.strb
+            }
           }
         }
-
         is(AXIBridgeState.AR) {
-          axi.ar.valid     := true.B
-          axi.ar.bits.addr := req_addr + (beat * bytesPerBeat.U) // INCR 步进
-          axi.ar.bits.prot := 0.U
+          axi.ar.valid      := true.B
+          axi.ar.bits.addr  := req_addr
+          axi.ar.bits.len   := burstLen
+          axi.ar.bits.size  := log2Ceil(bytesPerAxiBeat).U
+          axi.ar.bits.burst := (if (isMmio) 1 else 2).U
+          axi.ar.bits.id    := 0.U
           when(axi.ar.fire)(state := AXIBridgeState.R)
         }
         is(AXIBridgeState.R) {
-          val is_last = beat === (beats - 1).U
-          memory.resp.valid := axi.r.valid && is_last
-          axi.r.ready       := Mux(is_last, memory.resp.ready, true.B)
+          if (axiBeatsPerGen <= 1) {
+            memory.resp.valid     := axi.r.valid
+            axi.r.ready           := memory.resp.ready
+            memory.resp.bits.data := axi.r.bits.data.asTypeOf(gen)
+            memory.resp.bits.last := axi.r.bits.last
 
-          val final_data = Wire(Vec(beats, UInt(p(XLen).W)))
-          for (i <- 0 until beats) final_data(i) := Mux(i.U === beat, axi.r.bits.data, r_data(i))
-          memory.resp.bits.data                  := final_data.asUInt.asTypeOf(gen)
+            when(axi.r.fire && axi.r.bits.last) {
+              state := AXIBridgeState.IDLE
+            }
+          } else {
+            val r_pack_count  = RegInit(0.U(log2Ceil(axiBeatsPerGen).max(1).W))
+            val r_data_buffer = Reg(Vec(axiBeatsPerGen, UInt(p(XLen).W)))
 
-          when(axi.r.fire) {
-            r_data(beat) := axi.r.bits.data
-            beat         := beat + 1.U
-            state        := Mux(is_last, AXIBridgeState.IDLE, AXIBridgeState.AR)
+            val is_last_pack = r_pack_count === (axiBeatsPerGen - 1).U
+
+            memory.resp.valid := axi.r.valid && is_last_pack
+            axi.r.ready       := Mux(is_last_pack, memory.resp.ready, true.B)
+
+            when(axi.r.fire) {
+              when(!is_last_pack) {
+                r_data_buffer(r_pack_count) := axi.r.bits.data
+              }
+              r_pack_count := Mux(is_last_pack, 0.U, r_pack_count + 1.U)
+            }
+
+            val final_data_vec = Wire(Vec(axiBeatsPerGen, UInt(p(XLen).W)))
+            for (i <- 0 until axiBeatsPerGen - 1)
+              final_data_vec(i) := r_data_buffer(i)
+            final_data_vec(axiBeatsPerGen - 1) := axi.r.bits.data
+
+            memory.resp.bits.data := Cat(final_data_vec.reverse).asTypeOf(gen)
+            memory.resp.bits.last := axi.r.bits.last
+
+            when(axi.r.fire && axi.r.bits.last) {
+              state := AXIBridgeState.IDLE
+            }
           }
         }
-
         is(AXIBridgeState.AW) {
-          axi.aw.valid     := true.B
-          axi.aw.bits.addr := req_addr + (beat * bytesPerBeat.U) // INCR 步进
-          axi.aw.bits.prot := 0.U
+          axi.aw.valid      := true.B
+          axi.aw.bits.addr  := req_addr
+          axi.aw.bits.len   := burstLen
+          axi.aw.bits.size  := log2Ceil(bytesPerAxiBeat).U
+          axi.aw.bits.burst := 1.U
+          axi.aw.bits.id    := 0.U
           when(axi.aw.fire)(state := AXIBridgeState.W)
         }
         is(AXIBridgeState.W) {
-          axi.w.valid     := true.B
-          axi.w.bits.data := w_data(p(XLen) - 1, 0)
-          axi.w.bits.strb := w_strb(bytesPerBeat - 1, 0)
+          if (axiBeatsPerGen <= 1) {
+            val is_first = w_beat_count === 0.U
+            axi.w.valid      := is_first || memory.req.valid
+            memory.req.ready := !is_first && axi.w.ready
 
-          when(axi.w.fire) {
-            w_data := w_data >> p(XLen)
-            w_strb := w_strb >> bytesPerBeat
-            state  := AXIBridgeState.B
+            axi.w.bits.data := Mux(is_first, w_data_buffer, memory.req.bits.data.asUInt)
+            axi.w.bits.strb := Mux(is_first, w_strb_buffer, memory.req.bits.strb)
+            axi.w.bits.last := w_beat_count === burstLen
+
+            when(axi.w.fire) {
+              w_beat_count := w_beat_count + 1.U
+              when(w_beat_count === burstLen) {
+                state := AXIBridgeState.B
+              }
+            }
+          } else {
+            val w_unpack_count = RegInit(0.U(log2Ceil(axiBeatsPerGen).max(1).W))
+
+            axi.w.valid     := true.B
+            axi.w.bits.data := w_data_buffer(p(XLen) - 1, 0)
+            axi.w.bits.strb := w_strb_buffer(bytesPerAxiBeat - 1, 0)
+            axi.w.bits.last := w_beat_count === burstLen
+
+            val is_last_unpack = w_unpack_count === (axiBeatsPerGen - 1).U
+            memory.req.ready := axi.w.ready && is_last_unpack && (w_beat_count =/= burstLen)
+
+            when(axi.w.fire) {
+              w_beat_count   := w_beat_count + 1.U
+              w_unpack_count := Mux(is_last_unpack, 0.U, w_unpack_count + 1.U)
+
+              when(is_last_unpack) {
+                w_data_buffer := memory.req.bits.data.asUInt
+                w_strb_buffer := memory.req.bits.strb
+              }.otherwise {
+                w_data_buffer := w_data_buffer >> p(XLen)
+                w_strb_buffer := w_strb_buffer >> bytesPerAxiBeat
+              }
+
+              when(w_beat_count === burstLen) {
+                state := AXIBridgeState.B
+              }
+            }
           }
         }
         is(AXIBridgeState.B) {
-          val is_last = beat === (beats - 1).U
-          memory.resp.valid := axi.b.valid && is_last
-          axi.b.ready       := Mux(is_last, memory.resp.ready, true.B)
-
+          axi.b.ready := true.B
           when(axi.b.fire) {
-            beat  := beat + 1.U
-            state := Mux(is_last, AXIBridgeState.IDLE, AXIBridgeState.AW)
+            memory.resp.valid     := true.B
+            memory.resp.bits.last := true.B
+            when(memory.resp.ready)(state := AXIBridgeState.IDLE)
           }
         }
       }
