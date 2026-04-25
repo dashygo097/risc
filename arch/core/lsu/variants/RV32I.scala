@@ -39,6 +39,7 @@ object RV32ILsuUtils extends RegisteredUtils[LsuUtils] with RV32ILsuUOpConsts {
       ctrl.is_byte     := size === L_B.value.U
       ctrl.is_half     := size === L_H.value.U
       ctrl.is_word     := size === L_W.value.U
+      ctrl.is_dword    := false.B
       ctrl.is_unsigned := uop(2)
       ctrl.is_read     := uop(3)
       ctrl.is_write    := !uop(3)

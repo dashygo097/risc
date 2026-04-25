@@ -17,3 +17,6 @@ set(NUM_TRACE_THREADS 2)
 option(ENABLE_TESTING "Enable Testing" ON)
 option(ENABLE_TRACE "Enable VCD tracing" ON)
 option(ENABLE_COVERAGE "Enable coverage collection" ON)
+
+# benchmarks
+option(ENABLE_COREMARK "Enable CoreMark" OFF)
