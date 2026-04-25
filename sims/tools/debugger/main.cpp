@@ -9,8 +9,9 @@ using namespace demu::isa;
 
 class DemuDebuggerTop final : public demu::DemuSimulator {
 public:
-  explicit DemuDebuggerTop(bool enabled_trace = false, int threads = 1,
-                           int argc = 0, char **argv = nullptr)
+  explicit DemuDebuggerTop(bool enabled_trace = false,
+                           int threads = NUM_THREADS, int argc = 0,
+                           char **argv = nullptr)
       : DemuSimulator(enabled_trace, threads, argc, argv) {}
 
 protected:
@@ -43,7 +44,7 @@ void print_usage(const char *prog) {
   std::cout << "  -h, --help                    Show this help message\n";
   std::cout << "  -t, --trace                   Enable VCD trace\n";
   std::cout << "  -T, --threads <n>             Number of Verilator threads "
-               "(default: 1)\n";
+               "(default: NUM_THREADS)\n";
   std::cout
       << "  -b, --base <addr>             Binary load base address (hex)\n";
   std::cout << "  -L12345,                      Set log level (5=error, "
@@ -75,7 +76,7 @@ auto main(int argc, char **argv) -> int {
 
   std::string program_file;
   bool enable_trace = false;
-  int threads = 1;
+  int threads = NUM_THREADS;
   uint32_t base_addr = 0;
   spdlog::level::level_enum spdlog_level = spdlog::level::warn;
 
