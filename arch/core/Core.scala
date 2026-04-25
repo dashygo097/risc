@@ -14,7 +14,7 @@ import div._
 import ooo._
 import arch.configs._
 import arch.configs.proto.FunctionalUnitType._
-import vopts.mem.cache.{ CacheIO, CacheReadOnlyIO, SetAssociativeCache, SetAssociativeCacheReadOnly }
+import vopts.mem.cache._
 import chisel3._
 import chisel3.util.{ log2Ceil, MuxCase, Mux1H, PopCount, MuxLookup, RRArbiter, Queue }
 
@@ -33,7 +33,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   val imm_gens = Seq.fill(p(IssueWidth))(Module(new ImmGen))
 
   val l1_icache = Module(
-    new SetAssociativeCacheReadOnly(
+    new SetAssociativeStreamingCacheReadOnly(
       Vec(p(IssueWidth), UInt(p(ILen).W)),
       p(XLen),
       p(L1ICacheLineSize) / (p(IssueWidth) * (p(ILen) / 8)),
@@ -43,7 +43,7 @@ class RiscCore(implicit p: Parameters) extends Module {
     )
   )
 
-  val l1_dcache = Module(new SetAssociativeCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
+  val l1_dcache = Module(new SetAssociativeStreamingCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
 
   val regfile_utils = RegfileUtilsFactory.getOrThrow(p(ISA).name)
   val bru_utils     = BruUtilsFactory.getOrThrow(p(ISA).name)

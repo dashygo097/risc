@@ -52,9 +52,6 @@ public:
   static auto getDemuLogger() -> std::shared_ptr<spdlog::logger> & {
     return demu_logger_;
   }
-  static auto getIsaLogger() -> std::shared_ptr<spdlog::logger> & {
-    return isa_logger_;
-  }
   static auto getHalLogger() -> std::shared_ptr<spdlog::logger> & {
     return hal_logger_;
   }
@@ -97,16 +94,5 @@ private:
 #define HAL_ERROR(...)                                                         \
   do {                                                                         \
     ::demu::Logger::getHalLogger()->error(__VA_ARGS__);                        \
-    std::abort();                                                              \
-  } while (0);
-
-#define ISA_TRACE(...) ::demu::Logger::getIsaLogger()->trace(__VA_ARGS__);
-#define ISA_DEBUG(...) ::demu::Logger::getIsaLogger()->debug(__VA_ARGS__);
-#define ISA_INFO(...) ::demu::Logger::getIsaLogger()->info(__VA_ARGS__);
-#define ISA_WARN(...) ::demu::Logger::getIsaLogger()->warn(__VA_ARGS__);
-#define ISA_CRIT(...) ::demu::Logger::getIsaLogger()->critical(__VA_ARGS__);
-#define ISA_ERROR(...)                                                         \
-  do {                                                                         \
-    ::demu::Logger::getIsaLogger()->error(__VA_ARGS__);                        \
     std::abort();                                                              \
   } while (0);

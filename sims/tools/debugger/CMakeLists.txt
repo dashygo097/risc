@@ -1,4 +1,4 @@
-set(DEMU_DBG_TARGET demu-${TARGET_CPU}-dbg)
+set(DEMU_DBG_TARGET demu-${TARGET_ARCH}-dbg)
 add_executable(${DEMU_DBG_TARGET})
 
 target_sources(${DEMU_DBG_TARGET} PRIVATE

@@ -1,4 +1,4 @@
-set(DEMU_DIFF_TARGET demu-${TARGET_CPU}-diff)
+set(DEMU_DIFF_TARGET demu-${TARGET_ARCH}-diff)
 add_executable(${DEMU_DIFF_TARGET})
 
 target_sources(${DEMU_DIFF_TARGET} PRIVATE 

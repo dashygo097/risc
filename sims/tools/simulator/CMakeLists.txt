@@ -1,4 +1,4 @@
-set(DEMU_SIM_TARGET demu-${TARGET_CPU})
+set(DEMU_SIM_TARGET demu-${TARGET_ARCH})
 add_executable(${DEMU_SIM_TARGET})
 
 target_sources(${DEMU_SIM_TARGET} PRIVATE main.cpp)

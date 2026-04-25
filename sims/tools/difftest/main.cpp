@@ -1,14 +1,25 @@
 #include "demu/elf_loader.hh"
 #include "gdb_ref_model.hh"
 #include "ref_model.hh"
+#include <atomic>
+#include <condition_variable>
 #include <cstdlib>
 #include <cstring>
 #include <demu.hh>
 #include <fstream>
 #include <iostream>
+#include <mutex>
+#include <queue>
+#include <thread>
 #include <vector>
 
 using namespace demu::isa;
+
+struct CommitState {
+  addr_t pc;
+  word_t gpr[NUM_GPRS];
+  uint64_t cycle;
+};
 
 class DemuSimulatorDiff final : public demu::DemuSimulator {
 public:
@@ -16,10 +27,12 @@ public:
 
   explicit DemuSimulatorDiff(
       std::unique_ptr<demu::difftest::IRefModel> ref_model,
-      bool enabled_trace = false, int threads = 1, int argc = 0,
-      char **argv = nullptr)
+      bool enabled_trace = false, int threads = 1, size_t batch_size = 1024,
+      size_t max_queue_batches = 10, int argc = 0, char **argv = nullptr)
       : DemuSimulator(enabled_trace, threads, argc, argv),
-        ref_model_(std::move(ref_model)) {}
+        ref_model_(std::move(ref_model)),
+        batch_size_(batch_size > 0 ? batch_size : 1),
+        max_queue_batches_(max_queue_batches > 0 ? max_queue_batches : 1) {}
 
   auto load_bin(const std::string &filename, addr_t base_addr = 0) -> bool {
     entry_point_ = base_addr;
@@ -74,40 +87,127 @@ protected:
 #endif
   };
 
+  void on_init() override {
+    difftest_error_.store(false);
+    sim_running_.store(true);
+    local_batch_.reserve(batch_size_);
+
+    difftest_thread_ = std::thread(&DemuSimulatorDiff::difftest_worker, this);
+  }
+
+  void on_exit() override {
+    {
+      std::unique_lock<std::mutex> lock(mtx_);
+      if (!local_batch_.empty()) {
+        state_queue_.push(std::move(local_batch_));
+      }
+      sim_running_.store(false);
+    }
+    cv_consume_.notify_one();
+
+    if (difftest_thread_.joinable()) {
+      difftest_thread_.join();
+    }
+  }
+
   void on_reset() override {}
 
   void on_clock_tick() override {
-    if (__builtin_expect(static_cast<bool>(dut_->debug_instret), 0)) {
-      ref_model_->pull_state();
-      addr_t ref_pc = ref_model_->get_pc();
-      addr_t dut_pc = pc();
+    if (__builtin_expect(difftest_error_.load(std::memory_order_relaxed), 0)) {
+      _terminate = true;
+      return;
+    }
 
-      if (ref_pc != dut_pc) {
-        DEMU_ERROR("Difftest PC Mismatch! | DUT: 0x{:08x} | REF: 0x{:08x}",
-                   dut_pc, ref_pc);
-        _terminate = true;
-        return;
+    if (__builtin_expect(static_cast<bool>(dut_->debug_instret), 0)) {
+      CommitState state;
+      state.pc = pc();
+      state.cycle = cycle_count();
+      for (int i = 0; i < NUM_GPRS; i++) {
+        state.gpr[i] = reg(i);
       }
 
-      ref_model_->step(1);
-      ref_model_->pull_state();
+      local_batch_.push_back(state);
 
-      for (int i = 0; i < NUM_GPRS; i++) {
-        word_t ref_val = ref_model_->get_reg(i);
-        word_t dut_val = reg(i);
-        if (ref_val != dut_val) {
-          DEMU_ERROR(
-              "Difftest GPR[x{:02d}] Mismatch! | DUT: 0x{:08x} | REF: 0x{:08x}",
-              i, dut_val, ref_val);
-          _terminate = true;
-          return;
-        }
+      if (__builtin_expect(local_batch_.size() >= batch_size_, 0)) {
+        std::unique_lock<std::mutex> lock(mtx_);
+
+        cv_produce_.wait(lock, [this]() {
+          return state_queue_.size() < max_queue_batches_ ||
+                 difftest_error_.load();
+        });
+
+        state_queue_.push(std::move(local_batch_));
+        local_batch_.reserve(batch_size_);
+        cv_consume_.notify_one();
       }
     }
   }
 
 private:
+  size_t batch_size_;
+  size_t max_queue_batches_;
+
   std::unique_ptr<demu::difftest::IRefModel> ref_model_;
+
+  std::thread difftest_thread_;
+  std::mutex mtx_;
+  std::condition_variable cv_produce_;
+  std::condition_variable cv_consume_;
+  std::queue<std::vector<CommitState>> state_queue_;
+  std::vector<CommitState> local_batch_;
+
+  std::atomic<bool> sim_running_{false};
+  std::atomic<bool> difftest_error_{false};
+
+  void difftest_worker() {
+    addr_t expected_qemu_pc = entry_point_;
+
+    while (true) {
+      std::vector<CommitState> batch;
+
+      {
+        std::unique_lock<std::mutex> lock(mtx_);
+        cv_consume_.wait(lock, [this]() {
+          return !state_queue_.empty() || !sim_running_.load();
+        });
+
+        if (state_queue_.empty() && !sim_running_.load()) {
+          break;
+        }
+
+        batch = std::move(state_queue_.front());
+        state_queue_.pop();
+      }
+      cv_produce_.notify_one();
+
+      for (const auto &dut_state : batch) {
+        if (expected_qemu_pc != dut_state.pc) {
+          DEMU_ERROR("Difftest PC Mismatch at Cycle {}! | DUT: 0x{:08x} | REF: "
+                     "0x{:08x}",
+                     dut_state.cycle, dut_state.pc, expected_qemu_pc);
+          difftest_error_.store(true, std::memory_order_relaxed);
+          return;
+        }
+
+        ref_model_->step(1);
+        ref_model_->pull_state();
+
+        expected_qemu_pc = ref_model_->get_pc();
+
+        for (int i = 0; i < NUM_GPRS; i++) {
+          word_t ref_val = ref_model_->get_reg(i);
+          word_t dut_val = dut_state.gpr[i];
+          if (ref_val != dut_val) {
+            DEMU_ERROR("Difftest GPR[x{:02d}] Mismatch at Cycle {}! | DUT: "
+                       "0x{:08x} | REF: 0x{:08x}",
+                       i, dut_state.cycle, dut_val, ref_val);
+            difftest_error_.store(true, std::memory_order_relaxed);
+            return;
+          }
+        }
+      }
+    }
+  }
 };
 
 void print_usage(const char *prog) {
@@ -127,6 +227,11 @@ void print_usage(const char *prog) {
   std::cout << "  -h, --help                    Show this help message\n";
   std::cout << "  -R, --ref-so <path|gdb>       Path to Reference Model .so OR "
                "type 'gdb' for QEMU TCP\n";
+  std::cout
+      << "  -B --batch-size <n>              Difftest batch size (default: "
+         "1024)\n";
+  std::cout << "  -Q --max-batches <n>             Max batches in async queue "
+               "(default: 10)\n";
   std::cout << "  -t, --trace                   Enable VCD trace\n";
   std::cout << "  -T, --threads <n>             Number of Verilator threads "
                "(default: 1)\n";
@@ -155,6 +260,8 @@ auto main(int argc, char **argv) -> int {
   uint32_t base_addr = 0;
   uint32_t dump_mem_addr = 0;
   uint32_t dump_mem_size = 0;
+  size_t batch_size = 1024;
+  size_t max_batches = 10;
   spdlog::level::level_enum spdlog_level = spdlog::level::info;
 
   for (int i = 1; i < argc; i++) {
@@ -166,6 +273,14 @@ auto main(int argc, char **argv) -> int {
     } else if (arg == "-R" || arg == "--ref-so") {
       if (i + 1 < argc) {
         ref_so_path = argv[++i];
+      }
+    } else if (arg == "-B" || arg == "--batch-size") {
+      if (i + 1 < argc) {
+        batch_size = std::stoull(argv[++i]);
+      }
+    } else if (arg == "-Q" || arg == "--max-batches") {
+      if (i + 1 < argc) {
+        max_batches = std::stoull(argv[++i]);
       }
     } else if (arg == "-t" || arg == "--trace") {
       enable_trace = true;
@@ -240,7 +355,9 @@ auto main(int argc, char **argv) -> int {
     return 1;
   }
 
-  DemuSimulatorDiff sim(std::move(ref), enable_trace, threads, argc, argv);
+  DemuSimulatorDiff sim(std::move(ref), enable_trace, threads, batch_size,
+                        max_batches, argc, argv);
+
   sim.init();
 
   sim.reset();
