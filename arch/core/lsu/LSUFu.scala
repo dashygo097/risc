@@ -6,7 +6,7 @@ import arch.core.pma._
 import arch.configs._
 import vopts.mem.cache.CacheIO
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ switch, is }
 
 object LsuFuState extends ChiselEnum {
   val IDLE, WAIT_RESP, DONE, FLUSH_DRAIN = Value

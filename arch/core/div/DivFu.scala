@@ -3,7 +3,10 @@ package arch.core.div
 import arch.configs._
 import arch.core.ooo._
 import chisel3._
-import chisel3.util._
+
+object DivFuState extends ChiselEnum {
+  val IDLE, BUSY, DONE = Value
+}
 
 class DivFU(implicit p: Parameters) extends FunctionalUnit {
   override def desiredName: String = s"${p(ISA).name}_div_fu"
@@ -13,25 +16,21 @@ class DivFU(implicit p: Parameters) extends FunctionalUnit {
 
   val uop_reg    = Reg(new MicroOp)
   val result_reg = Reg(UInt(p(XLen).W))
-  val states     = Enum(3)
-  val state_idle = states(0)
-  val state_busy = states(1)
-  val state_done = states(2)
-  val state      = RegInit(state_idle)
+  val state      = RegInit(DivFuState.IDLE)
 
-  io.req.ready := (state === state_idle) || (state === state_done && io.resp.fire)
+  io.req.ready := (state === DivFuState.IDLE) || (state === DivFuState.DONE && io.resp.fire)
 
   when(io.req.fire) {
-    state   := state_busy
+    state   := DivFuState.BUSY
     uop_reg := io.req.bits
   }.elsewhen(io.flush) {
-    state := state_idle
+    state := DivFuState.IDLE
   }.otherwise {
-    when(state === state_busy && div.done) {
+    when(state === DivFuState.BUSY && div.done) {
       result_reg := div.result
-      state      := state_done
-    }.elsewhen(state === state_done && io.resp.fire) {
-      state := state_idle
+      state      := DivFuState.DONE
+    }.elsewhen(state === DivFuState.DONE && io.resp.fire) {
+      state := DivFuState.IDLE
     }
   }
 
@@ -45,7 +44,7 @@ class DivFU(implicit p: Parameters) extends FunctionalUnit {
   div.is_signed := ctrl.is_signed
   div.is_rem    := ctrl.is_rem
 
-  io.resp.valid        := (state === state_done)
+  io.resp.valid        := (state === DivFuState.DONE)
   io.resp.bits.result  := result_reg
   io.resp.bits.rd      := uop_reg.rd
   io.resp.bits.pc      := uop_reg.pc

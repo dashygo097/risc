@@ -2,7 +2,7 @@ package arch.core.ooo
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ log2Ceil, Decoupled }
 
 class FunctionalUnitResp(implicit p: Parameters) extends Bundle {
   val result  = UInt(p(XLen).W)

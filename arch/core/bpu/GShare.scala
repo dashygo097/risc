@@ -2,7 +2,7 @@ package arch.core.bpu
 
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ log2Ceil, Cat }
 
 class GShare(implicit p: Parameters) extends Module with BHTConsts {
   override def desiredName: String = s"${p(ISA).name}_gshare"

@@ -1,9 +1,9 @@
 package arch.core.ifu
 
 import arch.configs._
-import chisel3._
-import chisel3.util._
 import vopts.mem.cache.CacheReadOnlyIO
+import chisel3._
+import chisel3.util.{ log2Ceil, Queue, Mux1H, PriorityEncoder }
 
 class Ifu(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_ifu"
