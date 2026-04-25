@@ -98,9 +98,9 @@ class Ifu(implicit p: Parameters) extends Module {
   val req_has_taken        = req_taken_candidates.asUInt.orR
   val req_taken_tgt        = Mux(req_has_taken, Mux1H(req_taken_candidates, bpu_target_in), next_block_pc)
 
-  mem.req.valid     := meta_q.io.enq.ready && ibuffer.io.enq_ready && !do_redirect
+  mem.req.valid     := meta_q.io.enq.ready && ibuffer.enq_ready && !do_redirect
   mem.req.bits.addr := aligned_pc
-  mem.resp.ready    := ibuffer.io.enq_ready
+  mem.resp.ready    := ibuffer.enq_ready
 
   fetch_pc   := pc
   fetch_fire := req_fire
@@ -135,29 +135,29 @@ class Ifu(implicit p: Parameters) extends Module {
   for (w <- 0 until p(IssueWidth)) {
     val is_valid_pos = w.U >= resp_idx
     val beforeTaken  = !resp_has_taken || (w.U <= resp_taken_slot)
-    ibuffer.io.enq_valid(w)                 := resp_fire && is_valid_resp && meta_q.io.deq.valid && is_valid_pos && beforeTaken
-    ibuffer.io.enq_bits(w).pc               := (resp_pc & align_mask) + (w * (p(ILen) / 8)).U
-    ibuffer.io.enq_bits(w).instr            := mem.resp.bits.data(w)
-    ibuffer.io.enq_bits(w).bpu_pred_taken   := meta_q.io.deq.bits.bpu_pred_taken(w)
-    ibuffer.io.enq_bits(w).bpu_pred_target  := meta_q.io.deq.bits.bpu_pred_target(w)
-    ibuffer.io.enq_bits(w).bpu_pht_index    := meta_q.io.deq.bits.bpu_pht_index(w)
-    ibuffer.io.enq_bits(w).bpu_ghr_snapshot := meta_q.io.deq.bits.bpu_ghr_snapshot(w)
+    ibuffer.enq_valid(w)                 := resp_fire && is_valid_resp && meta_q.io.deq.valid && is_valid_pos && beforeTaken
+    ibuffer.enq_bits(w).pc               := (resp_pc & align_mask) + (w * (p(ILen) / 8)).U
+    ibuffer.enq_bits(w).instr            := mem.resp.bits.data(w)
+    ibuffer.enq_bits(w).bpu_pred_taken   := meta_q.io.deq.bits.bpu_pred_taken(w)
+    ibuffer.enq_bits(w).bpu_pred_target  := meta_q.io.deq.bits.bpu_pred_target(w)
+    ibuffer.enq_bits(w).bpu_pht_index    := meta_q.io.deq.bits.bpu_pht_index(w)
+    ibuffer.enq_bits(w).bpu_ghr_snapshot := meta_q.io.deq.bits.bpu_ghr_snapshot(w)
   }
 
-  ibuffer.io.flush := do_redirect
+  ibuffer.flush := do_redirect
 
   val flush_cond = do_redirect
 
   for (w <- 0 until p(IssueWidth)) {
-    ibuffer.io.deq(w).ready := dispatch_fire(w)
+    ibuffer.deq(w).ready := dispatch_fire(w)
 
-    if_valid(w)            := ibuffer.io.deq(w).valid && !flush_cond
-    if_instr(w)            := ibuffer.io.deq(w).bits.instr
-    if_pc(w)               := ibuffer.io.deq(w).bits.pc
-    if_bpu_pred_taken(w)   := ibuffer.io.deq(w).bits.bpu_pred_taken
-    if_bpu_pred_target(w)  := ibuffer.io.deq(w).bits.bpu_pred_target
-    if_bpu_pht_index(w)    := ibuffer.io.deq(w).bits.bpu_pht_index
-    if_bpu_ghr_snapshot(w) := ibuffer.io.deq(w).bits.bpu_ghr_snapshot
+    if_valid(w)            := ibuffer.deq(w).valid && !flush_cond
+    if_instr(w)            := ibuffer.deq(w).bits.instr
+    if_pc(w)               := ibuffer.deq(w).bits.pc
+    if_bpu_pred_taken(w)   := ibuffer.deq(w).bits.bpu_pred_taken
+    if_bpu_pred_target(w)  := ibuffer.deq(w).bits.bpu_pred_target
+    if_bpu_pht_index(w)    := ibuffer.deq(w).bits.bpu_pht_index
+    if_bpu_ghr_snapshot(w) := ibuffer.deq(w).bits.bpu_ghr_snapshot
   }
 
   fronend_flush := flush_cond
