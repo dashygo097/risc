@@ -64,7 +64,7 @@ package object configs {
   object L1DCacheReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
 
   // Bus Parameters
-  object BusType                       extends Field[String]("axif")
+  object BusType                       extends Field[String]("axil")
   object BusCrossbarFifoDepthPerClient extends Field[Int](4)
 
   object BusAddressMap

@@ -15,16 +15,16 @@ public:
 
 protected:
   void register_devices() override {
-    register_port<0, demu::hal::axif::AXIFullPortHandler,
-                  demu::hal::axif::AXIFullSRAM>("imem");
-    register_port<1, demu::hal::axif::AXIFullPortHandler,
-                  demu::hal::axif::AXIFullSRAM>("dmem");
-    register_port<2, demu::hal::axif::AXIFullPortHandler,
-                  demu::hal::axif::AXIFullUART>("uart");
+    register_port<0, demu::hal::axil::AXILitePortHandler,
+                  demu::hal::axil::AXILiteSRAM>("imem");
+    register_port<1, demu::hal::axil::AXILitePortHandler,
+                  demu::hal::axil::AXILiteSRAM>("dmem");
+    register_port<2, demu::hal::axil::AXILitePortHandler,
+                  demu::hal::axil::AXILiteUART>("uart");
 
 #if defined(__ISA_RV32I__) || defined(__ISA_RV32IM__)
-    register_port<3, demu::hal::axif::AXIFullPortHandler,
-                  demu::hal::axif::AXIFullCLINT>(
+    register_port<3, demu::hal::axil::AXILitePortHandler,
+                  demu::hal::axil::AXILiteCLINT>(
         "clint", config_->freq(), timer_irq_.get(), soft_irq_.get());
 #endif
   };
