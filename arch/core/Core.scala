@@ -31,14 +31,14 @@ class RiscCore(implicit p: Parameters) extends Module {
   val mmio = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
   val irq  = IO(new CoreInterruptIO)
 
-  val bpu        = Module(new Bpu)
-  val ifu        = Module(new Ifu)
-  val decoders   = Seq.fill(p(IssueWidth))(Module(new Decoder))
-  val regfile    = Module(new Regfile)
-  val imm_gens   = Seq.fill(p(IssueWidth))(Module(new ImmGen))
-  val issue_unit = Module(new IssueUnit)
-
-  val l1_icache = Module(
+  val bpu            = Module(new Bpu)
+  val ifu            = Module(new Ifu)
+  val decoders       = Seq.fill(p(IssueWidth))(Module(new Decoder))
+  val regfile        = Module(new Regfile)
+  val imm_gens       = Seq.fill(p(IssueWidth))(Module(new ImmGen))
+  val issue_unit     = Module(new IssueUnit)
+  val memory_arbiter = Module(new MemoryArbiter)
+  val l1_icache      = Module(
     new SetAssociativeStreamingCacheReadOnly(
       Vec(p(IssueWidth), UInt(p(ILen).W)),
       p(XLen),
@@ -48,11 +48,9 @@ class RiscCore(implicit p: Parameters) extends Module {
       p(L1ICacheReplPolicy)
     )
   )
-
-  val l1_dcache = Module(new SetAssociativeStreamingCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
-
-  val scheduler = Scheduler()
-  val rob       = Module(new ReorderBuffer)
+  val l1_dcache      = Module(new SetAssociativeStreamingCache(UInt(p(XLen).W), p(XLen), p(L1DCacheLineSize) / (p(XLen) / 8), p(L1DCacheSets), p(L1DCacheWays), p(L1DCacheReplPolicy)))
+  val scheduler      = Scheduler()
+  val rob            = Module(new ReorderBuffer)
 
   val fus = p(FunctionalUnits).map { fuDesc =>
     fuDesc.`type` match {
@@ -67,11 +65,12 @@ class RiscCore(implicit p: Parameters) extends Module {
   }
 
   val lsus = fus.collect { case l: LsuFU => l }
-  val csrs = fus.collect { case c: CsrFU => c }
   val brus = fus.collect { case b: BruFU => b }
+  val csrs = fus.collect { case c: CsrFU => c }
 
   if (lsus.isEmpty) throw new Exception("LSU Unit is mandatory but missing from configuration!")
   if (brus.isEmpty) throw new Exception("BRU Unit is mandatory but missing from configuration!")
+  if (csrs.size > 1) throw new Exception("There should be only one CSR Unit")
 
   val is_flush = Wire(Vec(p(IssueWidth), Bool()))
   for (w <- 0 until p(IssueWidth))
@@ -89,16 +88,6 @@ class RiscCore(implicit p: Parameters) extends Module {
   val cache_inflight = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
   val mmio_inflight  = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
 
-  val mem_req_fire  = l1_dcache.upper.req.fire
-  val mem_resp_fire = l1_dcache.upper.resp.fire
-  when(mem_req_fire && !mem_resp_fire)(cache_inflight := cache_inflight + 1.U)
-    .elsewhen(!mem_req_fire && mem_resp_fire)(cache_inflight := cache_inflight - 1.U)
-
-  val mmio_req_fire  = mmio.req.fire
-  val mmio_resp_fire = mmio.resp.fire
-  when(mmio_req_fire && !mmio_resp_fire)(mmio_inflight := mmio_inflight + 1.U)
-    .elsewhen(!mmio_req_fire && mmio_resp_fire)(mmio_inflight := mmio_inflight - 1.U)
-
   val mem_draining = RegInit(false.B)
   when(global_flush) {
     when(cache_inflight =/= 0.U || mmio_inflight =/= 0.U)(mem_draining := true.B)
@@ -106,67 +95,12 @@ class RiscCore(implicit p: Parameters) extends Module {
     mem_draining := false.B
   }
 
-  if (lsus.length == 1) {
-    l1_dcache.upper <> lsus(0).mem
-    mmio <> lsus(0).mmio
-  } else {
-    val memReqArb = Module(new RRArbiter(chiselTypeOf(lsus(0).mem.req.bits), lsus.length))
-    for (i <- lsus.indices) memReqArb.io.in(i) <> lsus(i).mem.req
-
-    val memRespQueue = Module(new Queue(UInt(log2Ceil(lsus.length).W), p(ROBSize)))
-    memReqArb.io.out.ready    := l1_dcache.upper.req.ready && memRespQueue.io.enq.ready
-    l1_dcache.upper.req.valid := memReqArb.io.out.valid && memRespQueue.io.enq.ready
-    l1_dcache.upper.req.bits  := memReqArb.io.out.bits
-
-    memRespQueue.io.enq.valid := memReqArb.io.out.valid && l1_dcache.upper.req.ready
-    memRespQueue.io.enq.bits  := memReqArb.io.chosen
-
-    val memTarget = memRespQueue.io.deq.bits
-    for (i <- lsus.indices) {
-      lsus(i).mem.resp.valid := l1_dcache.upper.resp.valid && memRespQueue.io.deq.valid && (memTarget === i.U)
-      lsus(i).mem.resp.bits  := l1_dcache.upper.resp.bits
-    }
-
-    l1_dcache.upper.resp.ready := false.B
-    memRespQueue.io.deq.ready  := false.B
-    when(memRespQueue.io.deq.valid) {
-      for (i <- lsus.indices)
-        when(memTarget === i.U) {
-          val effectively_ready = lsus(i).mem.resp.ready || lsus(i).io.req.ready
-          l1_dcache.upper.resp.ready := effectively_ready
-          memRespQueue.io.deq.ready  := l1_dcache.upper.resp.valid && effectively_ready
-        }
-    }
-
-    val mmioReqArb = Module(new RRArbiter(chiselTypeOf(lsus(0).mmio.req.bits), lsus.length))
-    for (i <- lsus.indices) mmioReqArb.io.in(i) <> lsus(i).mmio.req
-
-    val mmioRespQueue = Module(new Queue(UInt(log2Ceil(lsus.length).W), p(ROBSize)))
-    mmioReqArb.io.out.ready := mmio.req.ready && mmioRespQueue.io.enq.ready
-    mmio.req.valid          := mmioReqArb.io.out.valid && mmioRespQueue.io.enq.ready
-    mmio.req.bits           := mmioReqArb.io.out.bits
-
-    mmioRespQueue.io.enq.valid := mmioReqArb.io.out.valid && mmio.req.ready
-    mmioRespQueue.io.enq.bits  := mmioReqArb.io.chosen
-
-    val mmioTarget = mmioRespQueue.io.deq.bits
-    for (i <- lsus.indices) {
-      lsus(i).mmio.resp.valid := mmio.resp.valid && mmioRespQueue.io.deq.valid && (mmioTarget === i.U)
-      lsus(i).mmio.resp.bits  := mmio.resp.bits
-    }
-
-    mmio.resp.ready            := false.B
-    mmioRespQueue.io.deq.ready := false.B
-    when(mmioRespQueue.io.deq.valid) {
-      for (i <- lsus.indices)
-        when(mmioTarget === i.U) {
-          val effectively_ready = lsus(i).mmio.resp.ready || lsus(i).io.req.ready
-          mmio.resp.ready            := effectively_ready
-          mmioRespQueue.io.deq.ready := mmio.resp.valid && effectively_ready
-        }
-    }
+  for (i <- lsus.indices) {
+    memory_arbiter.lsu_mem(i) <> lsus(i).mem
+    memory_arbiter.lsu_mmio(i) <> lsus(i).mmio
   }
-
+  l1_dcache.upper <> memory_arbiter.mem
+  mmio <> memory_arbiter.mmio
   dmem <> l1_dcache.lower
   imem <> l1_icache.lower
 

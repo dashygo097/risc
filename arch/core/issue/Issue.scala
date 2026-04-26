@@ -7,6 +7,8 @@ import chisel3.util.{ log2Ceil, PopCount, MuxLookup }
 import scala.math.max
 
 class IssueUnit(implicit p: Parameters) extends Module {
+  override def desiredName: String = s"${p(ISA).name}_issue_unit"
+
   val inst_type      = IO(Input(Vec(p(IssueWidth), UInt(log2Ceil(FunctionalUnitType.values.size).W))))
   val wants_to_issue = IO(Input(Vec(p(IssueWidth), Bool())))
   val intra_hazard   = IO(Input(Vec(p(IssueWidth), Bool())))
