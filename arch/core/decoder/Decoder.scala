@@ -18,7 +18,6 @@ class DecodedOutput(implicit p: Parameters) extends Bundle {
   val lsu  = Bool()
   val bru  = Bool()
   val csr  = Bool()
-  val ret  = Bool()
 
   // Unified Micro-Operation Field
   val uop = UInt(p(MicroOpWidth).W)
