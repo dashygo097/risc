@@ -25,7 +25,7 @@ class PmaChecker(implicit p: Parameters) extends Module {
   valid     := is_sram || is_uart || is_irh
   readable  := is_sram || is_uart || is_irh
   writable  := is_sram || is_uart || is_irh
-  cacheable := false.B // FIXME: disabled dcache
+  cacheable := is_sram
 }
 
 object PmaChecker {

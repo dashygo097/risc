@@ -69,6 +69,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   val brus = fus.collect { case b: BruFU => b }
 
   if (lsus.isEmpty) throw new Exception("LSU Unit is mandatory but missing from configuration!")
+  if (brus.isEmpty) throw new Exception("BRU Unit is mandatory but missing from configuration!")
 
   val is_flush = Wire(Vec(p(IssueWidth), Bool()))
   for (w <- 0 until p(IssueWidth))
