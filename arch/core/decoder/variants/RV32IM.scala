@@ -34,7 +34,6 @@ object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
   override def utils: DecoderUtils = new DecoderUtils {
     override def name: String = "rv32im"
 
-    // [legal, regwrite, imm_type, alu, mult, div, lsu, bru, csr, ret, uop]
     override def default: List[BitPat] = RV32IDecoderUtils.utils.default
 
     override def decode(instr: UInt): DecodedOutput = {
@@ -51,9 +50,8 @@ object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
       sigs.lsu  := decoder(6).asBool
       sigs.bru  := decoder(7).asBool
       sigs.csr  := decoder(8).asBool
-      sigs.ret  := decoder(9).asBool
 
-      sigs.uop := decoder(10)
+      sigs.uop := decoder(9)
 
       sigs
     }
@@ -61,16 +59,16 @@ object RV32IMDecoderUtils extends RegisteredUtils[DecoderUtils] with RV32IMUOp {
     override def table: Array[(BitPat, List[BitPat])] =
       RV32IDecoderUtils.utils.table ++ Array(
         // R-Type: Mul
-        enc("MUL")    -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MUL),
-        enc("MULH")   -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MULH),
-        enc("MULHSU") -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MULHSU),
-        enc("MULHU")  -> List(Y, Y, IMM_X, N, Y, N, N, N, N, N, UOP_MULHU),
+        enc("MUL")    -> List(Y, Y, IMM_X, N, Y, N, N, N, N, UOP_MUL),
+        enc("MULH")   -> List(Y, Y, IMM_X, N, Y, N, N, N, N, UOP_MULH),
+        enc("MULHSU") -> List(Y, Y, IMM_X, N, Y, N, N, N, N, UOP_MULHSU),
+        enc("MULHU")  -> List(Y, Y, IMM_X, N, Y, N, N, N, N, UOP_MULHU),
 
         // R-Type: Div/Rem
-        enc("DIV")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_DIV),
-        enc("DIVU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_DIVU),
-        enc("REM")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_REM),
-        enc("REMU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, N, UOP_REMU)
+        enc("DIV")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, UOP_DIV),
+        enc("DIVU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, UOP_DIVU),
+        enc("REM")  -> List(Y, Y, IMM_X, N, N, Y, N, N, N, UOP_REM),
+        enc("REMU") -> List(Y, Y, IMM_X, N, N, Y, N, N, N, UOP_REMU)
       )
   }
 
