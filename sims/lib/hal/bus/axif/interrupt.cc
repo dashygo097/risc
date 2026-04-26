@@ -114,10 +114,10 @@ void AXIFullCLINT::process_writes() {
     }
   }
 
-  req.beats_completed++;
+  req.beats++;
   calculate_next_address(req);
 
-  if (wdata.last || req.beats_completed > req.len) {
+  if (wdata.last || req.beats > req.len) {
     _write_resp_queue.push(
         {req.id,
          static_cast<uint8_t>(valid ? 0 : 2)}); // OKAY (0) or SLVERR (2)
@@ -135,11 +135,11 @@ void AXIFullCLINT::process_reads() {
 
   word_t data = valid ? allocator_->read_word(req.addr) : 0u;
 
-  const bool last = (req.beats_completed == req.len);
+  const bool last = (req.beats == req.len);
   _read_data_queue.push(
       {req.id, data, static_cast<uint8_t>(valid ? 0 : 2), last});
 
-  req.beats_completed++;
+  req.beats++;
   calculate_next_address(req);
 
   if (last) {

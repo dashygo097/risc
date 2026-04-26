@@ -43,7 +43,7 @@ void print_usage(const char *prog) {
   std::cout << "  -h, --help                    Show this help message\n";
   std::cout << "  -t, --trace                   Enable VCD trace\n";
   std::cout << "  -T, --threads <n>             Number of Verilator threads "
-               "(default: 1)\n";
+               "(default: NUM_THREADS)\n";
   std::cout
       << "  -c, --cycles <n>              Run for n cycles (0=unlimited)\n";
   std::cout
@@ -79,7 +79,7 @@ auto main(int argc, char **argv) -> int {
   std::string program_file;
   bool enable_trace = false;
   bool dump_regs = false;
-  int threads = 1;
+  int threads = NUM_THREADS;
   uint64_t max_cycles = 0;
   uint32_t base_addr = 0;
   uint32_t dump_mem_addr = 0;

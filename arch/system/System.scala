@@ -90,5 +90,4 @@ class RiscSystem(implicit p: Parameters) extends Module {
 
   debug_frontend_stall := cpu.debug_frontend_stall
   debug_backend_stall  := cpu.debug_backend_stall
-
 }

@@ -33,7 +33,7 @@ else()
     message(FATAL_ERROR "Unsupported ISA: ${TARGET_ARCH}. Supported ISAs: rv32i, rv32im")
   endif()
 
-  add_compile_definitions(NUM_THREADS)
+  add_definitions(-DNUM_THREADS=${NUM_THREADS})
 
   if(ENABLE_TRACE)
     list(APPEND VERILATOR_ARGS --trace)

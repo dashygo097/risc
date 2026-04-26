@@ -27,8 +27,9 @@ public:
 
   explicit DemuSimulatorDiff(
       std::unique_ptr<demu::difftest::IRefModel> ref_model,
-      bool enabled_trace = false, int threads = 1, size_t batch_size = 1024,
-      size_t max_queue_batches = 10, int argc = 0, char **argv = nullptr)
+      bool enabled_trace = false, int threads = NUM_THREADS,
+      size_t batch_size = 1024, size_t max_queue_batches = 10, int argc = 0,
+      char **argv = nullptr)
       : DemuSimulator(enabled_trace, threads, argc, argv),
         ref_model_(std::move(ref_model)),
         batch_size_(batch_size > 0 ? batch_size : 1),
@@ -234,7 +235,7 @@ void print_usage(const char *prog) {
                "(default: 10)\n";
   std::cout << "  -t, --trace                   Enable VCD trace\n";
   std::cout << "  -T, --threads <n>             Number of Verilator threads "
-               "(default: 1)\n";
+               "(default: NUM_THREADS)\n";
   std::cout
       << "  -c, --cycles <n>              Run for n cycles (0=unlimited)\n";
   std::cout
@@ -255,7 +256,7 @@ auto main(int argc, char **argv) -> int {
   bool enable_trace = false;
   bool dump_regs = false;
   bool dump_mem = false;
-  int threads = 1;
+  int threads = NUM_THREADS;
   uint64_t max_cycles = 0;
   uint32_t base_addr = 0;
   uint32_t dump_mem_addr = 0;

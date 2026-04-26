@@ -1,7 +1,4 @@
 #include "demu/hal/bus/axif/sram.hh"
-#include <algorithm>
-#include <iomanip>
-#include <sstream>
 
 namespace demu::hal::axif {
 
@@ -84,10 +81,10 @@ void AXIFullSRAM::process_writes() {
     }
   }
 
-  req.beats_completed++;
+  req.beats++;
   calculate_next_address(req);
 
-  if (wdata.last || req.beats_completed > req.len) {
+  if (wdata.last || req.beats > req.len) {
     _write_resp_queue.push(
         {req.id,
          static_cast<uint8_t>(valid ? 0 : 2)}); // OKAY (0) or SLVERR (2)
@@ -105,12 +102,12 @@ void AXIFullSRAM::process_reads() {
   const bool valid = owns_address(req.addr);
   word_t data = valid ? allocator()->read_word(req.addr) : 0u;
 
-  const bool last = (req.beats_completed == req.len);
+  const bool last = (req.beats == req.len);
 
   _read_data_queue.push(
       {req.id, data, static_cast<uint8_t>(valid ? 0 : 2), last});
 
-  req.beats_completed++;
+  req.beats++;
   calculate_next_address(req);
 
   if (last) {
@@ -119,44 +116,7 @@ void AXIFullSRAM::process_reads() {
 }
 
 void AXIFullSRAM::dump(addr_t start, size_t size) const noexcept {
-  if (!owns_address(start)) {
-    HAL_WARN("AXIFullSRAM dump: 0x{:08X} not owned",
-             static_cast<uint64_t>(start));
-    return;
-  }
-  const size_t clamped = std::min(
-      size, static_cast<size_t>(base_address() + address_range() - start));
-
-  HAL_INFO("SRAM dump [0x{:08X} - 0x{:08X}]:", static_cast<uint64_t>(start),
-           static_cast<uint64_t>(start + clamped));
-
-  const byte_t *ptr = allocator()->get_ptr(start);
-  if (!ptr) {
-    return;
-  }
-
-  for (size_t i = 0; i < clamped; i += 16) {
-    std::stringstream ss;
-    ss << std::hex << std::setw(8) << std::setfill('0') << (start + i) << ": ";
-    for (size_t j = 0; j < 16; ++j) {
-      if (i + j < clamped) {
-        ss << std::hex << std::setw(2) << std::setfill('0')
-           << static_cast<int>(ptr[i + j]) << ' ';
-      } else {
-        ss << "   ";
-      }
-      if (j == 7) {
-        ss << ' ';
-      }
-    }
-    ss << " |";
-    for (size_t j = 0; j < 16 && (i + j) < clamped; ++j) {
-      const byte_t c = ptr[i + j];
-      ss << static_cast<char>((c >= 32 && c < 127) ? c : '.');
-    }
-    ss << '|';
-    HAL_INFO("{}", ss.str());
-  }
+  sram_->dump(start, size);
 }
 
 } // namespace demu::hal::axif

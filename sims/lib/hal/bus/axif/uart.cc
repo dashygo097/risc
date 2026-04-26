@@ -1,5 +1,4 @@
 #include "demu/hal/bus/axif/uart.hh"
-#include <iostream>
 
 namespace demu::hal::axif {
 
