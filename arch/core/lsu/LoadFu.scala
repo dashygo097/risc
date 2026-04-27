@@ -106,8 +106,7 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
     reqOutstanding := false.B
   }
 
-  val willHaveOutstanding =
-    (reqOutstanding || memReqFire) && !memRespFire
+  val willHaveOutstanding = (reqOutstanding || memReqFire) && !memRespFire
 
   when(io.flush) {
     when(willHaveOutstanding) {

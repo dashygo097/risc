@@ -56,7 +56,7 @@ class RobCommitIO(implicit p: Parameters) extends Bundle {
   val bpu_actual_target = Output(UInt(p(XLen).W))
   val bpu_pht_index     = Output(UInt(p(GShareGhrWidth).W))
   val bpu_ghr_snapshot  = Output(UInt(p(GShareGhrWidth).W))
-  val sq_idx            = Output(UInt(log2Ceil(p(ROBSize)).W))
+  val sq_idx            = Output(UInt(log2Ceil(p(StoreBufferSize)).W))
 }
 
 class RobBypassIO(implicit p: Parameters) extends Bundle {
@@ -183,18 +183,13 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
       val oldPredTarget = buffer(idx).pred_target
       val oldPc         = buffer(idx).pc
 
-      val bruMispredict =
-        io.wb(i).is_bru &&
-          (
-            io.wb(i).actual_taken =/= oldPredTaken ||
-              (io.wb(i).actual_taken && io.wb(i).actual_target =/= oldPredTarget)
-          )
+      val bruMispredict = io.wb(i).is_bru && (
+        io.wb(i).actual_taken =/= oldPredTaken ||
+          (io.wb(i).actual_taken && io.wb(i).actual_target =/= oldPredTarget)
+      )
 
-      val nonBruMispredict =
-        !io.wb(i).is_bru && oldPredTaken
-
-      val isMispredict =
-        bruMispredict || nonBruMispredict
+      val nonBruMispredict = !io.wb(i).is_bru && oldPredTaken
+      val isMispredict     = bruMispredict || nonBruMispredict
 
       when(io.wb(i).is_bru) {
         buffer(idx).actual_taken  := io.wb(i).actual_taken
@@ -204,8 +199,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
         buffer(idx).actual_target := oldPc + p(PCStep).U
       }
 
-      val redirectTarget =
-        Mux(io.wb(i).is_bru, io.wb(i).actual_target, oldPc + p(PCStep).U)
+      val redirectTarget = Mux(io.wb(i).is_bru, io.wb(i).actual_target, oldPc + p(PCStep).U)
 
       buffer(idx).flush_pipeline :=
         isMispredict || io.wb(i).trap_req || io.wb(i).trap_ret
@@ -226,12 +220,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   for (w <- 0 until p(IssueWidth)) {
     val idx = wrapAdd(head, w.U)
 
-    val committable =
-      count > w.U &&
-        buffer(idx).valid &&
-        buffer(idx).ready &&
-        !stopCommit &&
-        commitChainOkay
+    val committable = count > w.U && buffer(idx).valid && buffer(idx).ready && !stopCommit && commitChainOkay
 
     io.commit(w).valid             := committable
     io.commit(w).pc                := buffer(idx).pc
@@ -295,29 +284,17 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
       val idx = indexFromNewest(d)
       val e   = buffer(idx)
 
-      matchVec(d) :=
-        e.valid &&
-          e.rd === rs &&
-          rs =/= 0.U
-
-      readyVec(d) :=
-        matchVec(d) && e.ready
-
-      dataVec(d) := e.data
+      matchVec(d) := e.valid && e.rd === rs && rs =/= 0.U
+      readyVec(d) := matchVec(d) && e.ready
+      dataVec(d)  := e.data
     }
 
-    val anyMatch = matchVec.asUInt.orR
-    val newest   = PriorityEncoder(matchVec)
-    val newestOH = UIntToOH(newest, Size)
-
-    val newestReady =
-      anyMatch && Mux1H(newestOH, readyVec)
-
-    val newestData =
-      Mux(anyMatch, Mux1H(newestOH, dataVec), 0.U(p(XLen).W))
-
-    val pending =
-      anyMatch && !newestReady
+    val anyMatch    = matchVec.asUInt.orR
+    val newest      = PriorityEncoder(matchVec)
+    val newestOH    = UIntToOH(newest, Size)
+    val newestReady = anyMatch && Mux1H(newestOH, readyVec)
+    val newestData  = Mux(anyMatch, Mux1H(newestOH, dataVec), 0.U(p(XLen).W))
+    val pending     = anyMatch && !newestReady
 
     (newestReady, newestData, pending)
   }
