@@ -184,9 +184,9 @@ class RiscCore(implicit p: Parameters) extends Module {
     rob.io.rs2_addr(w) := rs2s(w)
 
     is_csr(w)   := decoders(w).decoded.csr
-    is_mem(w)   := decoders(w).decoded.lsu
-    is_load(w)  := decoders(w).decoded.lsu && decoders(w).decoded.regwrite
-    is_store(w) := decoders(w).decoded.lsu && !decoders(w).decoded.regwrite
+    is_mem(w)   := decoders(w).decoded.load && decoders(w).decoded.store
+    is_load(w)  := decoders(w).decoded.load
+    is_store(w) := decoders(w).decoded.store
 
     val uses_rs1 =
       regfile_utils.readable(rs1s(w)) &&

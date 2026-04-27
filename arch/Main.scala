@@ -24,7 +24,7 @@ object MainCore extends App {
   AluInit
   MultInit
   DivInit
-  LsuInit
+  LoadStoreInit
   ImmInit
   CsrInit
 
@@ -51,7 +51,7 @@ object MainSystem extends App {
   AluInit
   MultInit
   DivInit
-  LsuInit
+  LoadStoreInit
   ImmInit
   CsrInit
 

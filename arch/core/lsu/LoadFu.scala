@@ -12,6 +12,15 @@ object LoadFUState extends ChiselEnum {
   val IDLE, CHECK_SB, SEND_MEM, WAIT_MEM, DONE, FLUSH_DRAIN = Value
 }
 
+class LoadCtrl(implicit p: Parameters) extends Bundle {
+  val is_byte     = Bool()
+  val is_half     = Bool()
+  val is_word     = Bool()
+  val is_dword    = Bool()
+  val is_unsigned = Bool()
+  val strb        = UInt((p(XLen) / 8).W)
+}
+
 class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   override def desiredName: String = s"${p(ISA).name}_load_fu"
 
@@ -21,7 +30,7 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   val sbFwd = IO(Flipped(new StoreForwardPort))
   val busy  = IO(Output(Bool()))
 
-  val utils    = LsuUtilsFactory.getOrThrow(p(ISA).name)
+  val utils    = LoadUtilsFactory.getOrThrow(p(ISA).name)
   val immUtils = ImmUtilsFactory.getOrThrow(p(ISA).name)
 
   val state     = RegInit(LoadFUState.IDLE)
@@ -34,12 +43,12 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   val reqOutstanding = RegInit(false.B)
   val reqWasCache    = RegInit(false.B)
 
-  val ctrl = utils.decode(uopReg.uop)
+  val ctrl = utils.decodeLoad(uopReg.uop)
   val imm  = immUtils.genImm(uopReg.instr, uopReg.imm_type)
   val addr = uopReg.rs1_data + imm
 
-  val alignedAddr = LsuData.alignedAddr(addr)
-  val loadMask    = LsuData.shiftedMask(ctrl, addr)
+  val alignedAddr = utils.alignedAddr(addr)
+  val loadMask    = utils.shiftedLoadMask(ctrl, addr)
 
   val (_, pmaReadable, _, pmaCacheable) = PmaChecker(addr)
 
@@ -85,7 +94,7 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   val memRespFire = mem.resp.fire || mmio.resp.fire
   val memRespData = Mux(reqWasCache, mem.resp.bits.data, mmio.resp.bits.data)
 
-  val expandedFwdMask = LsuData.expandByteMask(fwdMaskReg)
+  val expandedFwdMask = utils.expandByteMask(fwdMaskReg)
   val mergedBusData   = (memRespData & ~expandedFwdMask) | (fwdDataReg & expandedFwdMask)
 
   io.resp.valid        := state === LoadFUState.DONE
@@ -127,7 +136,7 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
       is(LoadFUState.CHECK_SB) {
         when(!shouldBlock) {
           when(fullForward) {
-            resultReg := LsuData.loadResult(ctrl, addr, fwdResp.fwdData)
+            resultReg := utils.loadResult(ctrl, addr, fwdResp.fwdData)
             state     := LoadFUState.DONE
           }.otherwise {
             fwdDataReg := Mux(partialForward, fwdResp.fwdData, 0.U)
@@ -145,7 +154,7 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
 
       is(LoadFUState.WAIT_MEM) {
         when(memRespFire) {
-          resultReg := LsuData.loadResult(ctrl, addr, mergedBusData)
+          resultReg := utils.loadResult(ctrl, addr, mergedBusData)
           state     := LoadFUState.DONE
         }
       }

@@ -11,25 +11,33 @@ object StoreFUState extends ChiselEnum {
   val IDLE, WRITE_SB, DONE = Value
 }
 
+class StoreCtrl(implicit p: Parameters) extends Bundle {
+  val is_byte  = Bool()
+  val is_half  = Bool()
+  val is_word  = Bool()
+  val is_dword = Bool()
+  val strb     = UInt((p(XLen) / 8).W)
+}
+
 class StoreFU(implicit p: Parameters) extends FunctionalUnit {
   override def desiredName: String = s"${p(ISA).name}_store_fu"
 
   val sbWrite = IO(Valid(new StoreWriteBundle))
   val busy    = IO(Output(Bool()))
 
-  val utils    = LsuUtilsFactory.getOrThrow(p(ISA).name)
+  val utils    = StoreUtilsFactory.getOrThrow(p(ISA).name)
   val immUtils = ImmUtilsFactory.getOrThrow(p(ISA).name)
 
   val state  = RegInit(StoreFUState.IDLE)
   val uopReg = Reg(new MicroOp)
 
-  val ctrl = utils.decode(uopReg.uop)
+  val ctrl = utils.decodeStore(uopReg.uop)
   val imm  = immUtils.genImm(uopReg.instr, uopReg.imm_type)
   val addr = uopReg.rs1_data + imm
 
-  val alignedAddr = LsuData.alignedAddr(addr)
-  val storeData   = LsuData.alignedStoreData(ctrl, addr, uopReg.rs2_data)
-  val storeMask   = LsuData.shiftedMask(ctrl, addr)
+  val alignedAddr = utils.alignedAddr(addr)
+  val storeData   = utils.alignedStoreData(ctrl, addr, uopReg.rs2_data)
+  val storeMask   = utils.shiftedStoreMask(ctrl, addr)
 
   val (_, _, pmaWritable, pmaCacheable) = PmaChecker(addr)
 

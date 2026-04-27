@@ -23,14 +23,6 @@ class MicroOp(implicit p: Parameters) extends Bundle {
 
   val rob_tag = UInt(log2Ceil(p(ROBSize)).W)
 
-  // Store-buffer index.
-  // Store: allocated SQ entry index.
-  // Load: unused for forwarding age; kept for compatibility/debug.
   val sq_idx = UInt(log2Ceil(p(ROBSize)).W)
-
-  // Monotonic store sequence.
-  // Store: this store's sequence.
-  // Load: snapshot of next store sequence at dispatch.
-  // An SB entry is older than a load iff entry.seq < load.sq_seq.
   val sq_seq = UInt(64.W)
 }
