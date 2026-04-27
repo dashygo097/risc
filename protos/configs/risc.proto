@@ -7,6 +7,7 @@ import "configs/ifu.proto";
 import "configs/bpu.proto";
 import "configs/regfile.proto";
 import "configs/rob.proto";
+import "configs/mem.proto";
 import "configs/bus.proto";
 import "configs/scheduler.proto";
 
@@ -20,7 +21,8 @@ message RiscConfig {
   RegfileConfig regfile = 4;
   SchedulerConfig scheduler = 5;
   RobConfig rob = 6;
-  CacheConfig l1i = 7;
-  CacheConfig l1d = 8;
-  BusConfig bus = 9;
+  MemConfig mem = 7;
+  CacheConfig l1i = 8;
+  CacheConfig l1d = 9;
+  BusConfig bus = 10;
 }

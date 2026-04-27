@@ -1,6 +1,7 @@
 package arch.core.ooo
 
 import arch.configs._
+import arch.configs.proto._
 import arch.configs.proto.FunctionalUnitType._
 import chisel3._
 import chisel3.util.{ Decoupled, Valid, log2Ceil }
@@ -15,7 +16,7 @@ abstract class Scheduler(implicit p: Parameters) extends Module {
   protected val numFUs  = p(FunctionalUnits).size
   protected val numRegs = p(NumArchRegs)
 
-  protected val FuTypeW = log2Ceil(arch.configs.proto.FunctionalUnitType.values.size)
+  protected val FuTypeW = log2Ceil(FunctionalUnitType.values.size)
   protected val FuIdW   = log2Ceil(p(FunctionalUnits).size)
   protected val RobTagW = log2Ceil(p(ROBSize))
   protected val RegIdxW = log2Ceil(p(NumArchRegs))

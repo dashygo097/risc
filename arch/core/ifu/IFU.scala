@@ -117,7 +117,7 @@ class Ifu(implicit p: Parameters) extends Module {
   }.elsewhen(bru_taken) {
     pc := bru_target
   }.elsewhen(bru_not_taken) {
-    pc := bru_branch_pc + 4.U
+    pc := bru_branch_pc + p(IAlign).U
   }.elsewhen(req_fire) {
     pc := Mux(req_has_taken, req_taken_tgt, next_block_pc)
   }

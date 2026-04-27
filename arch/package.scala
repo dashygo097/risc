@@ -46,6 +46,9 @@ package object configs {
   // ROB Parameters
   object ROBSize extends Field[Int](16)
 
+  // Mem Parameters
+  object StoreBufferSize extends Field[Int](8)
+
   // Branch Prediction
   object BTBWays        extends Field[Int](4)
   object BTBSets        extends Field[Int](16)

@@ -31,6 +31,6 @@ class MicroOp(implicit p: Parameters) extends Bundle {
 
   val rob_tag = UInt(log2Ceil(p(ROBSize)).W)
 
-  val sq_idx = UInt(log2Ceil(p(ROBSize)).W)
+  val sq_idx = UInt(log2Ceil(p(StoreBufferSize)).W)
   val sq_seq = UInt(64.W)
 }

@@ -20,7 +20,7 @@ class RobEnqIO(implicit p: Parameters) extends Bundle {
   val bpu_pht_index    = Input(UInt(p(GShareGhrWidth).W))
   val bpu_ghr_snapshot = Input(UInt(p(GShareGhrWidth).W))
   val rob_tag          = Output(UInt(log2Ceil(p(ROBSize)).W))
-  val sq_idx           = Input(UInt(log2Ceil(p(ROBSize)).W))
+  val sq_idx           = Input(UInt(log2Ceil(p(StoreBufferSize)).W))
 }
 
 class RobWbIO(implicit p: Parameters) extends Bundle {
@@ -85,7 +85,7 @@ class ROBEntry(implicit p: Parameters) extends Bundle {
   val actual_target  = UInt(p(XLen).W)
   val flush_pipeline = Bool()
   val flush_target   = UInt(p(XLen).W)
-  val sq_idx         = UInt(log2Ceil(p(ROBSize)).W)
+  val sq_idx         = UInt(log2Ceil(p(StoreBufferSize)).W)
 }
 
 class ReorderBuffer(implicit p: Parameters) extends Module {

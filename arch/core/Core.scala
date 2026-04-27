@@ -248,13 +248,13 @@ class RiscCore(implicit p: Parameters) extends Module {
 
   // Store queue index/sequence allocation
   private def sqWrapAdd(x: UInt, y: UInt): UInt = {
-    val idxW = log2Ceil(p(ROBSize))
+    val idxW = log2Ceil(p(StoreBufferSize))
     val sum  = x +& y
-    Mux(sum >= p(ROBSize).U, sum - p(ROBSize).U, sum)(idxW - 1, 0)
+    Mux(sum >= p(StoreBufferSize).U, sum - p(StoreBufferSize).U, sum)(idxW - 1, 0)
   }
 
-  val sq_idx_for_lane = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(ROBSize)).W)))
-  val sq_tail_after   = Wire(Vec(p(IssueWidth) + 1, UInt(log2Ceil(p(ROBSize)).W)))
+  val sq_idx_for_lane = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(StoreBufferSize)).W)))
+  val sq_tail_after   = Wire(Vec(p(IssueWidth) + 1, UInt(log2Ceil(p(StoreBufferSize)).W)))
 
   val sq_seq_for_lane = Wire(Vec(p(IssueWidth), UInt(64.W)))
   val sq_seq_after    = Wire(Vec(p(IssueWidth) + 1, UInt(64.W)))
