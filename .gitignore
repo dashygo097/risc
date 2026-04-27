@@ -4,7 +4,6 @@
 .bsp/
 .metals/
 .cache/
-.codex/
 .sbt-local/
 .coursier-cache/
 
@@ -43,3 +42,6 @@ dump/
 # Logs
 *.log
 *.jou
+
+# garbage
+.codex
