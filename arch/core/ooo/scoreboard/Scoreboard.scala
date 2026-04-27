@@ -31,8 +31,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   val reg_completed_data  = RegInit(VecInit(Seq.fill(numRegs)(0.U(p(XLen).W))))
   val dispatch_seq        = RegInit(0.U(64.W))
 
-  val entries =
-    RegInit(VecInit(Seq.fill(numFUs)(0.U.asTypeOf(new ScoreboardEntry))))
+  val entries = RegInit(VecInit(Seq.fill(numFUs)(0.U.asTypeOf(new ScoreboardEntry))))
 
   val cdb_valid   = Wire(Vec(numFUs, Bool()))
   val cdb_data    = Wire(Vec(numFUs, UInt(p(XLen).W)))
@@ -46,23 +45,16 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     cdb_rd(i)      := fu_done(i).bits.rd
   }
 
-  val base_pending_valid = Wire(Vec(numRegs, Bool()))
-  val base_pending_rob   = Wire(Vec(numRegs, UInt(RobTagW.W)))
-
-  val base_completed_valid =
-    Wire(Vec(numRegs, Bool()))
-
-  val base_completed_data =
-    Wire(Vec(numRegs, UInt(p(XLen).W)))
+  val base_pending_valid   = Wire(Vec(numRegs, Bool()))
+  val base_pending_rob     = Wire(Vec(numRegs, UInt(RobTagW.W)))
+  val base_completed_valid = Wire(Vec(numRegs, Bool()))
+  val base_completed_data  = Wire(Vec(numRegs, UInt(p(XLen).W)))
 
   for (r <- 0 until numRegs) {
     val hits = Wire(Vec(numFUs, Bool()))
 
     for (c <- 0 until numFUs)
-      hits(c) := cdb_valid(c) &&
-        reg_pending_valid(r) &&
-        reg_pending_rob(r) === cdb_rob_tag(c) &&
-        cdb_rd(c) === r.U
+      hits(c) := cdb_valid(c) && reg_pending_valid(r) && reg_pending_rob(r) === cdb_rob_tag(c) && cdb_rd(c) === r.U
 
     val hit = hits.asUInt.orR
 
@@ -101,8 +93,26 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     }
   }
 
+  val issued_entries = Wire(Vec(numFUs, new ScoreboardEntry))
+  issued_entries := snooped_entries
+
+  for (i <- 0 until numFUs) {
+    val entry         = snooped_entries(i)
+    val ready_to_exec = entry.valid && entry.q1_ready && entry.q2_ready
+
+    fu_reqs(i).valid         := ready_to_exec
+    fu_reqs(i).bits          := entry.op
+    fu_reqs(i).bits.fu_id    := i.U
+    fu_reqs(i).bits.rs1_data := entry.v1
+    fu_reqs(i).bits.rs2_data := entry.v2
+
+    when(ready_to_exec && fu_reqs(i).ready) {
+      issued_entries(i).valid := false.B
+    }
+  }
+
   val dispatched_entries = Wire(Vec(numFUs, new ScoreboardEntry))
-  dispatched_entries := snooped_entries
+  dispatched_entries := issued_entries
 
   val temp_pending_valid   = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
   val temp_pending_rob     = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(RobTagW.W))))
@@ -110,6 +120,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   val temp_completed_data  = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(p(XLen).W))))
   val temp_fu_avail        = Wire(Vec(p(IssueWidth) + 1, Vec(numFUs, Bool())))
   val temp_seq             = Wire(Vec(p(IssueWidth) + 1, UInt(64.W)))
+  val accepted             = Wire(Vec(p(IssueWidth), Bool()))
 
   temp_pending_valid(0)   := base_pending_valid
   temp_pending_rob(0)     := base_pending_rob
@@ -118,9 +129,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   temp_seq(0)             := dispatch_seq
 
   for (i <- 0 until numFUs)
-    temp_fu_avail(0)(i) := !snooped_entries(i).valid
-
-  val accepted = Wire(Vec(p(IssueWidth), Bool()))
+    temp_fu_avail(0)(i) := !issued_entries(i).valid
 
   for (w <- 0 until p(IssueWidth)) {
     val dis = dis_reqs(w)
@@ -133,12 +142,9 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
 
     val target_fu_idx = PriorityEncoder(fu_match_mask)
     val fu_available  = fu_match_mask.asUInt.orR
-
-    val writes_rd  = op.rd_valid && regfile_utils.writable(op.rd)
-    val waw_hazard = writes_rd && temp_pending_valid(w)(op.rd)
-
-    val prev_ok    = if (w == 0) true.B else !dis_reqs(w - 1).valid || accepted(w - 1)
-    val can_accept = fu_available && !waw_hazard && prev_ok
+    val writes_rd     = op.rd_valid && regfile_utils.writable(op.rd)
+    val prev_ok       = if (w == 0) true.B else !dis_reqs(w - 1).valid || accepted(w - 1)
+    val can_accept    = fu_available && prev_ok
 
     dis.ready   := can_accept
     accepted(w) := dis.valid && can_accept
@@ -184,16 +190,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
 
       dispatched_entries(target_fu_idx).q1_ready := !r1_pending || r1_cdb_valid
       dispatched_entries(target_fu_idx).q1_tag   := r1_rob_tag
-
-      dispatched_entries(target_fu_idx).v1 := Mux(
-        r1_cdb_valid,
-        r1_cdb_data,
-        Mux(
-          r1_completed,
-          temp_completed_data(w)(op.rs1),
-          op.rs1_data
-        )
-      )
+      dispatched_entries(target_fu_idx).v1       := Mux(r1_cdb_valid, r1_cdb_data, Mux(r1_completed, temp_completed_data(w)(op.rs1), op.rs1_data))
 
       val r2_used      = op.rs2_valid && regfile_utils.readable(op.rs2)
       val r2_pending   = r2_used && temp_pending_valid(w)(op.rs2)
@@ -209,45 +206,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
 
       dispatched_entries(target_fu_idx).q2_ready := !r2_pending || r2_cdb_valid
       dispatched_entries(target_fu_idx).q2_tag   := r2_rob_tag
-      dispatched_entries(target_fu_idx).v2       := Mux(
-        r2_cdb_valid,
-        r2_cdb_data,
-        Mux(
-          r2_completed,
-          temp_completed_data(w)(op.rs2),
-          op.rs2_data
-        )
-      )
-    }
-  }
-
-  val next_entries = Wire(Vec(numFUs, new ScoreboardEntry))
-  next_entries := dispatched_entries
-
-  for (i <- 0 until numFUs) {
-    val entry = dispatched_entries(i)
-
-    val has_older_store = (0 until numFUs)
-      .map(j =>
-        dispatched_entries(j).valid &&
-          isStore(dispatched_entries(j).op) &&
-          dispatched_entries(j).seq < entry.seq
-      )
-      .reduce(_ || _)
-
-    val memory_order_ok =
-      !isLoad(entry.op) || !has_older_store
-
-    val ready_to_exec = entry.valid && entry.q1_ready && entry.q2_ready && memory_order_ok
-
-    fu_reqs(i).valid         := ready_to_exec
-    fu_reqs(i).bits          := entry.op
-    fu_reqs(i).bits.fu_id    := i.U
-    fu_reqs(i).bits.rs1_data := entry.v1
-    fu_reqs(i).bits.rs2_data := entry.v2
-
-    when(ready_to_exec && fu_reqs(i).ready) {
-      next_entries(i).valid := false.B
+      dispatched_entries(target_fu_idx).v2       := Mux(r2_cdb_valid, r2_cdb_data, Mux(r2_completed, temp_completed_data(w)(op.rs2), op.rs2_data))
     }
   }
 
@@ -255,6 +214,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     for (r <- 0 until numRegs) {
       reg_pending_valid(r)   := false.B
       reg_completed_valid(r) := false.B
+      reg_completed_data(r)  := 0.U
     }
 
     for (i <- 0 until numFUs)
@@ -266,7 +226,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     reg_pending_rob     := temp_pending_rob(p(IssueWidth))
     reg_completed_valid := temp_completed_valid(p(IssueWidth))
     reg_completed_data  := temp_completed_data(p(IssueWidth))
-    entries             := next_entries
+    entries             := dispatched_entries
     dispatch_seq        := temp_seq(p(IssueWidth))
   }
 }
