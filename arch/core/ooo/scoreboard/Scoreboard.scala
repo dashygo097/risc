@@ -59,25 +59,17 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     val hits = Wire(Vec(numFUs, Bool()))
 
     for (c <- 0 until numFUs)
-      hits(c) :=
-        cdb_valid(c) &&
-          reg_pending_valid(r) &&
-          reg_pending_rob(r) === cdb_rob_tag(c) &&
-          cdb_rd(c) === r.U
+      hits(c) := cdb_valid(c) &&
+        reg_pending_valid(r) &&
+        reg_pending_rob(r) === cdb_rob_tag(c) &&
+        cdb_rd(c) === r.U
 
     val hit = hits.asUInt.orR
 
-    base_pending_valid(r) :=
-      reg_pending_valid(r) && !hit
-
-    base_pending_rob(r) :=
-      reg_pending_rob(r)
-
-    base_completed_valid(r) :=
-      Mux(hit, true.B, reg_completed_valid(r))
-
-    base_completed_data(r) :=
-      Mux(hit, Mux1H(hits, cdb_data), reg_completed_data(r))
+    base_pending_valid(r)   := reg_pending_valid(r) && !hit
+    base_pending_rob(r)     := reg_pending_rob(r)
+    base_completed_valid(r) := Mux(hit, true.B, reg_completed_valid(r))
+    base_completed_data(r)  := Mux(hit, Mux1H(hits, cdb_data), reg_completed_data(r))
   }
 
   val snooped_entries = Wire(Vec(numFUs, new ScoreboardEntry))
@@ -88,9 +80,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
       val hits = Wire(Vec(numFUs, Bool()))
 
       for (c <- 0 until numFUs)
-        hits(c) :=
-          cdb_valid(c) &&
-            entries(i).q1_tag === cdb_rob_tag(c)
+        hits(c) := cdb_valid(c) && entries(i).q1_tag === cdb_rob_tag(c)
 
       when(hits.asUInt.orR) {
         snooped_entries(i).q1_ready := true.B
@@ -102,9 +92,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
       val hits = Wire(Vec(numFUs, Bool()))
 
       for (c <- 0 until numFUs)
-        hits(c) :=
-          cdb_valid(c) &&
-            entries(i).q2_tag === cdb_rob_tag(c)
+        hits(c) := cdb_valid(c) && entries(i).q2_tag === cdb_rob_tag(c)
 
       when(hits.asUInt.orR) {
         snooped_entries(i).q2_ready := true.B
@@ -141,26 +129,16 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     val fu_match_mask = Wire(Vec(numFUs, Bool()))
 
     for (i <- 0 until numFUs)
-      fu_match_mask(i) :=
-        temp_fu_avail(w)(i) &&
-          fuTypes(i) === op.fu_type
+      fu_match_mask(i) := temp_fu_avail(w)(i) && fuTypes(i) === op.fu_type
 
     val target_fu_idx = PriorityEncoder(fu_match_mask)
     val fu_available  = fu_match_mask.asUInt.orR
 
-    val writes_rd =
-      op.rd_valid && regfile_utils.writable(op.rd)
+    val writes_rd  = op.rd_valid && regfile_utils.writable(op.rd)
+    val waw_hazard = writes_rd && temp_pending_valid(w)(op.rd)
 
-    val waw_hazard =
-      writes_rd && temp_pending_valid(w)(op.rd)
-
-    val prev_ok =
-      if (w == 0) true.B else !dis_reqs(w - 1).valid || accepted(w - 1)
-
-    val can_accept =
-      fu_available &&
-        !waw_hazard &&
-        prev_ok
+    val prev_ok    = if (w == 0) true.B else !dis_reqs(w - 1).valid || accepted(w - 1)
+    val can_accept = fu_available && !waw_hazard && prev_ok
 
     dis.ready   := can_accept
     accepted(w) := dis.valid && can_accept
@@ -192,89 +170,54 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
 
       temp_seq(w + 1) := temp_seq(w) + 1.U
 
-      val r1_used =
-        op.rs1_valid && regfile_utils.readable(op.rs1)
-
-      val r1_pending =
-        r1_used && temp_pending_valid(w)(op.rs1)
-
-      val r1_completed =
-        r1_used && !r1_pending && temp_completed_valid(w)(op.rs1)
-
-      val r1_rob_tag =
-        temp_pending_rob(w)(op.rs1)
-
-      val r1_hits = Wire(Vec(numFUs, Bool()))
+      val r1_used      = op.rs1_valid && regfile_utils.readable(op.rs1)
+      val r1_pending   = r1_used && temp_pending_valid(w)(op.rs1)
+      val r1_completed = r1_used && !r1_pending && temp_completed_valid(w)(op.rs1)
+      val r1_rob_tag   = temp_pending_rob(w)(op.rs1)
+      val r1_hits      = Wire(Vec(numFUs, Bool()))
 
       for (c <- 0 until numFUs)
-        r1_hits(c) :=
-          cdb_valid(c) &&
-            r1_rob_tag === cdb_rob_tag(c)
+        r1_hits(c) := cdb_valid(c) && r1_rob_tag === cdb_rob_tag(c)
 
-      val r1_cdb_valid =
-        r1_pending && r1_hits.asUInt.orR
+      val r1_cdb_valid = r1_pending && r1_hits.asUInt.orR
+      val r1_cdb_data  = Mux1H(r1_hits, cdb_data)
 
-      val r1_cdb_data =
-        Mux1H(r1_hits, cdb_data)
+      dispatched_entries(target_fu_idx).q1_ready := !r1_pending || r1_cdb_valid
+      dispatched_entries(target_fu_idx).q1_tag   := r1_rob_tag
 
-      dispatched_entries(target_fu_idx).q1_ready :=
-        !r1_pending || r1_cdb_valid
-
-      dispatched_entries(target_fu_idx).q1_tag :=
-        r1_rob_tag
-
-      dispatched_entries(target_fu_idx).v1 :=
+      dispatched_entries(target_fu_idx).v1 := Mux(
+        r1_cdb_valid,
+        r1_cdb_data,
         Mux(
-          r1_cdb_valid,
-          r1_cdb_data,
-          Mux(
-            r1_completed,
-            temp_completed_data(w)(op.rs1),
-            op.rs1_data
-          )
+          r1_completed,
+          temp_completed_data(w)(op.rs1),
+          op.rs1_data
         )
+      )
 
-      val r2_used =
-        op.rs2_valid && regfile_utils.readable(op.rs2)
-
-      val r2_pending =
-        r2_used && temp_pending_valid(w)(op.rs2)
-
-      val r2_completed =
-        r2_used && !r2_pending && temp_completed_valid(w)(op.rs2)
-
-      val r2_rob_tag =
-        temp_pending_rob(w)(op.rs2)
-
-      val r2_hits = Wire(Vec(numFUs, Bool()))
+      val r2_used      = op.rs2_valid && regfile_utils.readable(op.rs2)
+      val r2_pending   = r2_used && temp_pending_valid(w)(op.rs2)
+      val r2_completed = r2_used && !r2_pending && temp_completed_valid(w)(op.rs2)
+      val r2_rob_tag   = temp_pending_rob(w)(op.rs2)
+      val r2_hits      = Wire(Vec(numFUs, Bool()))
 
       for (c <- 0 until numFUs)
-        r2_hits(c) :=
-          cdb_valid(c) &&
-            r2_rob_tag === cdb_rob_tag(c)
+        r2_hits(c) := cdb_valid(c) && r2_rob_tag === cdb_rob_tag(c)
 
-      val r2_cdb_valid =
-        r2_pending && r2_hits.asUInt.orR
+      val r2_cdb_valid = r2_pending && r2_hits.asUInt.orR
+      val r2_cdb_data  = Mux1H(r2_hits, cdb_data)
 
-      val r2_cdb_data =
-        Mux1H(r2_hits, cdb_data)
-
-      dispatched_entries(target_fu_idx).q2_ready :=
-        !r2_pending || r2_cdb_valid
-
-      dispatched_entries(target_fu_idx).q2_tag :=
-        r2_rob_tag
-
-      dispatched_entries(target_fu_idx).v2 :=
+      dispatched_entries(target_fu_idx).q2_ready := !r2_pending || r2_cdb_valid
+      dispatched_entries(target_fu_idx).q2_tag   := r2_rob_tag
+      dispatched_entries(target_fu_idx).v2       := Mux(
+        r2_cdb_valid,
+        r2_cdb_data,
         Mux(
-          r2_cdb_valid,
-          r2_cdb_data,
-          Mux(
-            r2_completed,
-            temp_completed_data(w)(op.rs2),
-            op.rs2_data
-          )
+          r2_completed,
+          temp_completed_data(w)(op.rs2),
+          op.rs2_data
         )
+      )
     }
   }
 
@@ -284,10 +227,18 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   for (i <- 0 until numFUs) {
     val entry = dispatched_entries(i)
 
-    val ready_to_exec =
-      entry.valid &&
-        entry.q1_ready &&
-        entry.q2_ready
+    val has_older_store = (0 until numFUs)
+      .map(j =>
+        dispatched_entries(j).valid &&
+          isStore(dispatched_entries(j).op) &&
+          dispatched_entries(j).seq < entry.seq
+      )
+      .reduce(_ || _)
+
+    val memory_order_ok =
+      !isLoad(entry.op) || !has_older_store
+
+    val ready_to_exec = entry.valid && entry.q1_ready && entry.q2_ready && memory_order_ok
 
     fu_reqs(i).valid         := ready_to_exec
     fu_reqs(i).bits          := entry.op
@@ -301,9 +252,14 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   }
 
   when(flush) {
-    reg_pending_valid.foreach(_ := false.B)
-    reg_completed_valid.foreach(_ := false.B)
-    entries.foreach(_.valid := false.B)
+    for (r <- 0 until numRegs) {
+      reg_pending_valid(r)   := false.B
+      reg_completed_valid(r) := false.B
+    }
+
+    for (i <- 0 until numFUs)
+      entries(i).valid := false.B
+
     dispatch_seq := 0.U
   }.otherwise {
     reg_pending_valid   := temp_pending_valid(p(IssueWidth))
