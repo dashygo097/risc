@@ -30,6 +30,7 @@ class StoreForwardReq(implicit p: Parameters) extends Bundle {
 class StoreForwardResp(implicit p: Parameters) extends Bundle {
   val block    = Bool()
   val hasOlder = Bool()
+
   val fwdValid = Bool()
   val fwdFull  = Bool()
   val fwdData  = UInt(p(XLen).W)
@@ -45,7 +46,8 @@ class StoreBufferEntry(implicit p: Parameters) extends Bundle {
   val valid     = Bool()
   val committed = Bool()
   val addrValid = Bool()
-  val fwdValid  = Bool()
+
+  val fwdValid = Bool()
 
   val seq       = UInt(64.W)
   val rob_tag   = UInt(log2Ceil(p(ROBSize)).W)
@@ -88,10 +90,12 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   }
 
   val entries = RegInit(VecInit(Seq.fill(Size)(0.U.asTypeOf(new StoreBufferEntry))))
-  val head    = RegInit(0.U(IdxW.W))
-  val tail    = RegInit(0.U(IdxW.W))
-  val count   = RegInit(0.U(CntW.W))
 
+  val head  = RegInit(0.U(IdxW.W))
+  val tail  = RegInit(0.U(IdxW.W))
+  val count = RegInit(0.U(CntW.W))
+
+  // Monotonic sequence
   val tailSeq = RegInit(0.U(64.W))
 
   val drainOutstanding = RegInit(false.B)
@@ -103,7 +107,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   io.empty     := count === 0.U && !drainOutstanding
   io.busy      := count =/= 0.U || drainOutstanding
 
-  // Store-to-load forwarding CAM.
+  // Forwarding CAM.
   for (q <- 0 until numLoadPorts) {
     val req = io.fwd(q).req
 
@@ -111,11 +115,11 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
     val maskStage = Wire(Vec(Size + 1, Vec(Bytes, Bool())))
     val seqStage  = Wire(Vec(Size + 1, Vec(Bytes, UInt(64.W))))
 
-    val blockStage    = Wire(Vec(Size + 1, Bool()))
-    val hasOlderStage = Wire(Vec(Size + 1, Bool()))
+    val blockStage     = Wire(Vec(Size + 1, Bool()))
+    val liveOlderStage = Wire(Vec(Size + 1, Bool()))
 
-    blockStage(0)    := false.B
-    hasOlderStage(0) := false.B
+    blockStage(0)     := false.B
+    liveOlderStage(0) := false.B
 
     for (b <- 0 until Bytes) {
       dataStage(0)(b) := 0.U
@@ -136,25 +140,20 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
           e.fwdValid &&
           e.seq < req.sq_seq
 
-      val older =
-        olderLive || olderFwd
-
       val liveUnknown =
         olderLive && !e.addrValid
 
       val forwardable =
-        older &&
-          (e.addrValid || e.fwdValid)
+        (olderLive && e.addrValid) || olderFwd
 
       val sameLine =
-        forwardable &&
-          e.addr === req.addr
+        forwardable && e.addr === req.addr
 
       blockStage(i + 1) :=
         blockStage(i) || liveUnknown
 
-      hasOlderStage(i + 1) :=
-        hasOlderStage(i) || older
+      liveOlderStage(i + 1) :=
+        liveOlderStage(i) || olderLive
 
       for (b <- 0 until Bytes) {
         val byteHit =
@@ -174,14 +173,14 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
     val finalMaskUInt = finalMaskVec.asUInt
 
     io.fwd(q).resp.block    := blockStage(Size)
-    io.fwd(q).resp.hasOlder := hasOlderStage(Size)
+    io.fwd(q).resp.hasOlder := liveOlderStage(Size)
     io.fwd(q).resp.fwdValid := (finalMaskUInt & req.mask).orR
     io.fwd(q).resp.fwdFull  := ((finalMaskUInt & req.mask) === req.mask)
     io.fwd(q).resp.fwdData  := Cat((Bytes - 1 to 0 by -1).map(i => finalDataVec(i)))
     io.fwd(q).resp.fwdMask  := finalMaskUInt
   }
 
-  // Drain committed stores in program order.
+  // Drain committed stores in order.
   val headEntry = entries(head)
 
   val canDrain =
@@ -208,7 +207,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   val drainReqFire  = io.mem.req.fire || io.mmio.req.fire
   val drainRespFire = io.mem.resp.fire || io.mmio.resp.fire
 
-  // drain response.
+  // drain response
   val afterDrainEntries = Wire(Vec(Size, new StoreBufferEntry))
   afterDrainEntries := entries
 
@@ -222,11 +221,21 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
     when(drainRespFire && head === i.U) {
       afterDrainEntries(i).valid     := false.B
       afterDrainEntries(i).committed := false.B
-      afterDrainEntries(i).addrValid := true.B
-      afterDrainEntries(i).fwdValid  := true.B
+
+      afterDrainEntries(i).addrValid := headEntry.cacheable
+      afterDrainEntries(i).fwdValid  := headEntry.cacheable
+
+      when(!headEntry.cacheable) {
+        afterDrainEntries(i).seq       := 0.U
+        afterDrainEntries(i).rob_tag   := 0.U
+        afterDrainEntries(i).addr      := 0.U
+        afterDrainEntries(i).data      := 0.U
+        afterDrainEntries(i).mask      := 0.U
+        afterDrainEntries(i).cacheable := false.B
+      }
     }
 
-  // StoreFU writes addr/data.
+  // StoreFU writes addr/data
   val afterWriteEntries = Wire(Vec(Size, new StoreBufferEntry))
   afterWriteEntries := afterDrainEntries
 
@@ -247,7 +256,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
       }
     }
 
-  // ROB commit marks stores drainable.
+  // ROB commit
   val afterCommitEntries = Wire(Vec(Size, new StoreBufferEntry))
   afterCommitEntries := afterWriteEntries
 
@@ -263,7 +272,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
       }
     }
 
-  // allocation.
+  // allocation
   val allocValid = Wire(Vec(p(IssueWidth), Bool()))
   for (a <- 0 until p(IssueWidth))
     allocValid(a) := io.alloc(a).valid && !io.flush
@@ -298,7 +307,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   val afterAllocCount = count + allocCount - drainRespFire.asUInt
   val afterAllocSeq   = tailSeq + allocCount
 
-  // flush.
+  // flush
   val keepLive = Wire(Vec(Size, Bool()))
   for (i <- 0 until Size)
     keepLive(i) := afterAllocEntries(i).valid && afterAllocEntries(i).committed
