@@ -2,6 +2,7 @@ package arch.core.ooo
 
 import arch.core.imm._
 import arch.configs._
+import arch.configs.proto._
 import chisel3._
 import chisel3.util.log2Ceil
 
@@ -11,7 +12,9 @@ class MicroOp(implicit p: Parameters) extends Bundle {
   val pc    = UInt(p(XLen).W)
   val instr = UInt(p(ILen).W)
 
-  val fu_id    = UInt(log2Ceil(p(FunctionalUnits).size).W)
+  val fu_type = UInt(log2Ceil(FunctionalUnitType.values.size).W)
+  val fu_id   = UInt(log2Ceil(p(FunctionalUnits).size).W)
+
   val uop      = UInt(p(MicroOpWidth).W)
   val imm_type = UInt(imm_utils.immTypeWidth.W)
 
