@@ -227,13 +227,15 @@ class RiscCore(implicit p: Parameters) extends Module {
       !global_flush
     })
 
-  val core_valid_req = Wire(Vec(p(IssueWidth), Bool()))
+  val lane_base_req_ok = Wire(Vec(p(IssueWidth), Bool()))
+  val lane_prefix_ok   = Wire(Vec(p(IssueWidth), Bool()))
+  val core_valid_req   = Wire(Vec(p(IssueWidth), Bool()))
 
   for (w <- 0 until p(IssueWidth)) {
     val sqSlotOk =
       !is_store(w) || possibleStoreBeforeOrAt(w) <= store_buffer.io.freeCount
 
-    core_valid_req(w) :=
+    lane_base_req_ok(w) :=
       ifu.if_valid(w) &&
         decoders(w).decoded.legal &&
         !global_flush &&
@@ -241,6 +243,27 @@ class RiscCore(implicit p: Parameters) extends Module {
         sqSlotOk &&
         rob.io.enq(w).ready
   }
+
+  lane_prefix_ok(0) := true.B
+
+  for (w <- 1 until p(IssueWidth)) {
+    val olderLaneMayBeSkipped =
+      !ifu.if_valid(w - 1) ||
+        kill_mask(w - 1) ||
+        global_flush
+
+    val olderLaneCanBePresented =
+      lane_base_req_ok(w - 1)
+
+    lane_prefix_ok(w) :=
+      lane_prefix_ok(w - 1) &&
+        (olderLaneMayBeSkipped || olderLaneCanBePresented)
+  }
+
+  for (w <- 0 until p(IssueWidth))
+    core_valid_req(w) :=
+      lane_base_req_ok(w) &&
+        lane_prefix_ok(w)
 
   // Scheduler dispatch handshake
   val lane_valid = Wire(Vec(p(IssueWidth), Bool()))
@@ -561,6 +584,6 @@ class RiscCore(implicit p: Parameters) extends Module {
   debug_rob_empty      := rob.io.empty
   debug_issue_count    := PopCount(lane_valid)
   debug_commit_count   := commit_pop_count
-  debug_frontend_stall := core_valid_req(0) && !lane_valid(0)
+  debug_frontend_stall := lane_base_req_ok(0) && !lane_valid(0)
   debug_backend_stall  := !rob.io.empty && commit_pop_count === 0.U
 }
