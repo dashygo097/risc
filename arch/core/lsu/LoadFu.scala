@@ -63,17 +63,10 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
 
   val fwdResp = sbFwd.resp
 
-  val mmioOrderBlock =
-    !pmaCacheable && fwdResp.hasOlder
-
-  val shouldBlock =
-    fwdResp.block || mmioOrderBlock
-
-  val fullForward =
-    pmaCacheable && fwdResp.fwdFull
-
-  val partialForward =
-    pmaCacheable && fwdResp.fwdValid && !fwdResp.fwdFull
+  val mmioOrderBlock = !pmaCacheable && fwdResp.hasOlder
+  val shouldBlock    = fwdResp.block || mmioOrderBlock
+  val fullForward    = pmaCacheable && fwdResp.fwdFull
+  val partialForward = pmaCacheable && fwdResp.fwdValid && !fwdResp.fwdFull
 
   mem.req.valid     := state === LoadFUState.SEND_MEM && pmaCacheable
   mem.req.bits.op   := CacheOp.READ

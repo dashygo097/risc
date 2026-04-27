@@ -128,37 +128,17 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
     for (i <- 0 until p(StoreBufferSize)) {
       val e = entries(i)
 
-      val olderLive =
-        req.valid &&
-          e.valid &&
-          e.seq < req.sq_seq
+      val olderLive   = req.valid && e.valid && e.seq < req.sq_seq
+      val olderFwd    = req.valid && e.fwdValid && e.seq < req.sq_seq
+      val liveUnknown = olderLive && !e.addrValid
+      val forwardable = (olderLive && e.addrValid) || olderFwd
+      val sameLine    = forwardable && e.addr === req.addr
 
-      val olderFwd =
-        req.valid &&
-          e.fwdValid &&
-          e.seq < req.sq_seq
-
-      val liveUnknown =
-        olderLive && !e.addrValid
-
-      val forwardable =
-        (olderLive && e.addrValid) || olderFwd
-
-      val sameLine =
-        forwardable && e.addr === req.addr
-
-      blockStage(i + 1) :=
-        blockStage(i) || liveUnknown
-
-      liveOlderStage(i + 1) :=
-        liveOlderStage(i) || olderLive
+      blockStage(i + 1)     := blockStage(i) || liveUnknown
+      liveOlderStage(i + 1) := liveOlderStage(i) || olderLive
 
       for (b <- 0 until p(BytesPerWord)) {
-        val byteHit =
-          sameLine &&
-            e.mask(b) &&
-            req.mask(b) &&
-            (!maskStage(i)(b) || e.seq > seqStage(i)(b))
+        val byteHit = sameLine && e.mask(b) && req.mask(b) && (!maskStage(i)(b) || e.seq > seqStage(i)(b))
 
         dataStage(i + 1)(b) := Mux(byteHit, e.data(8 * b + 7, 8 * b), dataStage(i)(b))
         maskStage(i + 1)(b) := Mux(byteHit, true.B, maskStage(i)(b))
@@ -180,12 +160,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
 
   // Drain committed stores in order.
   val headEntry = entries(head)
-
-  val canDrain =
-    headEntry.valid &&
-      headEntry.committed &&
-      headEntry.addrValid &&
-      !drainOutstanding
+  val canDrain  = headEntry.valid && headEntry.committed && headEntry.addrValid && !drainOutstanding
 
   io.mem.req.valid     := canDrain && headEntry.cacheable
   io.mem.req.bits.op   := CacheOp.WRITE
