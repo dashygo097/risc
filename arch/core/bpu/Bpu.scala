@@ -31,7 +31,7 @@ class Bpu(implicit p: Parameters) extends Module with BHTConsts {
     val predTarget = btb.entry_out(w).target
 
     taken(w)      := predTaken
-    target(w)     := Mux(predTaken, predTarget, query_pc(w) + p(IAlign).U)
+    target(w)     := Mux(predTaken, predTarget, query_pc(w) + p(PCStep).U)
     branchMask(w) := btbHit
   }
   gshare.query_is_branch := branchMask

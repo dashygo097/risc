@@ -5,16 +5,39 @@ RUNTIME_DIR = $(PROJECT_DIR)/runtime
 
 # Build configuration
 BUILD_TYPE ?= Release
-GENERATOR ?= Ninja
+
+# Auto-detect generator
+ifndef GENERATOR
+  ifneq ($(wildcard $(BUILD_DIR)/build.ninja),)
+    # build.ninja exists, use Ninja
+    GENERATOR = Ninja
+  else ifneq ($(wildcard $(BUILD_DIR)/Makefile),)
+    # Makefile exists, use Unix Makefiles
+    GENERATOR = Unix Makefiles
+  else
+    # No build system configured yet, default to Ninja
+    GENERATOR = Ninja
+  endif
+endif
+
+# Validate generator
+VALID_GENERATORS = Ninja Unix Makefiles
+ifeq ($(filter $(GENERATOR),$(VALID_GENERATORS)),)
+  $(error Invalid GENERATOR: $(GENERATOR). Supported generators: Ninja, Unix Makefiles)
+endif
 
 # Detect generator command
 ifeq ($(GENERATOR),Ninja)
   BUILD_CMD = ninja -C $(BUILD_DIR)
-else
+  TEST_CMD = ninja -C $(BUILD_DIR) check-difftest
+else ifeq ($(GENERATOR),Unix Makefiles)
   BUILD_CMD = cmake --build $(BUILD_DIR)
+  TEST_CMD = cmake --build $(BUILD_DIR) --target check-difftest
+else
+  $(error Unsupported generator: $(GENERATOR))
 endif
 
-.PHONY: all config build reconfigure clean help
+.PHONY: all config build reconfigure clean difftest help
 
 all: build
 
@@ -32,11 +55,11 @@ config:
 # Build the project
 build: config
 	@mkdir -p $(BUILD_DIR)
-	@if [ ! -f $(BUILD_DIR)/CMakeCache.txt ] || { [ "$(GENERATOR)" = "Ninja" ] && [ ! -f $(BUILD_DIR)/build.ninja ]; }; then \
+	@if [ ! -f $(BUILD_DIR)/CMakeCache.txt ]; then \
 		echo "Running CMake with generator: $(GENERATOR)"; \
 		cd $(BUILD_DIR) && cmake $(PROJECT_DIR) \
 			-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
-			-G $(GENERATOR); \
+			-G "$(GENERATOR)"; \
 	fi
 	@echo "==> Building project with $(GENERATOR)..."
 	@$(BUILD_CMD)
@@ -55,7 +78,7 @@ clean:
 # Run tests
 difftest:
 	@echo "==> Running difftests..."
-	@cd $(BUILD_DIR) && ninja check-difftest
+	@$(TEST_CMD)
 
 # Help message
 help:
@@ -71,6 +94,6 @@ help:
 	@echo "Variables:"
 	@echo "  BUILD_TYPE       - Build type (Debug, Release, RelWithDebInfo, MinSizeRel)"
 	@echo "                     Current: $(BUILD_TYPE)"
-	@echo "  GENERATOR        - CMake generator (Ninja, 'Unix Makefiles', etc.)"
+	@echo "  GENERATOR        - CMake generator (Ninja, Unix Makefiles)"
 	@echo "                     Current: $(GENERATOR)"
 	@echo ""

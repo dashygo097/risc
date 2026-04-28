@@ -2,7 +2,7 @@ package arch.core.bpu
 
 import arch.configs._
 import chisel3._
-import chisel3.util.{ log2Ceil, Cat }
+import chisel3.util.Cat 
 
 class GShare(implicit p: Parameters) extends Module with BHTConsts {
   override def desiredName: String = s"${p(ISA).name}_gshare"
@@ -16,7 +16,6 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
   val index_out        = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
   val ghr_snapshot_out = IO(Output(Vec(p(IssueWidth), UInt(p(GShareGhrWidth).W))))
 
-  val pc_align   = log2Ceil(p(IAlign))
   val phtEntries = 1 << p(GShareGhrWidth)
 
   require(p(GShareGhrWidth) >= 2, "GShareGhrWidth must be at least 2")
@@ -31,7 +30,7 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
   val st  = BHT_ST.value.U(SZ_BHT.W)
 
   def getIndex(pc: UInt, hist: UInt): UInt = {
-    val pcLow  = pc(p(GShareGhrWidth) + 1, pc_align)
+    val pcLow  = pc(p(GShareGhrWidth) + 1, p(PCAlign))
     // Fold higher PC bits to reduce table aliasing for nearby hot loops.
     val pcHigh = pc((2 * p(GShareGhrWidth)) + 1, p(GShareGhrWidth) + 2)
     pcLow ^ pcHigh ^ hist

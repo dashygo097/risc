@@ -20,21 +20,26 @@ object AXILiteBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
     override def createBridge[T <: Data](gen: T, memory: CacheIO[T], isMmio: Boolean = false): Bundle = {
       val axi = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
 
-      val beats        = (gen.getWidth / p(XLen)).max(1)
-      val bytesPerBeat = p(XLen) / 8
+      val beats = (gen.getWidth / p(XLen)).max(1)
 
       val state    = RegInit(AXIBridgeState.IDLE)
       val req_addr = RegInit(0.U(p(XLen).W))
       val req_op   = RegInit(CacheOp.READ)
 
       val w_data = Reg(UInt(gen.getWidth.max(p(XLen)).W))
-      val w_strb = Reg(UInt((gen.getWidth / 8).max(p(XLen) / 8).W))
+      val w_strb = Reg(UInt((gen.getWidth / 8).max(p(BytesPerWord)).W))
       val r_data = Reg(Vec(beats, UInt(p(XLen).W)))
 
       val beat = RegInit(0.U(log2Ceil(beats + 1).max(1).W))
 
-      axi.ar.valid := false.B; axi.ar.bits := DontCare; axi.r.ready := false.B
-      axi.aw.valid := false.B; axi.aw.bits := DontCare; axi.w.valid := false.B; axi.w.bits := DontCare; axi.b.ready := false.B
+      axi.ar.valid := false.B
+      axi.ar.bits  := DontCare
+      axi.r.ready  := false.B
+      axi.aw.valid := false.B
+      axi.aw.bits  := DontCare
+      axi.w.valid  := false.B
+      axi.w.bits   := DontCare
+      axi.b.ready  := false.B
 
       memory.req.ready      := false.B
       memory.resp.valid     := false.B
@@ -57,7 +62,7 @@ object AXILiteBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
 
         is(AXIBridgeState.AR) {
           axi.ar.valid     := true.B
-          axi.ar.bits.addr := req_addr + (beat * bytesPerBeat.U) // INCR 步进
+          axi.ar.bits.addr := req_addr + (beat * p(BytesPerWord).U) // INCR
           axi.ar.bits.prot := 0.U
           when(axi.ar.fire)(state := AXIBridgeState.R)
         }
@@ -79,18 +84,18 @@ object AXILiteBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
 
         is(AXIBridgeState.AW) {
           axi.aw.valid     := true.B
-          axi.aw.bits.addr := req_addr + (beat * bytesPerBeat.U) // INCR 步进
+          axi.aw.bits.addr := req_addr + (beat * p(BytesPerWord).U) // INCR
           axi.aw.bits.prot := 0.U
           when(axi.aw.fire)(state := AXIBridgeState.W)
         }
         is(AXIBridgeState.W) {
           axi.w.valid     := true.B
           axi.w.bits.data := w_data(p(XLen) - 1, 0)
-          axi.w.bits.strb := w_strb(bytesPerBeat - 1, 0)
+          axi.w.bits.strb := w_strb(p(BytesPerWord) - 1, 0)
 
           when(axi.w.fire) {
             w_data := w_data >> p(XLen)
-            w_strb := w_strb >> bytesPerBeat
+            w_strb := w_strb >> p(BytesPerWord)
             state  := AXIBridgeState.B
           }
         }
@@ -111,9 +116,8 @@ object AXILiteBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
     override def createBridgeReadOnly[T <: Data](gen: T, memory: CacheReadOnlyIO[T], isMmio: Boolean = false): Bundle = {
       val axi = Wire(new AXILiteMasterIO(addrWidth = p(XLen), dataWidth = p(XLen)))
 
-      val bytesPerAxiBeat = p(XLen) / 8
-      val bytesPerGen     = memory.resp.bits.data.getWidth / 8
-      val axiBeatsPerGen  = bytesPerGen / bytesPerAxiBeat
+      val bytesPerGen    = memory.resp.bits.data.getWidth / 8
+      val axiBeatsPerGen = bytesPerGen / p(BytesPerWord)
 
       val wordsPerLine  = if (isMmio) 1 else p(L1ICacheLineSize) / bytesPerGen
       val totalAxiBeats = wordsPerLine * axiBeatsPerGen
@@ -150,13 +154,13 @@ object AXILiteBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
 
         is(AXIBridgeState.AR) {
           val isWrap        = !isMmio.B
-          val wrapBytes     = totalAxiBeats * bytesPerAxiBeat
+          val wrapBytes     = totalAxiBeats * p(BytesPerWord)
           val wrapMask      = (wrapBytes - 1).U(p(XLen).W)
           val alignedBase   = req_addr & ~wrapMask
-          val currentOffset = (req_addr & wrapMask) + (r_beat_count * bytesPerAxiBeat.U)
+          val currentOffset = (req_addr & wrapMask) + (r_beat_count * p(BytesPerWord).U)
           val wrappedOffset = currentOffset & wrapMask
 
-          val ar_addr = Mux(isWrap, alignedBase | wrappedOffset, req_addr + (r_beat_count * bytesPerAxiBeat.U))
+          val ar_addr = Mux(isWrap, alignedBase | wrappedOffset, req_addr + (r_beat_count * p(BytesPerWord).U))
 
           axi.ar.valid     := true.B
           axi.ar.bits.addr := ar_addr

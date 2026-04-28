@@ -184,6 +184,10 @@ void DemuSimulator::run(uint64_t max_cycles) {
                       end_time - start_time)
                       .count();
 
+  if (cycle_count() >= target) {
+    DEMU_WARN("Simulation TIME OUT after {} cycles", cycle_count())
+  }
+
   DEMU_INFO("Simulation completed with: ");
   DEMU_INFO("  {} cycles, {} instructions, IPC: {:.3f} after {:.3f} ms",
             cycle_count(), instret_count(), ipc(), duration / 1000.0);

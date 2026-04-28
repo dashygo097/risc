@@ -3,124 +3,113 @@ package arch.core.ooo
 import arch.core.regfile._
 import arch.configs._
 import chisel3._
-import chisel3.util.{ PriorityEncoder, PopCount }
+import chisel3.util.{ PriorityEncoder, Mux1H }
 
 class Inorder(implicit p: Parameters) extends Scheduler {
-  override def desiredName: String = s"${p(ISA).name}_in_order"
+  override def desiredName: String = s"${p(ISA).name}_in_order_scheduler"
 
   val regfile_utils = RegfileUtilsFactory.getOrThrow(p(ISA).name)
 
-  val numRegs = p(NumArchRegs)
-  val numFUs  = p(FunctionalUnits).size
+  val reg_pending         = RegInit(VecInit(Seq.fill(numRegs)(false.B)))
+  val reg_completed_valid = RegInit(VecInit(Seq.fill(numRegs)(false.B)))
+  val reg_completed_data  = RegInit(VecInit(Seq.fill(numRegs)(0.U(p(XLen).W))))
 
-  // Register Scoreboard
-  val reg_pending = RegInit(VecInit(Seq.fill(numRegs)(false.B)))
+  defaultFuReqs()
+  defaultDispatchReady()
 
-  val clear_masks = Wire(Vec(numFUs, Vec(numRegs, Bool())))
-  for (i <- 0 until numFUs)
-    for (r <- 0 until numRegs)
-      clear_masks(i)(r) := fu_done(i).valid && (fu_done(i).bits.rd === r.U) && regfile_utils.writable(r.U)
+  val cdb_hit   = Wire(Vec(numRegs, Vec(numFUs, Bool())))
+  val cdb_valid = Wire(Vec(numRegs, Bool()))
+  val cdb_data  = Wire(Vec(numRegs, UInt(p(XLen).W)))
 
-  val TYPE_LSU = arch.configs.proto.FunctionalUnitType.FUNCTIONAL_UNIT_TYPE_LSU.index.U
-  val fu_types = p(FunctionalUnits).map(_.`type`.value.U(8.W))
-
-  val temp_reg_pending = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
-  temp_reg_pending(0) := reg_pending
-
-  val temp_fu_avail = Wire(Vec(p(IssueWidth) + 1, Vec(numFUs, Bool())))
-  for (i <- 0 until numFUs) temp_fu_avail(0)(i) := fu_reqs(i).ready
-
-  // Memory Dependency State
-  val inflight_stores = RegInit(0.U(8.W))
-  val inflight_loads  = RegInit(0.U(8.W))
-
-  val temp_inflight_stores = Wire(Vec(p(IssueWidth) + 1, UInt(8.W)))
-  val temp_inflight_loads  = Wire(Vec(p(IssueWidth) + 1, UInt(8.W)))
-
-  // Calculate completions from CDB
-  val store_done_count = PopCount((0 until numFUs).map(f => fu_done(f).valid && fu_types(f) === TYPE_LSU && !regfile_utils.writable(fu_done(f).bits.rd)))
-  val load_done_count  = PopCount((0 until numFUs).map(f => fu_done(f).valid && fu_types(f) === TYPE_LSU && regfile_utils.writable(fu_done(f).bits.rd)))
-
-  temp_inflight_stores(0) := inflight_stores - store_done_count
-  temp_inflight_loads(0)  := inflight_loads - load_done_count
-
-  // Default all FU requests to invalid
-  fu_reqs.foreach { req =>
-    req.valid := false.B
-    req.bits  := 0.U.asTypeOf(new MicroOp)
-  }
-
-  // Dispatch Logic
-  for (w <- 0 until p(IssueWidth)) {
-    val dis_req = dis_reqs(w)
-    val op      = dis_req.bits
-
-    // Data hazard checks against the current cycle state
-    val rs1_hazard  = temp_reg_pending(w)(op.rs1) && regfile_utils.readable(op.rs1)
-    val rs2_hazard  = temp_reg_pending(w)(op.rs2) && regfile_utils.readable(op.rs2)
-    val rd_hazard   = temp_reg_pending(w)(op.rd) && regfile_utils.writable(op.rd)
-    val data_hazard = rs1_hazard || rs2_hazard || rd_hazard
-
-    val req_fu_type = WireDefault(0.U(8.W))
-    for (i <- 0 until numFUs)
-      when(op.fu_id === i.U)(req_fu_type := fu_types(i))
-
-    val is_lsu   = req_fu_type === TYPE_LSU
-    val is_store = is_lsu && !regfile_utils.writable(op.rd)
-    val is_load  = is_lsu && regfile_utils.writable(op.rd)
-
-    // Memory Hazard check
-    val mem_hazard = Mux(is_store, (temp_inflight_loads(w) =/= 0.U) || (temp_inflight_stores(w) =/= 0.U), Mux(is_load, temp_inflight_stores(w) =/= 0.U, false.B))
-
-    val fu_match_mask = Wire(Vec(numFUs, Bool()))
-    for (i <- 0 until numFUs)
-      fu_match_mask(i) := temp_fu_avail(w)(i) && (fu_types(i) === req_fu_type)
-
-    val target_fu_idx = PriorityEncoder(fu_match_mask)
-    val fu_available  = fu_match_mask.asUInt =/= 0.U
-
-    val prev_issued = if (w == 0) true.B else dis_reqs(w - 1).ready
-
-    val ready_to_issue = !data_hazard && !mem_hazard && fu_available && prev_issued
-    dis_req.ready := ready_to_issue
-
-    val can_issue = dis_req.valid && ready_to_issue
-
-    // State progression for superscalar widths
-    temp_reg_pending(w + 1)     := temp_reg_pending(w)
-    temp_fu_avail(w + 1)        := temp_fu_avail(w)
-    temp_inflight_stores(w + 1) := temp_inflight_stores(w)
-    temp_inflight_loads(w + 1)  := temp_inflight_loads(w)
-
-    when(can_issue) {
-      fu_reqs(target_fu_idx).valid := true.B
-      fu_reqs(target_fu_idx).bits  := op
-
-      temp_fu_avail(w + 1)(target_fu_idx) := false.B
-      when(regfile_utils.writable(op.rd)) {
-        temp_reg_pending(w + 1)(op.rd) := true.B
-      }
-      when(is_store)(temp_inflight_stores(w + 1) := temp_inflight_stores(w) + 1.U)
-      when(is_load)(temp_inflight_loads(w + 1)   := temp_inflight_loads(w) + 1.U)
-    }
-  }
-
-  // State Update
-  val next_reg_pending = Wire(Vec(numRegs, Bool()))
   for (r <- 0 until numRegs) {
-    val cleared           = (0 until numFUs).map(i => clear_masks(i)(r)).foldLeft(false.B)(_ || _)
-    val issued_this_cycle = temp_reg_pending(p(IssueWidth))(r) && !reg_pending(r)
+    for (f <- 0 until numFUs)
+      cdb_hit(r)(f) := fu_done(f).valid && fu_done(f).bits.rd === r.U && regfile_utils.writable(r.U)
 
-    next_reg_pending(r) := Mux(issued_this_cycle, true.B, Mux(cleared, false.B, temp_reg_pending(p(IssueWidth))(r)))
+    cdb_valid(r) := cdb_hit(r).asUInt.orR
+    cdb_data(r)  := Mux1H(cdb_hit(r), fu_done.map(_.bits.result))
+  }
+
+  val temp_pending         = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
+  val temp_completed_valid = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
+  val temp_completed_data  = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(p(XLen).W))))
+  val temp_fu_used         = Wire(Vec(p(IssueWidth) + 1, Vec(numFUs, Bool())))
+  val accepted             = Wire(Vec(p(IssueWidth), Bool()))
+
+  for (r <- 0 until numRegs) {
+    temp_pending(0)(r)         := reg_pending(r) && !cdb_valid(r)
+    temp_completed_valid(0)(r) := Mux(cdb_valid(r), true.B, reg_completed_valid(r))
+    temp_completed_data(0)(r)  := Mux(cdb_valid(r), cdb_data(r), reg_completed_data(r))
+  }
+
+  for (f <- 0 until numFUs)
+    temp_fu_used(0)(f) := false.B
+
+  for (w <- 0 until p(IssueWidth)) {
+    val dis = dis_reqs(w)
+    val op  = dis.bits
+
+    val rs1_used = op.rs1_valid && regfile_utils.readable(op.rs1)
+    val rs2_used = op.rs2_valid && regfile_utils.readable(op.rs2)
+    val rd_used  = op.rd_valid && regfile_utils.writable(op.rd)
+
+    val rs1_haz = rs1_used && temp_pending(w)(op.rs1)
+    val rs2_haz = rs2_used && temp_pending(w)(op.rs2)
+    val waw_haz = rd_used && temp_pending(w)(op.rd)
+
+    val rs1_from_completed = rs1_used && temp_completed_valid(w)(op.rs1)
+    val rs2_from_completed = rs2_used && temp_completed_valid(w)(op.rs2)
+
+    val rs1_value = Mux(rs1_from_completed, temp_completed_data(w)(op.rs1), op.rs1_data)
+    val rs2_value = Mux(rs2_from_completed, temp_completed_data(w)(op.rs2), op.rs2_data)
+
+    val fu_match = Wire(Vec(numFUs, Bool()))
+
+    for (f <- 0 until numFUs)
+      fu_match(f) := !temp_fu_used(w)(f) && fu_reqs(f).ready && fuTypes(f) === op.fu_type
+
+    val target    = PriorityEncoder(fu_match)
+    val fu_ok     = fu_match.asUInt.orR
+    val prev_ok   = if (w == 0) true.B else !dis_reqs(w - 1).valid || accepted(w - 1)
+    val can_issue = prev_ok && fu_ok && !rs1_haz && !rs2_haz && !waw_haz
+
+    dis.ready   := can_issue
+    accepted(w) := dis.valid && can_issue
+
+    temp_pending(w + 1)         := temp_pending(w)
+    temp_completed_valid(w + 1) := temp_completed_valid(w)
+    temp_completed_data(w + 1)  := temp_completed_data(w)
+    temp_fu_used(w + 1)         := temp_fu_used(w)
+
+    when(accepted(w)) {
+      val issueOp = Wire(new MicroOp)
+      issueOp          := op
+      issueOp.fu_id    := target
+      issueOp.rs1_data := rs1_value
+      issueOp.rs2_data := rs2_value
+
+      for (f <- 0 until numFUs)
+        when(target === f.U) {
+          fu_reqs(f).valid := true.B
+          fu_reqs(f).bits  := issueOp
+        }
+
+      temp_fu_used(w + 1)(target) := true.B
+
+      when(rd_used) {
+        temp_pending(w + 1)(op.rd)         := true.B
+        temp_completed_valid(w + 1)(op.rd) := false.B
+        temp_completed_data(w + 1)(op.rd)  := 0.U
+      }
+    }
   }
 
   when(flush) {
     reg_pending.foreach(_ := false.B)
-    inflight_stores := 0.U
-    inflight_loads  := 0.U
+    reg_completed_valid.foreach(_ := false.B)
+    reg_completed_data.foreach(_ := 0.U)
   }.otherwise {
-    reg_pending     := next_reg_pending
-    inflight_stores := temp_inflight_stores(p(IssueWidth))
-    inflight_loads  := temp_inflight_loads(p(IssueWidth))
+    reg_pending         := temp_pending(p(IssueWidth))
+    reg_completed_valid := temp_completed_valid(p(IssueWidth))
+    reg_completed_data  := temp_completed_data(p(IssueWidth))
   }
 }

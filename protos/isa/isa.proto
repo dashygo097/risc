@@ -20,9 +20,8 @@ message Isa {
   string name = 1;
   uint32 xlen = 2;
   uint32 ilen = 3;
-  uint32 iAlign = 4;
-  uint32 num_arch_regs = 5;
-  bool is_big_endian = 6;
-  uint32 micro_op_width = 7;
-  InstructionSet instr_set = 8;
+  uint32 num_arch_regs = 4;
+  bool is_big_endian = 5;
+  uint32 micro_op_width = 6;
+  InstructionSet instr_set = 7;
 }

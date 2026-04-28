@@ -11,15 +11,20 @@ class DecodedOutput(implicit p: Parameters) extends Bundle {
   val regwrite = Bool()
   val imm_type = UInt(imm_utils.immTypeWidth.W)
 
-  // Execution Routing Flags
-  val alu  = Bool()
-  val mult = Bool()
-  val div  = Bool()
-  val lsu  = Bool()
-  val bru  = Bool()
-  val csr  = Bool()
+  val rs1_valid = Bool()
+  val rs2_valid = Bool()
+  val rd_valid  = Bool()
 
-  // Unified Micro-Operation Field
+  val commit_barrier = Bool()
+
+  val alu   = Bool()
+  val mult  = Bool()
+  val div   = Bool()
+  val load  = Bool()
+  val store = Bool()
+  val bru   = Bool()
+  val csr   = Bool()
+
   val uop = UInt(p(MicroOpWidth).W)
 }
 

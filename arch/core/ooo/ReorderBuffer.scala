@@ -2,7 +2,7 @@ package arch.core.ooo
 
 import arch.configs._
 import chisel3._
-import chisel3.util.{ log2Ceil, PopCount, MuxCase }
+import chisel3.util.{ log2Ceil, PopCount, MuxCase, PriorityEncoder, UIntToOH, Mux1H }
 
 class RobEnqIO(implicit p: Parameters) extends Bundle {
   val valid            = Input(Bool())
@@ -13,12 +13,14 @@ class RobEnqIO(implicit p: Parameters) extends Bundle {
   val pd               = Input(UInt(log2Ceil(p(NumPhyRegs)).W))
   val old_pd           = Input(UInt(log2Ceil(p(NumPhyRegs)).W))
   val is_branch        = Input(Bool())
-  val is_lsu           = Input(Bool())
+  val is_store         = Input(Bool())
+  val commit_barrier   = Input(Bool())
   val bpu_pred_taken   = Input(Bool())
   val bpu_pred_target  = Input(UInt(p(XLen).W))
   val bpu_pht_index    = Input(UInt(p(GShareGhrWidth).W))
   val bpu_ghr_snapshot = Input(UInt(p(GShareGhrWidth).W))
   val rob_tag          = Output(UInt(log2Ceil(p(ROBSize)).W))
+  val sq_idx           = Input(UInt(log2Ceil(p(StoreBufferSize)).W))
 }
 
 class RobWbIO(implicit p: Parameters) extends Bundle {
@@ -46,13 +48,15 @@ class RobCommitIO(implicit p: Parameters) extends Bundle {
   val flush_pipeline    = Output(Bool())
   val flush_target      = Output(UInt(p(XLen).W))
   val is_branch         = Output(Bool())
-  val is_lsu            = Output(Bool())
+  val is_store          = Output(Bool())
+  val commit_barrier    = Output(Bool())
   val bpu_pred_taken    = Output(Bool())
   val bpu_pred_target   = Output(UInt(p(XLen).W))
   val bpu_actual_taken  = Output(Bool())
   val bpu_actual_target = Output(UInt(p(XLen).W))
   val bpu_pht_index     = Output(UInt(p(GShareGhrWidth).W))
   val bpu_ghr_snapshot  = Output(UInt(p(GShareGhrWidth).W))
+  val sq_idx            = Output(UInt(log2Ceil(p(StoreBufferSize)).W))
 }
 
 class RobBypassIO(implicit p: Parameters) extends Bundle {
@@ -71,7 +75,8 @@ class ROBEntry(implicit p: Parameters) extends Bundle {
   val pd             = UInt(log2Ceil(p(NumPhyRegs)).W)
   val old_pd         = UInt(log2Ceil(p(NumPhyRegs)).W)
   val is_branch      = Bool()
-  val is_lsu         = Bool()
+  val is_store       = Bool()
+  val commit_barrier = Bool()
   val pred_taken     = Bool()
   val pred_target    = UInt(p(XLen).W)
   val pht_index      = UInt(p(GShareGhrWidth).W)
@@ -80,17 +85,21 @@ class ROBEntry(implicit p: Parameters) extends Bundle {
   val actual_target  = UInt(p(XLen).W)
   val flush_pipeline = Bool()
   val flush_target   = UInt(p(XLen).W)
+  val sq_idx         = UInt(log2Ceil(p(StoreBufferSize)).W)
 }
 
 class ReorderBuffer(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_rob"
+
+  private val Size = p(ROBSize)
+  private val IdxW = log2Ceil(Size)
 
   val io = IO(new Bundle {
     val enq    = Vec(p(IssueWidth), new RobEnqIO)
     val wb     = Vec(p(FunctionalUnits).size, new RobWbIO)
     val commit = Vec(p(IssueWidth), new RobCommitIO)
 
-    val read_rob_tag = Input(Vec(p(IssueWidth), UInt(log2Ceil(p(ROBSize)).W)))
+    val read_rob_tag = Input(Vec(p(IssueWidth), UInt(IdxW.W)))
     val read_pd      = Output(Vec(p(IssueWidth), UInt(log2Ceil(p(NumPhyRegs)).W)))
 
     val rs1_addr   = Input(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
@@ -102,25 +111,41 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     val flush = Input(Bool())
   })
 
-  val buffer = RegInit(VecInit(Seq.fill(p(ROBSize))(0.U.asTypeOf(new ROBEntry))))
-  val head   = RegInit(0.U(log2Ceil(p(ROBSize)).W))
-  val tail   = RegInit(0.U(log2Ceil(p(ROBSize)).W))
-  val count  = RegInit(0.U(log2Ceil(p(ROBSize) + 1).W))
+  private def wrapAdd(x: UInt, y: UInt): UInt = {
+    val sum = x +& y
+    Mux(sum >= Size.U, sum - Size.U, sum)(IdxW - 1, 0)
+  }
+
+  private def indexFromNewest(distance: Int): UInt = {
+    val sub = distance + 1
+    Mux(tail >= sub.U, tail - sub.U, tail + Size.U - sub.U)(IdxW - 1, 0)
+  }
+
+  val buffer = RegInit(VecInit(Seq.fill(Size)(0.U.asTypeOf(new ROBEntry))))
+  val head   = RegInit(0.U(IdxW.W))
+  val tail   = RegInit(0.U(IdxW.W))
+  val count  = RegInit(0.U(log2Ceil(Size + 1).W))
 
   io.empty := count === 0.U
-  val available_slots = p(ROBSize).U - count
 
-  val enq_valids = io.enq.map(_.valid)
-  val enq_count  = PopCount(enq_valids)
+  val availableSlots = Size.U - count
 
-  val enq_offsets = Wire(Vec(p(IssueWidth), UInt(log2Ceil(p(ROBSize)).W)))
-  enq_offsets(0)   := 0.U
+  val enqValids = Wire(Vec(p(IssueWidth), Bool()))
+  for (w <- 0 until p(IssueWidth))
+    enqValids(w) := io.enq(w).valid
+
+  val enqCount = PopCount(enqValids)
+
+  val enqOffsets = Wire(Vec(p(IssueWidth), UInt(IdxW.W)))
+  enqOffsets(0) := 0.U
+
   for (w <- 1 until p(IssueWidth))
-    enq_offsets(w) := (enq_offsets(w - 1) + enq_valids(w - 1).asUInt)(log2Ceil(p(ROBSize)) - 1, 0)
+    enqOffsets(w) := (enqOffsets(w - 1) + enqValids(w - 1).asUInt)(IdxW - 1, 0)
 
   for (w <- 0 until p(IssueWidth)) {
-    io.enq(w).ready := available_slots > w.U
-    val idx = ((tail + enq_offsets(w)) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
+    io.enq(w).ready := availableSlots > w.U
+
+    val idx = wrapAdd(tail, enqOffsets(w))
     io.enq(w).rob_tag := idx
 
     when(io.enq(w).valid) {
@@ -129,10 +154,12 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
       buffer(idx).pc             := io.enq(w).pc
       buffer(idx).instr          := io.enq(w).instr
       buffer(idx).rd             := io.enq(w).rd
+      buffer(idx).data           := 0.U
       buffer(idx).pd             := io.enq(w).pd
       buffer(idx).old_pd         := io.enq(w).old_pd
       buffer(idx).is_branch      := io.enq(w).is_branch
-      buffer(idx).is_lsu         := io.enq(w).is_lsu
+      buffer(idx).is_store       := io.enq(w).is_store
+      buffer(idx).commit_barrier := io.enq(w).commit_barrier
       buffer(idx).pred_taken     := io.enq(w).bpu_pred_taken
       buffer(idx).pred_target    := io.enq(w).bpu_pred_target
       buffer(idx).pht_index      := io.enq(w).bpu_pht_index
@@ -141,50 +168,59 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
       buffer(idx).actual_target  := 0.U
       buffer(idx).flush_pipeline := false.B
       buffer(idx).flush_target   := 0.U
+      buffer(idx).sq_idx         := io.enq(w).sq_idx
     }
   }
 
   for (i <- 0 until p(FunctionalUnits).size)
     when(io.wb(i).valid) {
-      val wb_entry = buffer(io.wb(i).rob_tag)
-      wb_entry.ready := true.B
-      wb_entry.data  := io.wb(i).data
+      val idx = io.wb(i).rob_tag
 
-      val bru_mispredict = io.wb(i).is_bru && (
-        (io.wb(i).actual_taken =/= wb_entry.pred_taken) ||
-          (io.wb(i).actual_taken && io.wb(i).actual_target =/= wb_entry.pred_target)
+      buffer(idx).ready := true.B
+      buffer(idx).data  := io.wb(i).data
+
+      val oldPredTaken  = buffer(idx).pred_taken
+      val oldPredTarget = buffer(idx).pred_target
+      val oldPc         = buffer(idx).pc
+
+      val bruMispredict = io.wb(i).is_bru && (
+        io.wb(i).actual_taken =/= oldPredTaken ||
+          (io.wb(i).actual_taken && io.wb(i).actual_target =/= oldPredTarget)
       )
 
-      val non_bru_mispredict = !io.wb(i).is_bru && wb_entry.pred_taken
-      val is_mispredict      = bru_mispredict || non_bru_mispredict
+      val nonBruMispredict = !io.wb(i).is_bru && oldPredTaken
+      val isMispredict     = bruMispredict || nonBruMispredict
 
       when(io.wb(i).is_bru) {
-        wb_entry.actual_taken  := io.wb(i).actual_taken
-        wb_entry.actual_target := io.wb(i).actual_target
-      }.elsewhen(non_bru_mispredict) {
-        wb_entry.actual_taken  := false.B
-        wb_entry.actual_target := wb_entry.pc + p(IAlign).U
+        buffer(idx).actual_taken  := io.wb(i).actual_taken
+        buffer(idx).actual_target := io.wb(i).actual_target
+      }.elsewhen(nonBruMispredict) {
+        buffer(idx).actual_taken  := false.B
+        buffer(idx).actual_target := oldPc + p(PCStep).U
       }
 
-      val target = Mux(io.wb(i).is_bru, io.wb(i).actual_target, wb_entry.pc + p(IAlign).U)
+      val redirectTarget = Mux(io.wb(i).is_bru, io.wb(i).actual_target, oldPc + p(PCStep).U)
 
-      wb_entry.flush_pipeline := is_mispredict || io.wb(i).trap_req || io.wb(i).trap_ret
-      wb_entry.flush_target   := MuxCase(
-        target,
-        Seq(
-          io.wb(i).trap_req -> io.wb(i).trap_target,
-          io.wb(i).trap_ret -> io.wb(i).trap_ret_tgt
+      buffer(idx).flush_pipeline :=
+        isMispredict || io.wb(i).trap_req || io.wb(i).trap_ret
+
+      buffer(idx).flush_target :=
+        MuxCase(
+          redirectTarget,
+          Seq(
+            io.wb(i).trap_req -> io.wb(i).trap_target,
+            io.wb(i).trap_ret -> io.wb(i).trap_ret_tgt
+          )
         )
-      )
     }
 
-  var stop_commit      = false.B
-  var commit_valid_acc = true.B
-  for (w <- 0 until p(IssueWidth)) {
-    val idx          = ((head + w.U) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
-    val isCondBranch = buffer(idx).is_branch && buffer(idx).instr(6, 0) === "b1100011".U
+  var stopCommit      = false.B
+  var commitChainOkay = true.B
 
-    val committable = (count > w.U) && buffer(idx).valid && buffer(idx).ready && !stop_commit && commit_valid_acc
+  for (w <- 0 until p(IssueWidth)) {
+    val idx = wrapAdd(head, w.U)
+
+    val committable = count > w.U && buffer(idx).valid && buffer(idx).ready && !stopCommit && commitChainOkay
 
     io.commit(w).valid             := committable
     io.commit(w).pc                := buffer(idx).pc
@@ -196,73 +232,82 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     io.commit(w).flush_pipeline    := buffer(idx).flush_pipeline
     io.commit(w).flush_target      := buffer(idx).flush_target
     io.commit(w).is_branch         := buffer(idx).is_branch
-    io.commit(w).is_lsu            := buffer(idx).is_lsu
+    io.commit(w).is_store          := buffer(idx).is_store
+    io.commit(w).commit_barrier    := buffer(idx).commit_barrier
     io.commit(w).bpu_pred_taken    := buffer(idx).pred_taken
     io.commit(w).bpu_pred_target   := buffer(idx).pred_target
     io.commit(w).bpu_actual_taken  := buffer(idx).actual_taken
     io.commit(w).bpu_actual_target := buffer(idx).actual_target
     io.commit(w).bpu_pht_index     := buffer(idx).pht_index
     io.commit(w).bpu_ghr_snapshot  := buffer(idx).ghr_snapshot
+    io.commit(w).sq_idx            := buffer(idx).sq_idx
 
-    when(committable && (buffer(idx).flush_pipeline || isCondBranch)) { stop_commit = true.B }
-    commit_valid_acc = committable
+    when(committable && (buffer(idx).flush_pipeline || buffer(idx).commit_barrier)) {
+      stopCommit = true.B
+    }
+
+    commitChainOkay = committable
 
     when(io.commit(w).pop) {
       buffer(idx).valid := false.B
     }
   }
 
-  val commit_pops  = io.commit.map(_.pop)
-  val commit_count = PopCount(commit_pops)
+  val commitPops = Wire(Vec(p(IssueWidth), Bool()))
+  for (w <- 0 until p(IssueWidth))
+    commitPops(w) := io.commit(w).pop
 
-  head  := ((head + commit_count) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
-  tail  := ((tail + enq_count)    % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
-  count := count + enq_count - commit_count
+  val commitCount = PopCount(commitPops)
+
+  head  := wrapAdd(head, commitCount)
+  tail  := wrapAdd(tail, enqCount)
+  count := count + enqCount - commitCount
 
   when(io.flush) {
-    head                                          := 0.U
-    tail                                          := 0.U
-    count                                         := 0.U
-    for (i <- 0 until p(ROBSize)) buffer(i).valid := false.B
+    head  := 0.U
+    tail  := 0.U
+    count := 0.U
+
+    for (i <- 0 until Size)
+      buffer(i).valid := false.B
   }
 
   for (w <- 0 until p(IssueWidth))
     io.read_pd(w) := buffer(io.read_rob_tag(w)).pd
 
-  def bypass(rs: UInt): (Bool, UInt) = {
-    val valid_out = WireDefault(false.B)
-    val data_out  = WireDefault(0.U(p(XLen).W))
-    for (d <- p(ROBSize) to 1 by -1) {
-      val idx   = ((tail + p(ROBSize).U - d.U) % p(ROBSize).U)(log2Ceil(p(ROBSize)) - 1, 0)
-      val entry = buffer(idx)
-      when(entry.valid && entry.rd === rs && rs =/= 0.U) {
-        when(entry.ready) {
-          valid_out := true.B
-          data_out  := entry.data
-        }.otherwise {
-          valid_out := false.B
-        }
-      }
-    }
-    (valid_out, data_out)
-  }
+  def bypassNewest(rs: UInt): (Bool, UInt, Bool) = {
+    val matchVec = Wire(Vec(Size, Bool()))
+    val readyVec = Wire(Vec(Size, Bool()))
+    val dataVec  = Wire(Vec(Size, UInt(p(XLen).W)))
 
-  def pending(rs: UInt): Bool = {
-    val match_mask = Wire(Vec(p(ROBSize), Bool()))
-    for (i <- 0 until p(ROBSize))
-      match_mask(i) := buffer(i).valid && buffer(i).rd === rs && rs =/= 0.U && !buffer(i).ready
-    match_mask.asUInt.orR
+    for (d <- 0 until Size) {
+      val idx = indexFromNewest(d)
+      val e   = buffer(idx)
+
+      matchVec(d) := e.valid && e.rd === rs && rs =/= 0.U
+      readyVec(d) := matchVec(d) && e.ready
+      dataVec(d)  := e.data
+    }
+
+    val anyMatch    = matchVec.asUInt.orR
+    val newest      = PriorityEncoder(matchVec)
+    val newestOH    = UIntToOH(newest, Size)
+    val newestReady = anyMatch && Mux1H(newestOH, readyVec)
+    val newestData  = Mux(anyMatch, Mux1H(newestOH, dataVec), 0.U(p(XLen).W))
+    val pending     = anyMatch && !newestReady
+
+    (newestReady, newestData, pending)
   }
 
   for (w <- 0 until p(IssueWidth)) {
-    val (rs1_v, rs1_d) = bypass(io.rs1_addr(w))
-    io.rs1_bypass(w).valid   := rs1_v
-    io.rs1_bypass(w).data    := rs1_d
-    io.rs1_bypass(w).pending := pending(io.rs1_addr(w))
+    val (rs1Valid, rs1Data, rs1Pending) = bypassNewest(io.rs1_addr(w))
+    io.rs1_bypass(w).valid   := rs1Valid
+    io.rs1_bypass(w).data    := rs1Data
+    io.rs1_bypass(w).pending := rs1Pending
 
-    val (rs2_v, rs2_d) = bypass(io.rs2_addr(w))
-    io.rs2_bypass(w).valid   := rs2_v
-    io.rs2_bypass(w).data    := rs2_d
-    io.rs2_bypass(w).pending := pending(io.rs2_addr(w))
+    val (rs2Valid, rs2Data, rs2Pending) = bypassNewest(io.rs2_addr(w))
+    io.rs2_bypass(w).valid   := rs2Valid
+    io.rs2_bypass(w).data    := rs2Data
+    io.rs2_bypass(w).pending := rs2Pending
   }
 }

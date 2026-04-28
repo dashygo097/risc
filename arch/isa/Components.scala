@@ -9,7 +9,6 @@ abstract class IsaWrapper {
   final def name: String         = isa.name
   final def xlen: Int            = isa.xlen.toInt
   final def ilen: Int            = isa.ilen.toInt
-  final def iAlign: Int          = isa.iAlign.toInt
   final def numArchRegs: Int     = isa.numArchRegs.toInt
   final def isBigEndian: Boolean = isa.isBigEndian
   final def microOpWidth: Int    = isa.microOpWidth
@@ -53,7 +52,6 @@ object IsaFactory {
   def isa(isa: String): Isa                 = get(isa).isa
   def xlen(isa: String): Int                = get(isa).xlen
   def ilen(isa: String): Int                = get(isa).ilen
-  def iAlign(isa: String): Int              = get(isa).iAlign
   def numArchRegs(isa: String): Int         = get(isa).numArchRegs
   def isBigEndian(isa: String): Boolean     = get(isa).isBigEndian
   def microOpWidth(isa: String): Int        = get(isa).microOpWidth

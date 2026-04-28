@@ -1,8 +1,10 @@
 package arch.core.ooo
 
 import arch.configs._
+import arch.configs.proto._
+import arch.configs.proto.FunctionalUnitType._
 import chisel3._
-import chisel3.util.{ Decoupled, Valid }
+import chisel3.util.{ Decoupled, Valid, log2Ceil }
 
 abstract class Scheduler(implicit p: Parameters) extends Module {
   val dis_reqs = IO(Vec(p(IssueWidth), Flipped(Decoupled(new MicroOp))))
@@ -10,6 +12,46 @@ abstract class Scheduler(implicit p: Parameters) extends Module {
   val fu_done  = IO(Flipped(Vec(p(FunctionalUnits).size, Valid(new FunctionalUnitResp))))
 
   val flush = IO(Input(Bool()))
+
+  protected val numFUs  = p(FunctionalUnits).size
+  protected val numRegs = p(NumArchRegs)
+
+  protected val FuTypeW = log2Ceil(FunctionalUnitType.values.size)
+  protected val FuIdW   = log2Ceil(p(FunctionalUnits).size)
+  protected val RobTagW = log2Ceil(p(ROBSize))
+  protected val RegIdxW = log2Ceil(p(NumArchRegs))
+
+  protected val fuTypes =
+    p(FunctionalUnits).map(_.`type`.index.U(FuTypeW.W))
+
+  protected def isFuType(op: MicroOp, t: arch.configs.proto.FunctionalUnitType): Bool =
+    op.fu_type === t.index.U(FuTypeW.W)
+
+  protected def isLoad(op: MicroOp): Bool =
+    isFuType(op, FUNCTIONAL_UNIT_TYPE_LD)
+
+  protected def isStore(op: MicroOp): Bool =
+    isFuType(op, FUNCTIONAL_UNIT_TYPE_ST)
+
+  protected def usesRs1(op: MicroOp): Bool =
+    op.fu_type =/= FUNCTIONAL_UNIT_TYPE_CSR.index.U(FuTypeW.W)
+
+  protected def usesRs2(op: MicroOp): Bool =
+    op.fu_type === FUNCTIONAL_UNIT_TYPE_ALU.index.U(FuTypeW.W) ||
+      op.fu_type === FUNCTIONAL_UNIT_TYPE_MULT.index.U(FuTypeW.W) ||
+      op.fu_type === FUNCTIONAL_UNIT_TYPE_DIV.index.U(FuTypeW.W) ||
+      op.fu_type === FUNCTIONAL_UNIT_TYPE_BRU.index.U(FuTypeW.W) ||
+      op.fu_type === FUNCTIONAL_UNIT_TYPE_ST.index.U(FuTypeW.W)
+
+  protected def defaultFuReqs(): Unit =
+    for (i <- 0 until numFUs) {
+      fu_reqs(i).valid := false.B
+      fu_reqs(i).bits  := 0.U.asTypeOf(new MicroOp)
+    }
+
+  protected def defaultDispatchReady(): Unit =
+    for (w <- 0 until p(IssueWidth))
+      dis_reqs(w).ready := false.B
 }
 
 object Scheduler {
@@ -17,7 +59,7 @@ object Scheduler {
     p(ScheduleType) match {
       case "in-order"   => Module(new Inorder)
       case "scoreboard" => Module(new Scoreboard)
-      // case "tomasulo"   => Module(new Tomasulo)
+      // case "tomasulo" => Module(new Tomasulo)
       case other        => throw new IllegalArgumentException(s"Unknown ScheduleType: $other")
     }
 }

@@ -16,9 +16,8 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
     override def createBridge[T <: Data](gen: T, memory: CacheIO[T], isMmio: Boolean = false): Bundle = {
       val axi = Wire(new AXIFullMasterIO(addrWidth = p(XLen), dataWidth = p(XLen), idWidth = 4))
 
-      val bytesPerAxiBeat = p(XLen) / 8
-      val bytesPerGen     = memory.req.bits.data.getWidth / 8
-      val axiBeatsPerGen  = bytesPerGen / bytesPerAxiBeat
+      val bytesPerGen    = memory.req.bits.data.getWidth / 8
+      val axiBeatsPerGen = bytesPerGen / p(BytesPerWord)
 
       val wordsPerLine  = if (isMmio) 1 else p(L1DCacheLineSize) / bytesPerGen
       val totalAxiBeats = wordsPerLine * axiBeatsPerGen
@@ -65,7 +64,7 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
           axi.ar.valid      := true.B
           axi.ar.bits.addr  := req_addr
           axi.ar.bits.len   := burstLen
-          axi.ar.bits.size  := log2Ceil(bytesPerAxiBeat).U
+          axi.ar.bits.size  := log2Ceil(p(BytesPerWord)).U
           axi.ar.bits.burst := (if (isMmio) 1 else 2).U
           axi.ar.bits.id    := 0.U
           when(axi.ar.fire)(state := AXIBridgeState.R)
@@ -113,7 +112,7 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
           axi.aw.valid      := true.B
           axi.aw.bits.addr  := req_addr
           axi.aw.bits.len   := burstLen
-          axi.aw.bits.size  := log2Ceil(bytesPerAxiBeat).U
+          axi.aw.bits.size  := log2Ceil(p(BytesPerWord)).U
           axi.aw.bits.burst := 1.U
           axi.aw.bits.id    := 0.U
           when(axi.aw.fire)(state := AXIBridgeState.W)
@@ -139,7 +138,7 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
 
             axi.w.valid     := true.B
             axi.w.bits.data := w_data_buffer(p(XLen) - 1, 0)
-            axi.w.bits.strb := w_strb_buffer(bytesPerAxiBeat - 1, 0)
+            axi.w.bits.strb := w_strb_buffer(p(BytesPerWord) - 1, 0)
             axi.w.bits.last := w_beat_count === burstLen
 
             val is_last_unpack = w_unpack_count === (axiBeatsPerGen - 1).U
@@ -154,7 +153,7 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
                 w_strb_buffer := memory.req.bits.strb
               }.otherwise {
                 w_data_buffer := w_data_buffer >> p(XLen)
-                w_strb_buffer := w_strb_buffer >> bytesPerAxiBeat
+                w_strb_buffer := w_strb_buffer >> p(BytesPerWord)
               }
 
               when(w_beat_count === burstLen) {
@@ -164,11 +163,21 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
           }
         }
         is(AXIBridgeState.B) {
-          axi.b.ready := true.B
+          val bDone = RegInit(false.B)
+
+          axi.b.ready           := !bDone
+          memory.resp.valid     := bDone || axi.b.valid
+          memory.resp.bits.data := 0.U.asTypeOf(gen)
+          memory.resp.bits.last := true.B
+          memory.resp.bits.hit  := false.B
+
           when(axi.b.fire) {
-            memory.resp.valid     := true.B
-            memory.resp.bits.last := true.B
-            when(memory.resp.ready)(state := AXIBridgeState.IDLE)
+            bDone := true.B
+          }
+
+          when(memory.resp.fire) {
+            bDone := false.B
+            state := AXIBridgeState.IDLE
           }
         }
       }
@@ -178,9 +187,8 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
     override def createBridgeReadOnly[T <: Data](gen: T, memory: CacheReadOnlyIO[T], isMmio: Boolean = false): Bundle = {
       val axi = Wire(new AXIFullMasterIO(addrWidth = p(XLen), dataWidth = p(XLen), idWidth = 4))
 
-      val bytesPerAxiBeat = p(XLen) / 8
-      val bytesPerGen     = memory.resp.bits.data.getWidth / 8
-      val axiBeatsPerGen  = bytesPerGen / bytesPerAxiBeat
+      val bytesPerGen    = memory.resp.bits.data.getWidth / 8
+      val axiBeatsPerGen = bytesPerGen / p(BytesPerWord)
 
       val wordsPerLine  = if (isMmio) 1 else p(L1ICacheLineSize) / bytesPerGen
       val totalAxiBeats = wordsPerLine * axiBeatsPerGen
@@ -216,7 +224,7 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
           axi.ar.valid      := true.B
           axi.ar.bits.addr  := req_addr
           axi.ar.bits.len   := burstLen
-          axi.ar.bits.size  := log2Ceil(bytesPerAxiBeat).U
+          axi.ar.bits.size  := log2Ceil(p(BytesPerWord)).U
           axi.ar.bits.burst := (if (isMmio) 1 else 2).U
           axi.ar.bits.id    := 0.U
           when(axi.ar.fire)(state := AXIBridgeState.R)

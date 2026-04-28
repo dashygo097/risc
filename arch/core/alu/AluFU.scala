@@ -40,7 +40,7 @@ class AluFU(implicit p: Parameters) extends FunctionalUnit with AluConsts {
       A2_ZERO.value.U(SZ_A2.W)   -> 0.U(p(XLen).W),
       A2_RS2.value.U(SZ_A2.W)    -> uop_reg.rs2_data,
       A2_IMM.value.U(SZ_A2.W)    -> imm_utils.genImm(uop_reg.instr, uop_reg.imm_type),
-      A2_PCSTEP.value.U(SZ_A2.W) -> p(IAlign).U(p(XLen).W)
+      A2_PCSTEP.value.U(SZ_A2.W) -> p(PCStep).U(p(XLen).W)
     )
   )
 

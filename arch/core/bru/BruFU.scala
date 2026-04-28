@@ -43,8 +43,8 @@ class BruFU(implicit p: Parameters) extends FunctionalUnit {
   io.resp.bits.rd      := uop_reg.rd
   io.resp.bits.rob_tag := uop_reg.rob_tag
 
-  io.resp.bits.result := uop_reg.pc + p(IAlign).U
+  io.resp.bits.result := uop_reg.pc + p(PCStep).U
 
   actual_taken  := bru.taken
-  actual_target := Mux(bru.taken, bru.target, uop_reg.pc + p(IAlign).U)
+  actual_target := Mux(bru.taken, bru.target, uop_reg.pc + p(PCStep).U)
 }

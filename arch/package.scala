@@ -6,7 +6,7 @@ package object configs {
   import proto.FunctionalUnitType._
   import isa._
   import vopts.mem.cache._
-  import chisel3.util.BitPat
+  import chisel3.util.{ BitPat, log2Ceil }
 
   // NOTE: User Options: You should only modify these parameters
 
@@ -33,8 +33,11 @@ package object configs {
           FunctionalUnitDescriptor(name = "ALU_1", `type` = FUNCTIONAL_UNIT_TYPE_ALU),
           FunctionalUnitDescriptor(name = "MULT_0", `type` = FUNCTIONAL_UNIT_TYPE_MULT),
           FunctionalUnitDescriptor(name = "DIV_0", `type` = FUNCTIONAL_UNIT_TYPE_DIV),
-          FunctionalUnitDescriptor(name = "LSU_0", `type` = FUNCTIONAL_UNIT_TYPE_LSU),
-          FunctionalUnitDescriptor(name = "LSU_1", `type` = FUNCTIONAL_UNIT_TYPE_LSU),
+          // FIXME: LD and ST not extensible by now
+          FunctionalUnitDescriptor(name = "LD_0", `type` = FUNCTIONAL_UNIT_TYPE_LD),
+          FunctionalUnitDescriptor(name = "LD_1", `type` = FUNCTIONAL_UNIT_TYPE_LD),
+          FunctionalUnitDescriptor(name = "ST_0", `type` = FUNCTIONAL_UNIT_TYPE_ST),
+          FunctionalUnitDescriptor(name = "ST_1", `type` = FUNCTIONAL_UNIT_TYPE_ST),
           FunctionalUnitDescriptor(name = "BRU_0", `type` = FUNCTIONAL_UNIT_TYPE_BRU),
           FunctionalUnitDescriptor(name = "CSR", `type` = FUNCTIONAL_UNIT_TYPE_CSR),
         )
@@ -45,6 +48,9 @@ package object configs {
 
   // ROB Parameters
   object ROBSize extends Field[Int](16)
+
+  // Mem Parameters
+  object StoreBufferSize extends Field[Int](8)
 
   // Branch Prediction
   object BTBWays        extends Field[Int](4)
@@ -79,27 +85,35 @@ package object configs {
   // --------------------------------------------
 
   // NOTE: You should not modify the parameters below, as they are derived from the user options above
-  // Derived Parameters
-  object XLen         extends Field[Int](ISA().xlen)
-  object ILen         extends Field[Int](ISA().ilen)
-  object IAlign       extends Field[Int](ISA().iAlign)
-  object NumArchRegs  extends Field[Int](ISA().numArchRegs)
-  object IsBigEndian  extends Field[Boolean](ISA().isBigEndian)
-  object MicroOpWidth extends Field[Int](ISA().microOpWidth)
-  object Bubble       extends Field[BitPat](ISA().bubble)
+  // Architecture Parameters
+  object XLen             extends Field[Int](ISA().xlen)
+  object ILen             extends Field[Int](ISA().ilen)
+  object NumArchRegs      extends Field[Int](ISA().numArchRegs)
+  object IsBigEndian      extends Field[Boolean](ISA().isBigEndian)
+  object MicroOpWidth     extends Field[Int](ISA().microOpWidth)
+  object Bubble           extends Field[BitPat](ISA().bubble)
+  object BytesPerWord     extends Field[Int](ISA().xlen / 8)
+  object BytesOffsetWidth extends Field[Int](log2Ceil(ISA().xlen / 8))
+  object BytesPerInstr    extends Field[Int](ISA().ilen / 8)
+  object PCStep           extends Field[Int](ISA().ilen / 8)
+  object PCAlign          extends Field[Int](log2Ceil(ISA().ilen / 8))
 
   implicit val p: Parameters = Parameters.empty ++ Map(
     ISA       -> ISA(),
     Frequency -> Frequency(),
 
     // ISA
-    XLen         -> XLen(),
-    ILen         -> ILen(),
-    IAlign       -> IAlign(),
-    NumArchRegs  -> NumArchRegs(),
-    IsBigEndian  -> IsBigEndian(),
-    MicroOpWidth -> MicroOpWidth(),
-    Bubble       -> Bubble(),
+    XLen             -> XLen(),
+    ILen             -> ILen(),
+    NumArchRegs      -> NumArchRegs(),
+    IsBigEndian      -> IsBigEndian(),
+    MicroOpWidth     -> MicroOpWidth(),
+    Bubble           -> Bubble(),
+    BytesPerWord     -> BytesPerWord(),
+    BytesOffsetWidth -> BytesOffsetWidth(),
+    BytesPerInstr    -> BytesPerInstr(),
+    PCStep           -> PCStep(),
+    PCAlign          -> PCAlign(),
 
     // IFU
     IBufferSize -> IBufferSize(),

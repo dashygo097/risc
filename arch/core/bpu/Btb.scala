@@ -36,9 +36,8 @@ class BpuUpdate(implicit p: Parameters) extends Bundle {
 class Btb(implicit p: Parameters) extends Module with BHTConsts {
   override def desiredName: String = s"${p(ISA).name}_btb"
 
-  private val iAlignWidth = log2Ceil(p(IAlign))
-  private val indexWidth  = log2Ceil(p(BTBSets))
-  private val tagWidth    = p(XLen) - indexWidth - iAlignWidth
+  private val indexWidth = log2Ceil(p(BTBSets))
+  private val tagWidth   = p(XLen) - indexWidth - p(PCAlign)
 
   val query_pc  = IO(Input(Vec(p(IssueWidth), UInt(p(XLen).W))))
   val hit       = IO(Output(Vec(p(IssueWidth), Bool())))
@@ -59,8 +58,8 @@ class Btb(implicit p: Parameters) extends Module with BHTConsts {
 
   val replStates = Seq.fill(p(BTBSets))(new PseudoLRUState(p(BTBWays)))
 
-  def getIndex(pc: UInt): UInt = pc(indexWidth + 1, iAlignWidth)
-  def getTag(pc: UInt): UInt   = pc(p(XLen) - 1, indexWidth + iAlignWidth)
+  def getIndex(pc: UInt): UInt = pc(indexWidth + 1, p(PCAlign))
+  def getTag(pc: UInt): UInt   = pc(p(XLen) - 1, indexWidth + p(PCAlign))
 
   for (q <- 0 until p(IssueWidth)) {
     val qIndex = getIndex(query_pc(q))

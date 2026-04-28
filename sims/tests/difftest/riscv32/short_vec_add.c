@@ -1,5 +1,5 @@
 // RUN: %bare_c
-// RUN: %difftest -c 5000
+// RUN: %difftest -c 5000 -SLT
 
 int main() {
   int a[16], b[16], c[16];

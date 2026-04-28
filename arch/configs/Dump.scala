@@ -42,6 +42,11 @@ object RiscDump {
           size = p(ROBSize),
         )
       ),
+      mem = Some(
+        MemConfig(
+          storeBufferSize = p(StoreBufferSize),
+        )
+      ),
       l1I = Some(
         CacheConfig(
           sets = p(L1ICacheSets),

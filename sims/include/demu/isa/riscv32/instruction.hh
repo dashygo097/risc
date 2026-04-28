@@ -18,6 +18,7 @@ enum InstrType {
 
 enum SystemInstr {
   EBREAK = 0x00100073,
+  SAFE_LOOP = 0x0000006f,
   BUBBLE = 0x00000013,
   URET = 0x00200073,
   SRET = 0x20200073,
