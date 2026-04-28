@@ -163,11 +163,21 @@ object AXIFullBridgeUtils extends RegisteredUtils[BusBridgeUtils] {
           }
         }
         is(AXIBridgeState.B) {
-          axi.b.ready := true.B
+          val bDone = RegInit(false.B)
+
+          axi.b.ready           := !bDone
+          memory.resp.valid     := bDone || axi.b.valid
+          memory.resp.bits.data := 0.U.asTypeOf(gen)
+          memory.resp.bits.last := true.B
+          memory.resp.bits.hit  := false.B
+
           when(axi.b.fire) {
-            memory.resp.valid     := true.B
-            memory.resp.bits.last := true.B
-            when(memory.resp.ready)(state := AXIBridgeState.IDLE)
+            bDone := true.B
+          }
+
+          when(memory.resp.fire) {
+            bDone := false.B
+            state := AXIBridgeState.IDLE
           }
         }
       }

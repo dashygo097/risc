@@ -35,7 +35,9 @@ package object configs {
           FunctionalUnitDescriptor(name = "DIV_0", `type` = FUNCTIONAL_UNIT_TYPE_DIV),
           // FIXME: LD and ST not extensible by now
           FunctionalUnitDescriptor(name = "LD_0", `type` = FUNCTIONAL_UNIT_TYPE_LD),
+          FunctionalUnitDescriptor(name = "LD_1", `type` = FUNCTIONAL_UNIT_TYPE_LD),
           FunctionalUnitDescriptor(name = "ST_0", `type` = FUNCTIONAL_UNIT_TYPE_ST),
+          FunctionalUnitDescriptor(name = "ST_1", `type` = FUNCTIONAL_UNIT_TYPE_ST),
           FunctionalUnitDescriptor(name = "BRU_0", `type` = FUNCTIONAL_UNIT_TYPE_BRU),
           FunctionalUnitDescriptor(name = "CSR", `type` = FUNCTIONAL_UNIT_TYPE_CSR),
         )
