@@ -1,7 +1,7 @@
 package arch.core.decoder.riscv
 
 import arch.core.mult.riscv._
-import arch.core.div._
+import arch.core.div.riscv._
 import arch.core.decoder._
 import arch.configs._
 import arch.isa._
