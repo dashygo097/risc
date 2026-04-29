@@ -54,7 +54,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     val hits = Wire(Vec(numFUs, Bool()))
 
     for (c <- 0 until numFUs)
-      hits(c) := cdb_valid(c) && reg_pending_valid(r) && reg_pending_rob(r) === cdb_rob_tag(c) && cdb_rd(c) === r.U
+      hits(c) := cdb_valid(c) && reg_pending_valid(r) && reg_pending_rob(r) === cdb_rob_tag(c) && cdb_rd(c) === r.U && r.U =/= 0.U
 
     val hit = hits.asUInt.orR
 
@@ -63,6 +63,11 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     base_completed_valid(r) := Mux(hit, true.B, reg_completed_valid(r))
     base_completed_data(r)  := Mux(hit, Mux1H(hits, cdb_data), reg_completed_data(r))
   }
+
+  base_pending_valid(0)   := false.B
+  base_pending_rob(0)     := 0.U
+  base_completed_valid(0) := false.B
+  base_completed_data(0)  := 0.U
 
   val snooped_entries = Wire(Vec(numFUs, new ScoreboardEntry))
   snooped_entries := entries
@@ -213,6 +218,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   when(flush) {
     for (r <- 0 until numRegs) {
       reg_pending_valid(r)   := false.B
+      reg_pending_rob(r)     := 0.U
       reg_completed_valid(r) := false.B
       reg_completed_data(r)  := 0.U
     }
