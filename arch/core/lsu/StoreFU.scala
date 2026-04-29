@@ -45,7 +45,7 @@ class StoreFU(implicit p: Parameters) extends FunctionalUnit {
 
   io.req.ready := state === StoreFUState.IDLE
 
-  sbWrite.valid          := state === StoreFUState.WRITE_SB
+  sbWrite.valid          := state === StoreFUState.WRITE_SB && !io.flush
   sbWrite.bits.sq_idx    := uopReg.sq_idx
   sbWrite.bits.rob_tag   := uopReg.rob_tag
   sbWrite.bits.addr      := alignedAddr
@@ -53,7 +53,7 @@ class StoreFU(implicit p: Parameters) extends FunctionalUnit {
   sbWrite.bits.mask      := storeMask
   sbWrite.bits.cacheable := pmaCacheable
 
-  io.resp.valid        := state === StoreFUState.DONE
+  io.resp.valid        := state === StoreFUState.DONE && !io.flush
   io.resp.bits.result  := 0.U
   io.resp.bits.rd      := 0.U
   io.resp.bits.pc      := uopReg.pc

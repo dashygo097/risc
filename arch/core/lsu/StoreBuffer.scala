@@ -83,15 +83,12 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
     Mux(sum >= p(StoreBufferSize).U, sum - p(StoreBufferSize).U, sum)(IdxW - 1, 0)
   }
 
-  private def zeroEntry: StoreBufferEntry =
-    0.U.asTypeOf(new StoreBufferEntry)
+  private def zeroEntry: StoreBufferEntry = 0.U.asTypeOf(new StoreBufferEntry)
 
   val entries = RegInit(VecInit(Seq.fill(p(StoreBufferSize))(zeroEntry)))
-
-  val head  = RegInit(0.U(IdxW.W))
-  val tail  = RegInit(0.U(IdxW.W))
-  val count = RegInit(0.U(CntW.W))
-
+  val head    = RegInit(0.U(IdxW.W))
+  val tail    = RegInit(0.U(IdxW.W))
+  val count   = RegInit(0.U(CntW.W))
   val tailSeq = RegInit(0.U(64.W))
 
   val drainOutstanding = RegInit(false.B)
@@ -106,10 +103,9 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   for (q <- 0 until numLoadPorts) {
     val req = io.fwd(q).req
 
-    val dataStage = Wire(Vec(p(StoreBufferSize) + 1, Vec(p(BytesPerWord), UInt(8.W))))
-    val maskStage = Wire(Vec(p(StoreBufferSize) + 1, Vec(p(BytesPerWord), Bool())))
-    val seqStage  = Wire(Vec(p(StoreBufferSize) + 1, Vec(p(BytesPerWord), UInt(64.W))))
-
+    val dataStage      = Wire(Vec(p(StoreBufferSize) + 1, Vec(p(BytesPerWord), UInt(8.W))))
+    val maskStage      = Wire(Vec(p(StoreBufferSize) + 1, Vec(p(BytesPerWord), Bool())))
+    val seqStage       = Wire(Vec(p(StoreBufferSize) + 1, Vec(p(BytesPerWord), UInt(64.W))))
     val blockStage     = Wire(Vec(p(StoreBufferSize) + 1, Bool()))
     val liveOlderStage = Wire(Vec(p(StoreBufferSize) + 1, Bool()))
 
@@ -123,8 +119,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
     }
 
     for (i <- 0 until p(StoreBufferSize)) {
-      val e = entries(i)
-
+      val e           = entries(i)
       val olderLive   = req.valid && e.valid && e.seq < req.sq_seq
       val liveUnknown = olderLive && !e.addrValid
       val forwardable = olderLive && e.addrValid
@@ -134,12 +129,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
       liveOlderStage(i + 1) := liveOlderStage(i) || olderLive
 
       for (b <- 0 until p(BytesPerWord)) {
-        val byteHit =
-          sameLine &&
-            e.mask(b) &&
-            req.mask(b) &&
-            (!maskStage(i)(b) || e.seq > seqStage(i)(b))
-
+        val byteHit = sameLine && e.mask(b) && req.mask(b) && (!maskStage(i)(b) || e.seq > seqStage(i)(b))
         dataStage(i + 1)(b) := Mux(byteHit, e.data(8 * b + 7, 8 * b), dataStage(i)(b))
         maskStage(i + 1)(b) := Mux(byteHit, true.B, maskStage(i)(b))
         seqStage(i + 1)(b)  := Mux(byteHit, e.seq, seqStage(i)(b))
@@ -152,8 +142,8 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
 
     io.fwd(q).resp.block    := blockStage(p(StoreBufferSize))
     io.fwd(q).resp.hasOlder := liveOlderStage(p(StoreBufferSize))
-    io.fwd(q).resp.fwdValid := (finalMaskUInt & req.mask).orR
-    io.fwd(q).resp.fwdFull  := ((finalMaskUInt & req.mask) === req.mask)
+    io.fwd(q).resp.fwdValid := req.valid && (finalMaskUInt & req.mask).orR
+    io.fwd(q).resp.fwdFull  := req.valid && ((finalMaskUInt & req.mask) === req.mask)
     io.fwd(q).resp.fwdData  := Cat((p(BytesPerWord) - 1 to 0 by -1).map(i => finalDataVec(i)))
     io.fwd(q).resp.fwdMask  := finalMaskUInt
   }
@@ -198,15 +188,11 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
 
   for (i <- 0 until p(StoreBufferSize))
     for (s <- 0 until numStorePorts) {
-      val hit =
-        io.write(s).valid &&
-          io.write(s).bits.sq_idx === i.U &&
-          afterDrainEntries(i).valid
+      val hit = io.write(s).valid && !io.flush && io.write(s).bits.sq_idx === i.U && afterDrainEntries(i).valid && afterDrainEntries(i).rob_tag === io.write(s).bits.rob_tag
 
       when(hit) {
         afterWriteEntries(i).addrValid := true.B
         afterWriteEntries(i).fwdValid  := true.B
-        afterWriteEntries(i).rob_tag   := io.write(s).bits.rob_tag
         afterWriteEntries(i).addr      := io.write(s).bits.addr
         afterWriteEntries(i).data      := io.write(s).bits.data
         afterWriteEntries(i).mask      := io.write(s).bits.mask
@@ -219,10 +205,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
 
   for (i <- 0 until p(StoreBufferSize))
     for (c <- 0 until p(IssueWidth)) {
-      val hit =
-        io.commit(c).valid &&
-          io.commit(c).bits === i.U &&
-          afterWriteEntries(i).valid
+      val hit = io.commit(c).valid && io.commit(c).bits === i.U && afterWriteEntries(i).valid
 
       when(hit) {
         afterCommitEntries(i).committed := true.B
@@ -230,8 +213,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
     }
 
   val allocValid = Wire(Vec(p(IssueWidth), Bool()))
-  for (a <- 0 until p(IssueWidth))
-    allocValid(a) := io.alloc(a).valid && !io.flush
+  for (a <- 0 until p(IssueWidth)) allocValid(a) := io.alloc(a).valid && !io.flush
 
   val allocCount = PopCount(allocValid)
 
@@ -240,9 +222,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
 
   for (i <- 0 until p(StoreBufferSize))
     for (a <- 0 until p(IssueWidth)) {
-      val hit =
-        allocValid(a) &&
-          io.alloc(a).bits.sq_idx === i.U
+      val hit = allocValid(a) && io.alloc(a).bits.sq_idx === i.U
 
       when(hit) {
         afterAllocEntries(i).valid     := true.B
@@ -258,25 +238,43 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
       }
     }
 
-  val afterAllocTail  = wrapAdd(tail, allocCount)
-  val afterAllocCount = count + allocCount - drainRespFire.asUInt
-  val afterAllocSeq   = tailSeq + allocCount
+  val afterAllocTail      = wrapAdd(tail, allocCount)
+  val afterAllocCountWide = count +& allocCount - drainRespFire.asUInt
+  val afterAllocCount     = afterAllocCountWide(CntW - 1, 0)
+  val afterAllocSeq       = tailSeq + allocCount
 
-  val keepLive = Wire(Vec(p(StoreBufferSize), Bool()))
-  for (i <- 0 until p(StoreBufferSize))
-    keepLive(i) := afterAllocEntries(i).valid && afterAllocEntries(i).committed
+  val compactEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
+  for (i <- 0 until p(StoreBufferSize)) compactEntries(i) := zeroEntry
+
+  val keepVec = Wire(Vec(p(StoreBufferSize), Bool()))
+  for (i <- 0 until p(StoreBufferSize)) keepVec(i) := false.B
+
+  for (logical <- 0 until p(StoreBufferSize)) {
+    val srcIdx   = wrapAdd(afterDrainHead, logical.U)
+    val srcEntry = afterAllocEntries(srcIdx)
+    val keep     = logical.U < afterAllocCount && srcEntry.valid && srcEntry.committed
+
+    keepVec(logical) := keep
+
+    val dstIdx = PopCount((0 until logical).map(j => keepVec(j)))
+
+    when(keep) {
+      compactEntries(dstIdx) := srcEntry
+    }
+  }
+
+  val compactCount = PopCount(keepVec)
 
   val finalEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
   finalEntries := afterAllocEntries
 
-  for (i <- 0 until p(StoreBufferSize))
-    when(io.flush && afterAllocEntries(i).valid && !afterAllocEntries(i).committed) {
-      finalEntries(i) := zeroEntry
-    }
+  when(io.flush) {
+    finalEntries := compactEntries
+  }
 
-  val finalHead  = afterDrainHead
-  val finalTail  = Mux(io.flush, wrapAdd(afterDrainHead, PopCount(keepLive)), afterAllocTail)
-  val finalCount = Mux(io.flush, PopCount(keepLive), afterAllocCount)
+  val finalHead  = Mux(io.flush, 0.U, afterDrainHead)
+  val finalTail  = Mux(io.flush, compactCount(IdxW - 1, 0), afterAllocTail)
+  val finalCount = Mux(io.flush, compactCount, afterAllocCount)
 
   val finalDrainOutstanding = WireDefault(drainOutstanding)
   val finalDrainIsCacheable = WireDefault(drainIsCacheable)
