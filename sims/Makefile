@@ -100,7 +100,7 @@ coremark:
     RUNTIME_DIR=$(RUNTIME_DIR)/bare-metal/$(COREMARK_PORT_DIR) \
     ITERATIONS=$(COREMARK_ITERATIONS) \
     EXECS=$(COREMARK_EXECS) \
-    TOTAL_DATA_SIZE=$(TOTAL_DATA_SIZE)
+    TOTAL_DATA_SIZE=$(COREMARK_TOTAL_DATA_SIZE)
 	@cd $(PROJECT_DIR)
 
 # Help message
@@ -112,6 +112,7 @@ help:
 	@echo "  reconfigure      - Force reconfiguration of the project"
 	@echo "  clean            - Remove build directory"
 	@echo "  difftest         - Run difftests"
+	@echo "  coremark         - Run Coremark"
 	@echo "  help             - Show this help message"
 	@echo ""
 	@echo "Variables:"
