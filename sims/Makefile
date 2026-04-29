@@ -3,8 +3,17 @@ CMAKE_DIR = $(PROJECT_DIR)/cmake
 BUILD_DIR = $(PROJECT_DIR)/build
 RUNTIME_DIR = $(PROJECT_DIR)/runtime
 
+# coremark benchmark
+COREMARK_DIR = $(PROJECT_DIR)/tests/coremark
+
 # Build configuration
 BUILD_TYPE ?= Release
+
+# configurations for coremark
+COREMARK_PORT_DIR ?= riscv32
+COREMARK_TOTAL_DATA_SIZE ?= 
+COREMARK_ITERATIONS ?= 
+COREMARK_EXECS ?= 
 
 # Auto-detect generator
 ifndef GENERATOR
@@ -79,6 +88,20 @@ clean:
 difftest:
 	@echo "==> Running difftests..."
 	@$(TEST_CMD)
+
+# Run coremark benchmark
+coremark:
+	@echo "==> Running coremark..."
+	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(COREMARK_DIR)
+	@cd $(COREMARK_DIR) && make \
+    PORT_DIR=$(COREMARK_PORT_DIR) \
+    OPATH=$(BUILD_DIR)/tests/coremark/ \
+    RUNTIME_DIR=$(RUNTIME_DIR)/bare-metal/$(COREMARK_PORT_DIR) \
+    ITERATIONS=$(COREMARK_ITERATIONS) \
+    EXECS=$(COREMARK_EXECS) \
+    TOTAL_DATA_SIZE=$(TOTAL_DATA_SIZE)
+	@cd $(PROJECT_DIR)
 
 # Help message
 help:
