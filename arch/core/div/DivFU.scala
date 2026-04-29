@@ -3,6 +3,7 @@ package arch.core.div
 import arch.configs._
 import arch.core.ooo._
 import chisel3._
+import chisel3.util.{ switch, is }
 
 object DivFuState extends ChiselEnum {
   val IDLE, BUSY, DONE = Value
@@ -15,36 +16,49 @@ class DivFU(implicit p: Parameters) extends FunctionalUnit {
   val div_utils = DivUtilsFactory.getOrThrow(p(ISA).name)
 
   val uop_reg    = Reg(new MicroOp)
-  val result_reg = Reg(UInt(p(XLen).W))
+  val result_reg = RegInit(0.U(p(XLen).W))
   val state      = RegInit(DivFuState.IDLE)
 
-  io.req.ready := (state === DivFuState.IDLE) || (state === DivFuState.DONE && io.resp.fire)
+  io.req.ready := state === DivFuState.IDLE
 
-  when(io.req.fire) {
-    state   := DivFuState.BUSY
-    uop_reg := io.req.bits
-  }.elsewhen(io.flush) {
-    state := DivFuState.IDLE
-  }.otherwise {
-    when(state === DivFuState.BUSY && div.done) {
-      result_reg := div.result
-      state      := DivFuState.DONE
-    }.elsewhen(state === DivFuState.DONE && io.resp.fire) {
-      state := DivFuState.IDLE
-    }
-  }
+  val start      = io.req.fire
+  val active_uop = Mux(start, io.req.bits.uop, uop_reg.uop)
+  val ctrl       = div_utils.decode(active_uop)
 
-  val current_uop = Mux(io.req.fire, io.req.bits.uop, uop_reg.uop)
-  val ctrl        = div_utils.decode(current_uop)
-
-  div.en        := io.req.fire
+  div.en        := start
   div.kill      := io.flush
-  div.src1      := Mux(io.req.fire, io.req.bits.rs1_data, uop_reg.rs1_data)
-  div.src2      := Mux(io.req.fire, io.req.bits.rs2_data, uop_reg.rs2_data)
+  div.src1      := Mux(start, io.req.bits.rs1_data, uop_reg.rs1_data)
+  div.src2      := Mux(start, io.req.bits.rs2_data, uop_reg.rs2_data)
   div.is_signed := ctrl.is_signed
   div.is_rem    := ctrl.is_rem
 
-  io.resp.valid        := (state === DivFuState.DONE)
+  when(io.flush) {
+    state := DivFuState.IDLE
+  }.otherwise {
+    switch(state) {
+      is(DivFuState.IDLE) {
+        when(start) {
+          uop_reg := io.req.bits
+          state   := DivFuState.BUSY
+        }
+      }
+
+      is(DivFuState.BUSY) {
+        when(div.done) {
+          result_reg := div.result
+          state      := DivFuState.DONE
+        }
+      }
+
+      is(DivFuState.DONE) {
+        when(io.resp.fire) {
+          state := DivFuState.IDLE
+        }
+      }
+    }
+  }
+
+  io.resp.valid        := state === DivFuState.DONE
   io.resp.bits.result  := result_reg
   io.resp.bits.rd      := uop_reg.rd
   io.resp.bits.pc      := uop_reg.pc
