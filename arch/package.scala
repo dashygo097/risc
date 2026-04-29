@@ -65,7 +65,7 @@ package object configs {
 
   object L1DCacheWays       extends Field[Int](4)
   object L1DCacheSets       extends Field[Int](8)
-  object L1DCacheLineSize   extends Field[Int](32) // in bytes
+  object L1DCacheLineSize   extends Field[Int](64) // in bytes
   object L1DCacheReplPolicy extends Field[ReplacementPolicy](PseudoLRU)
 
   // Bus Parameters
