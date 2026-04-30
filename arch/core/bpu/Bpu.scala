@@ -30,7 +30,7 @@ class Bpu(implicit p: Parameters) extends Module with BHTConsts {
     val predTaken  = btbHit && dirTaken
     val predTarget = btb.entry_out(w).target
 
-    taken(w)      := predTaken
+    taken(w)      := false.B
     target(w)     := Mux(predTaken, predTarget, query_pc(w) + p(PCStep).U)
     branchMask(w) := btbHit
   }
