@@ -1,11 +1,11 @@
 // RUN: %bare_c
 // RUN: %difftest -c 500000 -SLT
 
-constexpr int M = 16;
-constexpr int N = 16;
-constexpr int K = 16;
+constexpr const int M = 16;
+constexpr const int N = 16;
+constexpr const int K = 16;
 
-void mmul(int C[M][K], const int A[M][N], const int B[N][K]) {
+void naive_mmul(int C[M][K], const int A[M][N], const int B[N][K]) {
   for (int i = 0; i < M; i++) {
     for (int k = 0; k < K; k++) {
       int sum = 0;
@@ -32,7 +32,7 @@ int main() {
     }
   }
 
-  mmul(C, A, B);
+  naive_mmul(C, A, B);
 
   return 0;
 }
