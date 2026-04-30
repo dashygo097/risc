@@ -45,7 +45,7 @@ class StoreFU(implicit p: Parameters) extends FunctionalUnit {
 
   io.req.ready := state === StoreFUState.IDLE
 
-  sbWrite.valid          := state === StoreFUState.WRITE_SB && !io.flush
+  sbWrite.valid          := state === StoreFUState.WRITE_SB
   sbWrite.bits.sq_idx    := uopReg.sq_idx
   sbWrite.bits.rob_tag   := uopReg.rob_tag
   sbWrite.bits.addr      := alignedAddr

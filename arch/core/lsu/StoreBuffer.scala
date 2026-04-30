@@ -188,7 +188,7 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
 
   for (i <- 0 until p(StoreBufferSize))
     for (s <- 0 until numStorePorts) {
-      val hit = io.write(s).valid && !io.flush && io.write(s).bits.sq_idx === i.U && afterDrainEntries(i).valid && afterDrainEntries(i).rob_tag === io.write(s).bits.rob_tag
+      val hit = io.write(s).valid && io.write(s).bits.sq_idx === i.U && afterDrainEntries(i).valid && afterDrainEntries(i).rob_tag === io.write(s).bits.rob_tag
 
       when(hit) {
         afterWriteEntries(i).addrValid := true.B
