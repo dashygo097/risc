@@ -52,8 +52,8 @@ package object configs {
   object StoreBufferSize extends Field[Int](8)
 
   // Branch Prediction
-  object BTBWays        extends Field[Int](4)
-  object BTBSets        extends Field[Int](16)
+  object BTBWays        extends Field[Int](2)
+  object BTBSets        extends Field[Int](128)
   object BTBReplPolicy  extends Field[ReplacementPolicy](PseudoLRU)
   object GShareGhrWidth extends Field[Int](8)
 

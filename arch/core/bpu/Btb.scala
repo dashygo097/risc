@@ -100,7 +100,7 @@ class Btb(implicit p: Parameters) extends Module with BHTConsts {
     newEntry.target := update.target
 
     val oldCtrl = Mux(uAnyHit, uSet(writeWay).ctrl, Mux(update.taken, BHT_WNT.value.U, BHT_WT.value.U))
-    newEntry.ctrl := Mux(update.taken, Mux(oldCtrl === 3.U, 3.U, oldCtrl + 1.U), Mux(oldCtrl === 0.U, 0.U, oldCtrl - 1.U))
+    newEntry.ctrl := Mux(update.taken, Mux(oldCtrl === BHT_ST.value.U, BHT_ST.value.U, oldCtrl + 1.U), Mux(oldCtrl === BHT_SNT.value.U, BHT_SNT.value.U, oldCtrl - 1.U))
 
     entries(uIndex)(writeWay) := newEntry
 

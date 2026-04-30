@@ -2,7 +2,7 @@ package arch.core.bpu
 
 import arch.configs._
 import chisel3._
-import chisel3.util.Cat 
+import chisel3.util.Cat
 
 class GShare(implicit p: Parameters) extends Module with BHTConsts {
   override def desiredName: String = s"${p(ISA).name}_gshare"
@@ -25,9 +25,6 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
 
   // Initialize all counters to weakly-taken to reduce cold-start penalty.
   val pht = RegInit(VecInit(Seq.fill(phtEntries)(BHT_WT.value.U(SZ_BHT.W))))
-
-  val snt = BHT_SNT.value.U(SZ_BHT.W)
-  val st  = BHT_ST.value.U(SZ_BHT.W)
 
   def getIndex(pc: UInt, hist: UInt): UInt = {
     val pcLow  = pc(p(GShareGhrWidth) + 1, p(PCAlign))
@@ -58,7 +55,7 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
 
     // Update PHT with saturating 2-bit counter.
     val oldCnt = pht(uIndex)
-    val newCnt = Mux(update.taken, Mux(oldCnt === st, st, oldCnt + 1.U), Mux(oldCnt === snt, snt, oldCnt - 1.U))
+    val newCnt = Mux(update.taken, Mux(oldCnt === BHT_ST.value.U, BHT_ST.value.U, oldCnt + 1.U), Mux(oldCnt === BHT_SNT.value.U, BHT_SNT.value.U, oldCnt - 1.U))
     pht(uIndex) := newCnt
     commitGhr   := shiftHist(update.ghr_snapshot, update.taken)
   }
