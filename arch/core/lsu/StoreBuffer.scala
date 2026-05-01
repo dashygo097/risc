@@ -61,18 +61,20 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   private val CntW = log2Ceil(p(StoreBufferSize) + 1)
 
   val io = IO(new Bundle {
-    val alloc     = Flipped(Vec(p(IssueWidth), Valid(new StoreAllocBundle)))
-    val commit    = Flipped(Vec(p(IssueWidth), Valid(UInt(IdxW.W))))
-    val write     = Flipped(Vec(numStorePorts, Valid(new StoreWriteBundle)))
-    val fwd       = Vec(numLoadPorts, new StoreForwardPort)
-    val tail      = Output(UInt(IdxW.W))
-    val tailSeq   = Output(UInt(64.W))
-    val freeCount = Output(UInt(CntW.W))
-    val empty     = Output(Bool())
-    val busy      = Output(Bool())
-    val mem       = new CacheIO(UInt(p(XLen).W), p(XLen))
-    val mmio      = new CacheIO(UInt(p(XLen).W), p(XLen))
-    val flush     = Input(Bool())
+    val alloc       = Flipped(Vec(p(IssueWidth), Valid(new StoreAllocBundle)))
+    val commit      = Flipped(Vec(p(IssueWidth), Valid(UInt(IdxW.W))))
+    val write       = Flipped(Vec(numStorePorts, Valid(new StoreWriteBundle)))
+    val fwd         = Vec(numLoadPorts, new StoreForwardPort)
+    val tail        = Output(UInt(IdxW.W))
+    val tailSeq     = Output(UInt(64.W))
+    val freeCount   = Output(UInt(CntW.W))
+    val empty       = Output(Bool())
+    val busy        = Output(Bool())
+    val oldestValid = Output(Bool())
+    val oldestSeq   = Output(UInt(64.W))
+    val mem         = new CacheIO(UInt(p(XLen).W), p(XLen))
+    val mmio        = new CacheIO(UInt(p(XLen).W), p(XLen))
+    val flush       = Input(Bool())
   })
 
   private def wrapAdd(x: UInt, y: UInt): UInt = {
@@ -90,11 +92,13 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   val drainOutstanding = RegInit(false.B)
   val drainIsCacheable = RegInit(false.B)
 
-  io.tail      := tail
-  io.tailSeq   := tailSeq
-  io.freeCount := p(StoreBufferSize).U(CntW.W) - count
-  io.empty     := count === 0.U && !drainOutstanding
-  io.busy      := count =/= 0.U || drainOutstanding
+  io.tail        := tail
+  io.tailSeq     := tailSeq
+  io.freeCount   := p(StoreBufferSize).U(CntW.W) - count
+  io.empty       := count === 0.U && !drainOutstanding
+  io.busy        := count =/= 0.U || drainOutstanding
+  io.oldestValid := count =/= 0.U
+  io.oldestSeq   := entries(head).seq
 
   for (q <- 0 until numLoadPorts) {
     val fwdRespValid = RegInit(false.B)
@@ -181,130 +185,123 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   val drainReqFire  = io.mem.req.fire || io.mmio.req.fire
   val drainRespFire = io.mem.resp.fire || io.mmio.resp.fire
 
-  val afterDrainEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
-  afterDrainEntries := entries
+  val allocValid = Wire(Vec(p(IssueWidth), Bool()))
+  for (a <- 0 until p(IssueWidth)) allocValid(a) := io.alloc(a).valid && !io.flush
 
-  val afterDrainHead = WireDefault(head)
+  val allocCount      = PopCount(allocValid)
+  val afterDrainHead  = Mux(drainRespFire, wrapAdd(head, 1.U), head)
+  val normalTail      = wrapAdd(tail, allocCount)
+  val normalCountWide = count +& allocCount - drainRespFire.asUInt
+  val normalCount     = normalCountWide(CntW - 1, 0)
+  val normalSeq       = tailSeq + allocCount
 
-  when(drainRespFire) {
-    afterDrainHead := wrapAdd(head, 1.U)
+  val afterOpsEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
+
+  for (i <- 0 until p(StoreBufferSize)) {
+    val drainedThis = drainRespFire && head === i.U
+    val writeHit    = Wire(Vec(numStorePorts, Bool()))
+    val commitHit   = Wire(Vec(p(IssueWidth), Bool()))
+    val allocHit    = Wire(Vec(p(IssueWidth), Bool()))
+
+    for (s <- 0 until numStorePorts)
+      writeHit(s) := io.write(s).valid && io.write(s).bits.sq_idx === i.U && entries(i).valid && entries(i).rob_tag === io.write(s).bits.rob_tag && !drainedThis
+
+    for (c <- 0 until p(IssueWidth))
+      commitHit(c) := io.commit(c).valid && io.commit(c).bits === i.U && entries(i).valid && !drainedThis
+
+    for (a <- 0 until p(IssueWidth))
+      allocHit(a) := allocValid(a) && io.alloc(a).bits.sq_idx === i.U
+
+    val anyWrite       = writeHit.asUInt.orR
+    val anyCommit      = commitHit.asUInt.orR
+    val anyAlloc       = allocHit.asUInt.orR
+    val writeAddr      = Mux1H((0 until numStorePorts).map(s => writeHit(s) -> io.write(s).bits.addr))
+    val writeData      = Mux1H((0 until numStorePorts).map(s => writeHit(s) -> io.write(s).bits.data))
+    val writeMask      = Mux1H((0 until numStorePorts).map(s => writeHit(s) -> io.write(s).bits.mask))
+    val writeCacheable = Mux1H((0 until numStorePorts).map(s => writeHit(s) -> io.write(s).bits.cacheable))
+    val allocSeq       = Mux1H((0 until p(IssueWidth)).map(a => allocHit(a) -> io.alloc(a).bits.sq_seq))
+    val allocRobTag    = Mux1H((0 until p(IssueWidth)).map(a => allocHit(a) -> io.alloc(a).bits.rob_tag))
+
+    val e = Wire(new StoreBufferEntry)
+    e := entries(i)
+
+    when(drainedThis) {
+      e := zeroEntry
+    }.elsewhen(anyAlloc) {
+      e.valid     := true.B
+      e.committed := false.B
+      e.addrValid := false.B
+      e.fwdValid  := false.B
+      e.seq       := allocSeq
+      e.rob_tag   := allocRobTag
+      e.addr      := 0.U
+      e.data      := 0.U
+      e.mask      := 0.U
+      e.cacheable := false.B
+    }.otherwise {
+      when(anyWrite) {
+        e.addrValid := true.B
+        e.fwdValid  := true.B
+        e.addr      := writeAddr
+        e.data      := writeData
+        e.mask      := writeMask
+        e.cacheable := writeCacheable
+      }
+
+      when(anyCommit) {
+        e.committed := true.B
+      }
+    }
+
+    afterOpsEntries(i) := e
   }
 
-  for (i <- 0 until p(StoreBufferSize))
-    when(drainRespFire && head === i.U) {
-      afterDrainEntries(i) := zeroEntry
-    }
+  val keepPrefix  = Wire(Vec(p(StoreBufferSize), Bool()))
+  val prefixAlive = Wire(Vec(p(StoreBufferSize) + 1, Bool()))
 
-  val afterWriteEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
-  afterWriteEntries := afterDrainEntries
-
-  for (i <- 0 until p(StoreBufferSize))
-    for (s <- 0 until numStorePorts) {
-      val hit = io.write(s).valid && io.write(s).bits.sq_idx === i.U && afterDrainEntries(i).valid && afterDrainEntries(i).rob_tag === io.write(s).bits.rob_tag
-
-      when(hit) {
-        afterWriteEntries(i).addrValid := true.B
-        afterWriteEntries(i).fwdValid  := true.B
-        afterWriteEntries(i).addr      := io.write(s).bits.addr
-        afterWriteEntries(i).data      := io.write(s).bits.data
-        afterWriteEntries(i).mask      := io.write(s).bits.mask
-        afterWriteEntries(i).cacheable := io.write(s).bits.cacheable
-      }
-    }
-
-  val afterCommitEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
-  afterCommitEntries := afterWriteEntries
-
-  for (i <- 0 until p(StoreBufferSize))
-    for (c <- 0 until p(IssueWidth)) {
-      val hit = io.commit(c).valid && io.commit(c).bits === i.U && afterWriteEntries(i).valid
-
-      when(hit) {
-        afterCommitEntries(i).committed := true.B
-      }
-    }
-
-  val allocValid = Wire(Vec(p(IssueWidth), Bool()))
-  for (a <- 0 until p(IssueWidth))
-    allocValid(a) := io.alloc(a).valid && !io.flush
-
-  val allocCount        = PopCount(allocValid)
-  val afterAllocEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
-  afterAllocEntries := afterCommitEntries
-
-  for (i <- 0 until p(StoreBufferSize))
-    for (a <- 0 until p(IssueWidth)) {
-      val hit = allocValid(a) && io.alloc(a).bits.sq_idx === i.U
-
-      when(hit) {
-        afterAllocEntries(i).valid     := true.B
-        afterAllocEntries(i).committed := false.B
-        afterAllocEntries(i).addrValid := false.B
-        afterAllocEntries(i).fwdValid  := false.B
-        afterAllocEntries(i).seq       := io.alloc(a).bits.sq_seq
-        afterAllocEntries(i).rob_tag   := io.alloc(a).bits.rob_tag
-        afterAllocEntries(i).addr      := 0.U
-        afterAllocEntries(i).data      := 0.U
-        afterAllocEntries(i).mask      := 0.U
-        afterAllocEntries(i).cacheable := false.B
-      }
-    }
-
-  val afterAllocTail      = wrapAdd(tail, allocCount)
-  val afterAllocCountWide = count +& allocCount - drainRespFire.asUInt
-  val afterAllocCount     = afterAllocCountWide(CntW - 1, 0)
-  val afterAllocSeq       = tailSeq + allocCount
-
-  val compactEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
-  for (i <- 0 until p(StoreBufferSize))
-    compactEntries(i) := zeroEntry
-
-  val keepVec = Wire(Vec(p(StoreBufferSize), Bool()))
-  for (i <- 0 until p(StoreBufferSize))
-    keepVec(i) := false.B
+  prefixAlive(0) := true.B
 
   for (logical <- 0 until p(StoreBufferSize)) {
-    val srcIdx   = wrapAdd(afterDrainHead, logical.U)
-    val srcEntry = afterAllocEntries(srcIdx)
-    val keep     = logical.U < afterAllocCount && srcEntry.valid && srcEntry.committed
-    val dstIdx   = PopCount((0 until logical).map(j => keepVec(j)))
+    val idx     = wrapAdd(afterDrainHead, logical.U)
+    val e       = afterOpsEntries(idx)
+    val inRange = logical.U < normalCount
 
-    keepVec(logical) := keep
+    keepPrefix(logical)      := prefixAlive(logical) && inRange && e.valid && e.committed
+    prefixAlive(logical + 1) := keepPrefix(logical)
+  }
 
-    when(keep) {
-      compactEntries(dstIdx) := srcEntry
+  val flushCount = PopCount(keepPrefix)
+  val flushTail  = wrapAdd(afterDrainHead, flushCount)
+
+  val keepPhysical = Wire(Vec(p(StoreBufferSize), Bool()))
+
+  for (i <- 0 until p(StoreBufferSize)) {
+    val keepHits = Wire(Vec(p(StoreBufferSize), Bool()))
+
+    for (logical <- 0 until p(StoreBufferSize))
+      keepHits(logical) := keepPrefix(logical) && wrapAdd(afterDrainHead, logical.U) === i.U
+
+    keepPhysical(i) := keepHits.asUInt.orR
+  }
+
+  for (i <- 0 until p(StoreBufferSize))
+    when(io.flush && !keepPhysical(i)) {
+      entries(i) := zeroEntry
+    }.otherwise {
+      entries(i) := afterOpsEntries(i)
     }
-  }
 
-  val compactCount = PopCount(keepVec)
-  val finalEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
-  finalEntries := afterAllocEntries
-
-  when(io.flush) {
-    finalEntries := compactEntries
-  }
-
-  val finalHead  = Mux(io.flush, 0.U, afterDrainHead)
-  val finalTail  = Mux(io.flush, compactCount(IdxW - 1, 0), afterAllocTail)
-  val finalCount = Mux(io.flush, compactCount, afterAllocCount)
-
-  val finalDrainOutstanding = WireDefault(drainOutstanding)
-  val finalDrainIsCacheable = WireDefault(drainIsCacheable)
+  head    := afterDrainHead
+  tail    := Mux(io.flush, flushTail, normalTail)
+  count   := Mux(io.flush, flushCount, normalCount)
+  tailSeq := normalSeq
 
   when(drainReqFire) {
-    finalDrainOutstanding := true.B
-    finalDrainIsCacheable := headEntry.cacheable
+    drainOutstanding := true.B
+    drainIsCacheable := headEntry.cacheable
   }
 
   when(drainRespFire) {
-    finalDrainOutstanding := false.B
+    drainOutstanding := false.B
   }
-
-  entries          := finalEntries
-  head             := finalHead
-  tail             := finalTail
-  count            := finalCount
-  tailSeq          := afterAllocSeq
-  drainOutstanding := finalDrainOutstanding
-  drainIsCacheable := finalDrainIsCacheable
 }

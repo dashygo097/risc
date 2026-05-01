@@ -24,10 +24,12 @@ class LoadCtrl(implicit p: Parameters) extends Bundle {
 class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   override def desiredName: String = s"${p(ISA).name}_load_fu"
 
-  val mem   = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
-  val mmio  = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
-  val sbFwd = IO(Flipped(new StoreForwardPort))
-  val busy  = IO(Output(Bool()))
+  val mem           = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
+  val mmio          = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
+  val sbFwd         = IO(Flipped(new StoreForwardPort))
+  val sbOldestValid = IO(Input(Bool()))
+  val sbOldestSeq   = IO(Input(UInt(64.W)))
+  val busy          = IO(Output(Bool()))
 
   val utils    = LoadUtilsFactory.getOrThrow(p(ISA).name)
   val immUtils = ImmUtilsFactory.getOrThrow(p(ISA).name)
@@ -51,6 +53,7 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   val acceptAlignedAddr             = utils.alignedAddr(acceptAddr)
   val acceptLoadMask                = utils.shiftedLoadMask(acceptCtrl, acceptAddr)
   val (_, _, _, acceptPmaCacheable) = PmaChecker(acceptAddr)
+  val acceptHasOlderStore           = sbOldestValid && sbOldestSeq < io.req.bits.sq_seq
 
   busy         := state =/= LoadFUState.IDLE
   io.req.ready := state === LoadFUState.IDLE
@@ -60,8 +63,7 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   sbFwd.req.bits.sq_seq := uopReg.sq_seq
   sbFwd.req.bits.addr   := alignedAddrReg
   sbFwd.req.bits.mask   := loadMaskReg
-
-  sbFwd.resp.ready := state === LoadFUState.FWD_RESP && !io.flush
+  sbFwd.resp.ready      := state === LoadFUState.FWD_RESP && !io.flush
 
   val fwdResp           = sbFwd.resp.bits
   val fwdRespFire       = sbFwd.resp.fire
@@ -132,7 +134,7 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
           resultReg       := 0.U
           fwdDataReg      := 0.U
           fwdMaskReg      := 0.U
-          state           := LoadFUState.FWD_REQ
+          state           := Mux(acceptHasOlderStore, LoadFUState.FWD_REQ, LoadFUState.MEM_REQ)
         }
       }
 

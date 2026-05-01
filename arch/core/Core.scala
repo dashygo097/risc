@@ -100,6 +100,8 @@ class RiscCore(implicit p: Parameters) extends Module {
     memory_arbiter.ld_mem(i) <> ldus(i).mem
     memory_arbiter.ld_mmio(i) <> ldus(i).mmio
     ldus(i).sbFwd <> store_buffer.io.fwd(i)
+    ldus(i).sbOldestValid := store_buffer.io.oldestValid
+    ldus(i).sbOldestSeq   := store_buffer.io.oldestSeq
   }
 
   for (i <- stus.indices) store_buffer.io.write(i) := stus(i).sbWrite
