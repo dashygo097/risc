@@ -9,7 +9,7 @@ import chisel3._
 import chisel3.util._
 
 object LoadFUState extends ChiselEnum {
-  val IDLE, CHECK_SB, WAIT_MEM, DONE, FLUSH_DRAIN = Value
+  val IDLE, FWD_REQ, FWD_RESP, MEM_REQ, WAIT_MEM, DONE, FLUSH_DRAIN = Value
 }
 
 class LoadCtrl(implicit p: Parameters) extends Bundle {
@@ -32,47 +32,57 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   val utils    = LoadUtilsFactory.getOrThrow(p(ISA).name)
   val immUtils = ImmUtilsFactory.getOrThrow(p(ISA).name)
 
-  val state          = RegInit(LoadFUState.IDLE)
-  val uopReg         = Reg(new MicroOp)
-  val resultReg      = RegInit(0.U(p(XLen).W))
-  val fwdDataReg     = RegInit(0.U(p(XLen).W))
-  val fwdMaskReg     = RegInit(0.U(p(BytesPerWord).W))
-  val reqOutstanding = RegInit(false.B)
-  val reqWasCache    = RegInit(false.B)
+  val state           = RegInit(LoadFUState.IDLE)
+  val uopReg          = Reg(new MicroOp)
+  val ctrlReg         = RegInit(0.U.asTypeOf(new LoadCtrl))
+  val addrReg         = RegInit(0.U(p(XLen).W))
+  val alignedAddrReg  = RegInit(0.U(p(XLen).W))
+  val loadMaskReg     = RegInit(0.U(p(BytesPerWord).W))
+  val pmaCacheableReg = RegInit(false.B)
+  val resultReg       = RegInit(0.U(p(XLen).W))
+  val fwdDataReg      = RegInit(0.U(p(XLen).W))
+  val fwdMaskReg      = RegInit(0.U(p(BytesPerWord).W))
+  val reqOutstanding  = RegInit(false.B)
+  val reqWasCache     = RegInit(false.B)
 
-  val ctrl                    = utils.decodeLoad(uopReg.uop)
-  val imm                     = immUtils.genImm(uopReg.instr, uopReg.imm_type)
-  val addr                    = uopReg.rs1_data + imm
-  val alignedAddr             = utils.alignedAddr(addr)
-  val loadMask                = utils.shiftedLoadMask(ctrl, addr)
-  val (_, _, _, pmaCacheable) = PmaChecker(addr)
+  val acceptCtrl                    = utils.decodeLoad(io.req.bits.uop)
+  val acceptImm                     = immUtils.genImm(io.req.bits.instr, io.req.bits.imm_type)
+  val acceptAddr                    = io.req.bits.rs1_data + acceptImm
+  val acceptAlignedAddr             = utils.alignedAddr(acceptAddr)
+  val acceptLoadMask                = utils.shiftedLoadMask(acceptCtrl, acceptAddr)
+  val (_, _, _, acceptPmaCacheable) = PmaChecker(acceptAddr)
 
   busy         := state =/= LoadFUState.IDLE
   io.req.ready := state === LoadFUState.IDLE
 
-  sbFwd.req.valid  := state === LoadFUState.CHECK_SB && !io.flush
-  sbFwd.req.sq_seq := uopReg.sq_seq
-  sbFwd.req.addr   := alignedAddr
-  sbFwd.req.mask   := loadMask
+  sbFwd.req.valid       := state === LoadFUState.FWD_REQ && !io.flush
+  sbFwd.req.bits.valid  := true.B
+  sbFwd.req.bits.sq_seq := uopReg.sq_seq
+  sbFwd.req.bits.addr   := alignedAddrReg
+  sbFwd.req.bits.mask   := loadMaskReg
 
-  val fwdResp        = sbFwd.resp
-  val mmioOrderBlock = !pmaCacheable && fwdResp.hasOlder
-  val shouldBlock    = fwdResp.block || mmioOrderBlock
-  val fullForward    = pmaCacheable && fwdResp.fwdFull
-  val partialForward = pmaCacheable && fwdResp.fwdValid && !fwdResp.fwdFull
-  val needsMemory    = state === LoadFUState.CHECK_SB && !io.flush && !shouldBlock && !fullForward
+  sbFwd.resp.ready := state === LoadFUState.FWD_RESP && !io.flush
 
-  mem.req.valid     := needsMemory && pmaCacheable
+  val fwdResp           = sbFwd.resp.bits
+  val fwdRespFire       = sbFwd.resp.fire
+  val mmioOrderBlock    = !pmaCacheableReg && fwdResp.hasOlder
+  val shouldBlock       = fwdResp.block || mmioOrderBlock
+  val fullForward       = pmaCacheableReg && fwdResp.fwdFull
+  val partialForward    = pmaCacheableReg && fwdResp.fwdValid && !fwdResp.fwdFull
+  val fwdCompleteNow    = state === LoadFUState.FWD_RESP && sbFwd.resp.valid && !shouldBlock && fullForward && !io.flush
+  val canSendMemFromFwd = state === LoadFUState.FWD_RESP && sbFwd.resp.valid && !shouldBlock && !fullForward && !io.flush
+
+  mem.req.valid     := ((state === LoadFUState.MEM_REQ) || canSendMemFromFwd) && pmaCacheableReg && !io.flush
   mem.req.bits.op   := CacheOp.READ
-  mem.req.bits.addr := alignedAddr
+  mem.req.bits.addr := alignedAddrReg
   mem.req.bits.data := 0.U
-  mem.req.bits.strb := loadMask
+  mem.req.bits.strb := loadMaskReg
 
-  mmio.req.valid     := needsMemory && !pmaCacheable
+  mmio.req.valid     := ((state === LoadFUState.MEM_REQ) || canSendMemFromFwd) && !pmaCacheableReg && !io.flush
   mmio.req.bits.op   := CacheOp.READ
-  mmio.req.bits.addr := alignedAddr
+  mmio.req.bits.addr := alignedAddrReg
   mmio.req.bits.data := 0.U
-  mmio.req.bits.strb := loadMask
+  mmio.req.bits.strb := loadMaskReg
 
   mem.resp.ready  := (state === LoadFUState.WAIT_MEM || state === LoadFUState.FLUSH_DRAIN) && reqWasCache
   mmio.resp.ready := (state === LoadFUState.WAIT_MEM || state === LoadFUState.FLUSH_DRAIN) && !reqWasCache
@@ -82,14 +92,13 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   val memRespData     = Mux(reqWasCache, mem.resp.bits.data, mmio.resp.bits.data)
   val expandedFwdMask = utils.expandByteMask(fwdMaskReg)
   val mergedBusData   = (memRespData & ~expandedFwdMask) | (fwdDataReg & expandedFwdMask)
-  val fwdResult       = utils.loadResult(ctrl, addr, fwdResp.fwdData)
-  val memResult       = utils.loadResult(ctrl, addr, mergedBusData)
-  val fwdRespNow      = state === LoadFUState.CHECK_SB && !io.flush && !shouldBlock && fullForward
-  val memRespNow      = state === LoadFUState.WAIT_MEM && !io.flush && memRespFire
-  val doneRespNow     = state === LoadFUState.DONE && !io.flush
+  val fwdResult       = utils.loadResult(ctrlReg, addrReg, fwdResp.fwdData)
+  val memResult       = utils.loadResult(ctrlReg, addrReg, mergedBusData)
+  val memCompleteNow  = state === LoadFUState.WAIT_MEM && memRespFire && !io.flush
+  val doneCompleteNow = state === LoadFUState.DONE && !io.flush
 
-  io.resp.valid        := fwdRespNow || memRespNow || doneRespNow
-  io.resp.bits.result  := Mux(fwdRespNow, fwdResult, Mux(memRespNow, memResult, resultReg))
+  io.resp.valid        := fwdCompleteNow || memCompleteNow || doneCompleteNow
+  io.resp.bits.result  := Mux(fwdCompleteNow, fwdResult, Mux(memCompleteNow, memResult, resultReg))
   io.resp.bits.rd      := uopReg.rd
   io.resp.bits.pc      := uopReg.pc
   io.resp.bits.instr   := uopReg.instr
@@ -97,17 +106,15 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
 
   when(memReqFire) {
     reqOutstanding := true.B
-    reqWasCache    := pmaCacheable
+    reqWasCache    := pmaCacheableReg
   }
 
   when(memRespFire) {
     reqOutstanding := false.B
   }
 
-  val willHaveOutstanding = (reqOutstanding || memReqFire) && !memRespFire
-
   when(io.flush) {
-    when(willHaveOutstanding) {
+    when(reqOutstanding && !memRespFire) {
       state := LoadFUState.FLUSH_DRAIN
     }.otherwise {
       state := LoadFUState.IDLE
@@ -116,17 +123,30 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
     switch(state) {
       is(LoadFUState.IDLE) {
         when(io.req.fire) {
-          uopReg     := io.req.bits
-          resultReg  := 0.U
-          fwdDataReg := 0.U
-          fwdMaskReg := 0.U
-          state      := LoadFUState.CHECK_SB
+          uopReg          := io.req.bits
+          ctrlReg         := acceptCtrl
+          addrReg         := acceptAddr
+          alignedAddrReg  := acceptAlignedAddr
+          loadMaskReg     := acceptLoadMask
+          pmaCacheableReg := acceptPmaCacheable
+          resultReg       := 0.U
+          fwdDataReg      := 0.U
+          fwdMaskReg      := 0.U
+          state           := LoadFUState.FWD_REQ
         }
       }
 
-      is(LoadFUState.CHECK_SB) {
-        when(!shouldBlock) {
-          when(fullForward) {
+      is(LoadFUState.FWD_REQ) {
+        when(sbFwd.req.fire) {
+          state := LoadFUState.FWD_RESP
+        }
+      }
+
+      is(LoadFUState.FWD_RESP) {
+        when(fwdRespFire) {
+          when(shouldBlock) {
+            state := LoadFUState.FWD_REQ
+          }.elsewhen(fullForward) {
             when(io.resp.ready) {
               state := LoadFUState.IDLE
             }.otherwise {
@@ -134,12 +154,21 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
               state     := LoadFUState.DONE
             }
           }.otherwise {
+            fwdDataReg := Mux(partialForward, fwdResp.fwdData, 0.U)
+            fwdMaskReg := Mux(partialForward, fwdResp.fwdMask, 0.U)
+
             when(memReqFire) {
-              fwdDataReg := Mux(partialForward, fwdResp.fwdData, 0.U)
-              fwdMaskReg := Mux(partialForward, fwdResp.fwdMask, 0.U)
-              state      := LoadFUState.WAIT_MEM
+              state := LoadFUState.WAIT_MEM
+            }.otherwise {
+              state := LoadFUState.MEM_REQ
             }
           }
+        }
+      }
+
+      is(LoadFUState.MEM_REQ) {
+        when(memReqFire) {
+          state := LoadFUState.WAIT_MEM
         }
       }
 
