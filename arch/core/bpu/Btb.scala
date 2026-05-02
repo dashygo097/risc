@@ -3,7 +3,7 @@ package arch.core.bpu
 import arch.configs._
 import vopts.mem.cache._
 import chisel3._
-import chisel3.util.{ log2Ceil, PriorityEncoder }
+import chisel3.util.{ PriorityEncoder, log2Ceil }
 
 class BtbEntry(tagWidth: Int)(implicit p: Parameters) extends Bundle with BHTConsts {
   val valid  = Bool()
@@ -38,6 +38,7 @@ class Btb(implicit p: Parameters) extends Module with BHTConsts {
 
   private val indexWidth = log2Ceil(p(BTBSets))
   private val tagWidth   = p(XLen) - indexWidth - p(PCAlign)
+  private val wayWidth   = log2Ceil(p(BTBWays)).max(1)
 
   val query_pc  = IO(Input(Vec(p(IssueWidth), UInt(p(XLen).W))))
   val hit       = IO(Output(Vec(p(IssueWidth), Bool())))
@@ -58,22 +59,27 @@ class Btb(implicit p: Parameters) extends Module with BHTConsts {
 
   val replStates = Seq.fill(p(BTBSets))(new PseudoLRUState(p(BTBWays)))
 
-  def getIndex(pc: UInt): UInt = pc(indexWidth + 1, p(PCAlign))
+  def getIndex(pc: UInt): UInt = pc(indexWidth + p(PCAlign) - 1, p(PCAlign))
   def getTag(pc: UInt): UInt   = pc(p(XLen) - 1, indexWidth + p(PCAlign))
+
+  val victimWayReg = RegInit(VecInit(Seq.fill(p(BTBSets))(0.U(wayWidth.W))))
+  for (s <- 0 until p(BTBSets)) victimWayReg(s) := replStates(s).getVictim()
 
   for (q <- 0 until p(IssueWidth)) {
     val qIndex = getIndex(query_pc(q))
     val qTag   = getTag(query_pc(q))
     val qSet   = entries(qIndex)
 
-    val hitBits: Seq[Bool] = (0 until p(BTBWays)).map { w =>
-      qSet(w).valid && (qSet(w).tag === qTag)
-    }
-    val anyHit             = hitBits.reduce(_ || _)
-    val hitWay             = PriorityEncoder(VecInit(hitBits))
+    val hitBits = Wire(Vec(p(BTBWays), Bool()))
+    for (w <- 0 until p(BTBWays))
+      hitBits(w) := qSet(w).valid && qSet(w).tag === qTag
+
+    val anyHit   = hitBits.asUInt.orR
+    val hitWay   = PriorityEncoder(hitBits)
+    val hitEntry = qSet(hitWay)
 
     hit(q)       := anyHit
-    entry_out(q) := Mux(anyHit, qSet(hitWay), 0.U.asTypeOf(new BtbEntry(tagWidth)))
+    entry_out(q) := Mux(anyHit, hitEntry, 0.U.asTypeOf(new BtbEntry(tagWidth)))
   }
 
   when(update.valid && update.taken) {
@@ -81,30 +87,30 @@ class Btb(implicit p: Parameters) extends Module with BHTConsts {
     val uTag   = getTag(update.pc)
     val uSet   = entries(uIndex)
 
-    val uHitBits: Seq[Bool] = (0 until p(BTBWays)).map { w =>
-      uSet(w).valid && (uSet(w).tag === uTag)
-    }
-    val uAnyHit             = uHitBits.reduce(_ || _)
-    val uHitWay             = PriorityEncoder(VecInit(uHitBits))
+    val uHitBits = Wire(Vec(p(BTBWays), Bool()))
+    for (w <- 0 until p(BTBWays))
+      uHitBits(w) := uSet(w).valid && uSet(w).tag === uTag
 
-    val victimWay = Wire(UInt(log2Ceil(p(BTBWays)).W))
-    victimWay := 0.U
-    for (s <- 0 until p(BTBSets))
-      when(s.U === uIndex)(victimWay := replStates(s).getVictim())
+    val uAnyHit   = uHitBits.asUInt.orR
+    val uHitWay   = PriorityEncoder(uHitBits)
+    val victimWay = victimWayReg(uIndex)
+    val writeWay  = Mux(uAnyHit, uHitWay, victimWay)
 
-    val writeWay = Mux(uAnyHit, uHitWay, victimWay)
+    val oldCtrl  = Mux(uAnyHit, uSet(writeWay).ctrl, BHT_WNT.value.U(SZ_BHT.W))
+    val nextCtrl = Mux(
+      oldCtrl === BHT_ST.value.U,
+      BHT_ST.value.U,
+      oldCtrl + 1.U
+    )
 
-    val newEntry = Wire(new BtbEntry(tagWidth))
-    newEntry.valid  := true.B
-    newEntry.tag    := uTag
-    newEntry.target := update.target
-
-    val oldCtrl = Mux(uAnyHit, uSet(writeWay).ctrl, Mux(update.taken, BHT_WNT.value.U, BHT_WT.value.U))
-    newEntry.ctrl := Mux(update.taken, Mux(oldCtrl === BHT_ST.value.U, BHT_ST.value.U, oldCtrl + 1.U), Mux(oldCtrl === BHT_SNT.value.U, BHT_SNT.value.U, oldCtrl - 1.U))
-
-    entries(uIndex)(writeWay) := newEntry
+    entries(uIndex)(writeWay).valid  := true.B
+    entries(uIndex)(writeWay).tag    := uTag
+    entries(uIndex)(writeWay).target := update.target
+    entries(uIndex)(writeWay).ctrl   := nextCtrl
 
     for (s <- 0 until p(BTBSets))
-      when(s.U === uIndex)(replStates(s).update(writeWay, uAnyHit))
+      when(s.U === uIndex) {
+        replStates(s).update(writeWay, uAnyHit)
+      }
   }
 }
