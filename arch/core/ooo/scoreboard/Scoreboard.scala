@@ -16,8 +16,6 @@ class ScoreboardEntry(implicit p: Parameters) extends Bundle {
   val q2_ready = Bool()
   val q2_tag   = UInt(log2Ceil(p(ROBSize)).W)
   val v2       = UInt(p(XLen).W)
-
-  val seq = UInt(64.W)
 }
 
 class Scoreboard(implicit p: Parameters) extends Scheduler {
@@ -29,7 +27,6 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   val reg_pending_rob     = RegInit(VecInit(Seq.fill(numRegs)(0.U(RobTagW.W))))
   val reg_completed_valid = RegInit(VecInit(Seq.fill(numRegs)(false.B)))
   val reg_completed_data  = RegInit(VecInit(Seq.fill(numRegs)(0.U(p(XLen).W))))
-  val dispatch_seq        = RegInit(0.U(64.W))
 
   val entries = RegInit(VecInit(Seq.fill(numFUs)(0.U.asTypeOf(new ScoreboardEntry))))
 
@@ -124,14 +121,12 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   val temp_completed_valid = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
   val temp_completed_data  = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(p(XLen).W))))
   val temp_fu_avail        = Wire(Vec(p(IssueWidth) + 1, Vec(numFUs, Bool())))
-  val temp_seq             = Wire(Vec(p(IssueWidth) + 1, UInt(64.W)))
   val accepted             = Wire(Vec(p(IssueWidth), Bool()))
 
   temp_pending_valid(0)   := base_pending_valid
   temp_pending_rob(0)     := base_pending_rob
   temp_completed_valid(0) := base_completed_valid
   temp_completed_data(0)  := base_completed_data
-  temp_seq(0)             := dispatch_seq
 
   for (i <- 0 until numFUs)
     temp_fu_avail(0)(i) := !issued_entries(i).valid
@@ -159,7 +154,6 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     temp_completed_valid(w + 1) := temp_completed_valid(w)
     temp_completed_data(w + 1)  := temp_completed_data(w)
     temp_fu_avail(w + 1)        := temp_fu_avail(w)
-    temp_seq(w + 1)             := temp_seq(w)
 
     when(accepted(w)) {
       temp_fu_avail(w + 1)(target_fu_idx) := false.B
@@ -177,9 +171,6 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
 
       dispatched_entries(target_fu_idx).valid := true.B
       dispatched_entries(target_fu_idx).op    := entryOp
-      dispatched_entries(target_fu_idx).seq   := temp_seq(w)
-
-      temp_seq(w + 1) := temp_seq(w) + 1.U
 
       val r1_used      = op.rs1_valid && regfile_utils.readable(op.rs1)
       val r1_pending   = r1_used && temp_pending_valid(w)(op.rs1)
@@ -218,21 +209,16 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   when(flush) {
     for (r <- 0 until numRegs) {
       reg_pending_valid(r)   := false.B
-      reg_pending_rob(r)     := 0.U
       reg_completed_valid(r) := false.B
-      reg_completed_data(r)  := 0.U
     }
 
     for (i <- 0 until numFUs)
       entries(i).valid := false.B
-
-    dispatch_seq := 0.U
   }.otherwise {
     reg_pending_valid   := temp_pending_valid(p(IssueWidth))
     reg_pending_rob     := temp_pending_rob(p(IssueWidth))
     reg_completed_valid := temp_completed_valid(p(IssueWidth))
     reg_completed_data  := temp_completed_data(p(IssueWidth))
     entries             := dispatched_entries
-    dispatch_seq        := temp_seq(p(IssueWidth))
   }
 }

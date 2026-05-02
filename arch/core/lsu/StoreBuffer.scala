@@ -45,7 +45,6 @@ class StoreBufferEntry(implicit p: Parameters) extends Bundle {
   val valid     = Bool()
   val committed = Bool()
   val addrValid = Bool()
-  val fwdValid  = Bool()
   val seq       = UInt(64.W)
   val rob_tag   = UInt(log2Ceil(p(ROBSize)).W)
   val addr      = UInt(p(XLen).W)
@@ -83,6 +82,13 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   }
 
   private def zeroEntry: StoreBufferEntry = 0.U.asTypeOf(new StoreBufferEntry)
+
+  private def invalidateEntry(e: StoreBufferEntry): StoreBufferEntry = {
+    val next = Wire(new StoreBufferEntry)
+    next := e
+    next.valid := false.B
+    next
+  }
 
   val entries          = RegInit(VecInit(Seq.fill(p(StoreBufferSize))(zeroEntry)))
   val head             = RegInit(0.U(IdxW.W))
@@ -196,6 +202,11 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
   val normalSeq       = tailSeq + allocCount
 
   val afterOpsEntries = Wire(Vec(p(StoreBufferSize), new StoreBufferEntry))
+  val payloadWriteValid = Wire(Vec(p(StoreBufferSize), Bool()))
+  val payloadWriteAddr = Wire(Vec(p(StoreBufferSize), UInt(p(XLen).W)))
+  val payloadWriteData = Wire(Vec(p(StoreBufferSize), UInt(p(XLen).W)))
+  val payloadWriteMask = Wire(Vec(p(StoreBufferSize), UInt(p(BytesPerWord).W)))
+  val payloadWriteCacheable = Wire(Vec(p(StoreBufferSize), Bool()))
 
   for (i <- 0 until p(StoreBufferSize)) {
     val drainedThis = drainRespFire && head === i.U
@@ -222,26 +233,26 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
     val allocSeq       = Mux1H((0 until p(IssueWidth)).map(a => allocHit(a) -> io.alloc(a).bits.sq_seq))
     val allocRobTag    = Mux1H((0 until p(IssueWidth)).map(a => allocHit(a) -> io.alloc(a).bits.rob_tag))
 
+    payloadWriteValid(i)     := anyWrite
+    payloadWriteAddr(i)      := writeAddr
+    payloadWriteData(i)      := writeData
+    payloadWriteMask(i)      := writeMask
+    payloadWriteCacheable(i) := writeCacheable
+
     val e = Wire(new StoreBufferEntry)
     e := entries(i)
 
     when(drainedThis) {
-      e := zeroEntry
+      e := invalidateEntry(entries(i))
     }.elsewhen(anyAlloc) {
       e.valid     := true.B
       e.committed := false.B
       e.addrValid := false.B
-      e.fwdValid  := false.B
       e.seq       := allocSeq
       e.rob_tag   := allocRobTag
-      e.addr      := 0.U
-      e.data      := 0.U
-      e.mask      := 0.U
-      e.cacheable := false.B
     }.otherwise {
       when(anyWrite) {
         e.addrValid := true.B
-        e.fwdValid  := true.B
         e.addr      := writeAddr
         e.data      := writeData
         e.mask      := writeMask
@@ -284,12 +295,25 @@ class StoreBuffer(numLoadPorts: Int, numStorePorts: Int)(implicit p: Parameters)
     keepPhysical(i) := keepHits.asUInt.orR
   }
 
-  for (i <- 0 until p(StoreBufferSize))
-    when(io.flush && !keepPhysical(i)) {
-      entries(i) := zeroEntry
-    }.otherwise {
-      entries(i) := afterOpsEntries(i)
+  for (i <- 0 until p(StoreBufferSize)) {
+    val keepOrNotFlushed = !io.flush || keepPhysical(i)
+
+    entries(i).valid := Mux(keepOrNotFlushed, afterOpsEntries(i).valid, false.B)
+
+    when(keepOrNotFlushed) {
+      entries(i).committed := afterOpsEntries(i).committed
+      entries(i).addrValid := afterOpsEntries(i).addrValid
+      entries(i).seq       := afterOpsEntries(i).seq
+      entries(i).rob_tag   := afterOpsEntries(i).rob_tag
     }
+
+    when(payloadWriteValid(i)) {
+      entries(i).addr      := payloadWriteAddr(i)
+      entries(i).data      := payloadWriteData(i)
+      entries(i).mask      := payloadWriteMask(i)
+      entries(i).cacheable := payloadWriteCacheable(i)
+    }
+  }
 
   head    := afterDrainHead
   tail    := Mux(io.flush, flushTail, normalTail)
