@@ -19,30 +19,56 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
   val phtEntries = 1 << p(GShareGhrWidth)
 
   require(p(GShareGhrWidth) >= 2, "GShareGhrWidth must be at least 2")
+  require(SZ_BHT >= 2, "BHT counter width must be at least 2")
 
   val commitGhr = RegInit(0.U(p(GShareGhrWidth).W))
   val specGhr   = RegInit(0.U(p(GShareGhrWidth).W))
 
-  // Initialize all counters to weakly-taken to reduce cold-start penalty.
   val pht = RegInit(VecInit(Seq.fill(phtEntries)(BHT_WT.value.U(SZ_BHT.W))))
 
-  def getIndex(pc: UInt, hist: UInt): UInt = {
-    val pcLow  = pc(p(GShareGhrWidth) + 1, p(PCAlign))
-    // Fold higher PC bits to reduce table aliasing for nearby hot loops.
-    val pcHigh = pc((2 * p(GShareGhrWidth)) + 1, p(GShareGhrWidth) + 2)
-    pcLow ^ pcHigh ^ hist
+  def foldPc(pc: UInt): UInt = {
+    val chunks = (p(PCAlign) until p(XLen) by p(GShareGhrWidth)).map { lo =>
+      val hi   = (lo + p(GShareGhrWidth) - 1).min(p(XLen) - 1)
+      val w    = hi - lo + 1
+      val bits = pc(hi, lo)
+
+      if (w == p(GShareGhrWidth)) {
+        bits
+      } else {
+        Cat(0.U((p(GShareGhrWidth) - w).W), bits)
+      }
+    }
+
+    chunks.reduce(_ ^ _)
   }
 
-  def shiftHist(hist: UInt, taken: Bool): UInt =
-    Cat(hist(p(GShareGhrWidth) - 2, 0), taken)
+  def getIndex(pc: UInt, hist: UInt): UInt = foldPc(pc) ^ hist
+
+  def shiftHist(hist: UInt, isTaken: Bool): UInt =
+    Cat(hist(p(GShareGhrWidth) - 2, 0), isTaken)
+
+  def satUpdate(oldCnt: UInt, isTaken: Bool): UInt =
+    Mux(
+      isTaken,
+      Mux(oldCnt === BHT_ST.value.U, BHT_ST.value.U, oldCnt + 1.U),
+      Mux(oldCnt === BHT_SNT.value.U, BHT_SNT.value.U, oldCnt - 1.U)
+    )
+
+  def predictTaken(counter: UInt): Bool = counter(SZ_BHT - 1)
+
+  val updateOldCnt  = pht(update.pht_index)
+  val updateNewCnt  = satUpdate(updateOldCnt, update.taken)
+  val updateNextGhr = shiftHist(update.ghr_snapshot, update.taken)
 
   val queryGhr = Wire(Vec(p(IssueWidth) + 1, UInt(p(GShareGhrWidth).W)))
   queryGhr(0) := specGhr
 
   for (w <- 0 until p(IssueWidth)) {
-    val index    = getIndex(query_pc(w), queryGhr(w))
-    val counter  = pht(index)
-    val dirTaken = counter(1)
+    val index      = getIndex(query_pc(w), queryGhr(w))
+    val rawCounter = pht(index)
+    val bypassHit  = update.valid && update.pht_index === index
+    val counter    = Mux(bypassHit, updateNewCnt, rawCounter)
+    val dirTaken   = predictTaken(counter)
 
     taken(w)            := dirTaken
     index_out(w)        := index
@@ -51,13 +77,8 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
   }
 
   when(update.valid) {
-    val uIndex = update.pht_index
-
-    // Update PHT with saturating 2-bit counter.
-    val oldCnt = pht(uIndex)
-    val newCnt = Mux(update.taken, Mux(oldCnt === BHT_ST.value.U, BHT_ST.value.U, oldCnt + 1.U), Mux(oldCnt === BHT_SNT.value.U, BHT_SNT.value.U, oldCnt - 1.U))
-    pht(uIndex) := newCnt
-    commitGhr   := shiftHist(update.ghr_snapshot, update.taken)
+    pht(update.pht_index) := updateNewCnt
+    commitGhr             := updateNextGhr
   }
 
   when(query_accept) {
@@ -69,6 +90,6 @@ class GShare(implicit p: Parameters) extends Module with BHTConsts {
   }
 
   when(update.valid && update.mispredict) {
-    specGhr := shiftHist(update.ghr_snapshot, update.taken)
+    specGhr := updateNextGhr
   }
 }
