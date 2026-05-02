@@ -4,11 +4,59 @@ import arch.configs._
 import arch.configs.proto.FunctionalUnitType._
 import vopts.mem.cache._
 import chisel3._
-import chisel3.util.{ log2Ceil, RRArbiter, Queue, UIntToOH }
+import chisel3.util.{ log2Ceil, Decoupled, RRArbiter, UIntToOH }
 
 class MemoryArbiterRoutedReq(targetWidth: Int)(implicit p: Parameters) extends Bundle {
   val target = UInt(targetWidth.W)
   val req    = new CacheReq(UInt(p(XLen).W), p(XLen))
+}
+
+class MemoryArbiterRoutedResp(targetWidth: Int)(implicit p: Parameters) extends Bundle {
+  val target = UInt(targetWidth.W)
+  val resp   = new CacheResp(UInt(p(XLen).W))
+}
+
+class MemoryArbiterFfQueue[T <: Data](gen: T, depth: Int) extends Module {
+  require(depth > 0)
+
+  private val PtrW = math.max(1, log2Ceil(depth))
+  private val CntW = log2Ceil(depth + 1)
+
+  val io = IO(new Bundle {
+    val enq = Flipped(Decoupled(gen))
+    val deq = Decoupled(gen)
+  })
+
+  private def wrapInc(x: UInt): UInt =
+    if (depth == 1) 0.U else Mux(x === (depth - 1).U, 0.U, x + 1.U)(PtrW - 1, 0)
+
+  val ram   = Reg(Vec(depth, gen))
+  val head  = RegInit(0.U(PtrW.W))
+  val tail  = RegInit(0.U(PtrW.W))
+  val count = RegInit(0.U(CntW.W))
+
+  val empty = count === 0.U
+  val full  = count === depth.U
+
+  io.enq.ready := !full
+  io.deq.valid := !empty
+  io.deq.bits  := ram(head)
+
+  val enqFire = io.enq.fire
+  val deqFire = io.deq.fire
+
+  when(enqFire) {
+    ram(tail) := io.enq.bits
+    tail      := wrapInc(tail)
+  }
+
+  when(deqFire) {
+    head := wrapInc(head)
+  }
+
+  when(enqFire =/= deqFire) {
+    count := Mux(enqFire, count + 1.U, count - 1.U)
+  }
 }
 
 class MemoryArbiter(implicit p: Parameters) extends Module {
@@ -30,8 +78,10 @@ class MemoryArbiter(implicit p: Parameters) extends Module {
   val memArb  = Module(new RRArbiter(new MemoryArbiterRoutedReq(TargetW), NumReqs))
   val mmioArb = Module(new RRArbiter(new MemoryArbiterRoutedReq(TargetW), NumReqs))
 
-  val memRespQ  = Module(new Queue(UInt(TargetW.W), p(ROBSize), pipe = true, flow = true))
-  val mmioRespQ = Module(new Queue(UInt(TargetW.W), p(ROBSize), pipe = true, flow = true))
+  val memRespQ   = Module(new MemoryArbiterFfQueue(UInt(TargetW.W), p(ROBSize)))
+  val mmioRespQ  = Module(new MemoryArbiterFfQueue(UInt(TargetW.W), p(ROBSize)))
+  val memRespBuf = Module(new MemoryArbiterFfQueue(new MemoryArbiterRoutedResp(TargetW), 2))
+  val mmioRespBuf = Module(new MemoryArbiterFfQueue(new MemoryArbiterRoutedResp(TargetW), 2))
 
   val memReqValid = RegInit(false.B)
   val memReqBits  = Reg(new MemoryArbiterRoutedReq(TargetW))
@@ -69,25 +119,31 @@ class MemoryArbiter(implicit p: Parameters) extends Module {
     memReqValid := false.B
   }
 
-  val memTarget    = memRespQ.io.deq.bits
-  val memRespValid = mem.resp.valid && memRespQ.io.deq.valid
+  memRespBuf.io.enq.valid       := mem.resp.valid && memRespQ.io.deq.valid
+  memRespBuf.io.enq.bits.target := memRespQ.io.deq.bits
+  memRespBuf.io.enq.bits.resp   := mem.resp.bits
+
+  mem.resp.ready        := memRespQ.io.deq.valid && memRespBuf.io.enq.ready
+  memRespQ.io.deq.ready := mem.resp.valid && memRespBuf.io.enq.ready
+
+  val memTarget    = memRespBuf.io.deq.bits.target
+  val memRespValid = memRespBuf.io.deq.valid
 
   val memRespReadyVec = Wire(Vec(NumReqs, Bool()))
 
   for (i <- 0 until NumLDs) {
     ld_mem(i).resp.valid := memRespValid && memTarget === i.U
-    ld_mem(i).resp.bits  := mem.resp.bits
+    ld_mem(i).resp.bits  := memRespBuf.io.deq.bits.resp
     memRespReadyVec(i)   := ld_mem(i).resp.ready
   }
 
   store_mem.resp.valid    := memRespValid && memTarget === NumLDs.U
-  store_mem.resp.bits     := mem.resp.bits
+  store_mem.resp.bits     := memRespBuf.io.deq.bits.resp
   memRespReadyVec(NumLDs) := store_mem.resp.ready
 
   val memTargetReady = (memRespReadyVec.asUInt & UIntToOH(memTarget, NumReqs)).orR
 
-  mem.resp.ready        := memRespQ.io.deq.valid && memTargetReady
-  memRespQ.io.deq.ready := mem.resp.valid && memTargetReady
+  memRespBuf.io.deq.ready := memTargetReady
 
   for (i <- 0 until NumLDs) {
     mmioArb.io.in(i).valid       := ld_mmio(i).req.valid
@@ -119,23 +175,29 @@ class MemoryArbiter(implicit p: Parameters) extends Module {
     mmioReqValid := false.B
   }
 
-  val mmioTarget    = mmioRespQ.io.deq.bits
-  val mmioRespValid = mmio.resp.valid && mmioRespQ.io.deq.valid
+  mmioRespBuf.io.enq.valid       := mmio.resp.valid && mmioRespQ.io.deq.valid
+  mmioRespBuf.io.enq.bits.target := mmioRespQ.io.deq.bits
+  mmioRespBuf.io.enq.bits.resp   := mmio.resp.bits
+
+  mmio.resp.ready        := mmioRespQ.io.deq.valid && mmioRespBuf.io.enq.ready
+  mmioRespQ.io.deq.ready := mmio.resp.valid && mmioRespBuf.io.enq.ready
+
+  val mmioTarget    = mmioRespBuf.io.deq.bits.target
+  val mmioRespValid = mmioRespBuf.io.deq.valid
 
   val mmioRespReadyVec = Wire(Vec(NumReqs, Bool()))
 
   for (i <- 0 until NumLDs) {
     ld_mmio(i).resp.valid := mmioRespValid && mmioTarget === i.U
-    ld_mmio(i).resp.bits  := mmio.resp.bits
+    ld_mmio(i).resp.bits  := mmioRespBuf.io.deq.bits.resp
     mmioRespReadyVec(i)   := ld_mmio(i).resp.ready
   }
 
   store_mmio.resp.valid    := mmioRespValid && mmioTarget === NumLDs.U
-  store_mmio.resp.bits     := mmio.resp.bits
+  store_mmio.resp.bits     := mmioRespBuf.io.deq.bits.resp
   mmioRespReadyVec(NumLDs) := store_mmio.resp.ready
 
   val mmioTargetReady = (mmioRespReadyVec.asUInt & UIntToOH(mmioTarget, NumReqs)).orR
 
-  mmio.resp.ready        := mmioRespQ.io.deq.valid && mmioTargetReady
-  mmioRespQ.io.deq.ready := mmio.resp.valid && mmioTargetReady
+  mmioRespBuf.io.deq.ready := mmioTargetReady
 }
