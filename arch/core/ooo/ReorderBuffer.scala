@@ -91,7 +91,6 @@ class ROBEntry(implicit p: Parameters) extends Bundle {
 class ReorderBuffer(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_rob"
 
-  private val IdxW = log2Ceil(p(RobSize))
   private val CntW = log2Ceil(p(RobSize) + 1)
 
   val io = IO(new Bundle {
@@ -99,7 +98,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     val wb     = Vec(p(FunctionalUnits).size, new RobWbIO)
     val commit = Vec(p(IssueWidth), new RobCommitIO)
 
-    val read_rob_tag = Input(Vec(p(IssueWidth), UInt(IdxW.W)))
+    val read_rob_tag = Input(Vec(p(IssueWidth), UInt(p(RobTagWidth).W)))
     val read_pd      = Output(Vec(p(IssueWidth), UInt(log2Ceil(p(NumPhyRegs)).W)))
 
     val rs1_addr   = Input(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W)))
@@ -113,17 +112,17 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
 
   private def wrapAdd(x: UInt, y: UInt): UInt = {
     val sum = x +& y
-    Mux(sum >= p(RobSize).U, sum - p(RobSize).U, sum)(IdxW - 1, 0)
+    Mux(sum >= p(RobSize).U, sum - p(RobSize).U, sum)(p(RobTagWidth) - 1, 0)
   }
 
   private def indexFromNewest(distance: Int): UInt = {
     val sub = distance + 1
-    Mux(tail >= sub.U, tail - sub.U, tail + p(RobSize).U - sub.U)(IdxW - 1, 0)
+    Mux(tail >= sub.U, tail - sub.U, tail + p(RobSize).U - sub.U)(p(RobTagWidth) - 1, 0)
   }
 
   val buffer = RegInit(VecInit(Seq.fill(p(RobSize))(0.U.asTypeOf(new ROBEntry))))
-  val head   = RegInit(0.U(IdxW.W))
-  val tail   = RegInit(0.U(IdxW.W))
+  val head   = RegInit(0.U(p(RobTagWidth).W))
+  val tail   = RegInit(0.U(p(RobTagWidth).W))
   val count  = RegInit(0.U(CntW.W))
 
   io.empty := count === 0.U
@@ -171,7 +170,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
 
   val commitCanContinue = Wire(Vec(p(IssueWidth) + 1, Bool()))
   val commitBlocked     = Wire(Vec(p(IssueWidth) + 1, Bool()))
-  val commitIdx         = Wire(Vec(p(IssueWidth), UInt(IdxW.W)))
+  val commitIdx         = Wire(Vec(p(IssueWidth), UInt(p(RobTagWidth).W)))
   val commitPops        = Wire(Vec(p(IssueWidth), Bool()))
 
   commitCanContinue(0) := true.B
@@ -217,8 +216,8 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   val availableSlotsAfterCommit = availableSlots + commitCount
 
   val enqFire   = Wire(Vec(p(IssueWidth), Bool()))
-  val enqOffset = Wire(Vec(p(IssueWidth), UInt(IdxW.W)))
-  val enqIdx    = Wire(Vec(p(IssueWidth), UInt(IdxW.W)))
+  val enqOffset = Wire(Vec(p(IssueWidth), UInt(p(RobTagWidth).W)))
+  val enqIdx    = Wire(Vec(p(IssueWidth), UInt(p(RobTagWidth).W)))
 
   for (w <- 0 until p(IssueWidth)) {
     val olderFires = Wire(UInt(CntW.W))
@@ -231,7 +230,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
 
     io.enq(w).ready := availableSlotsAfterCommit > olderFires
     enqFire(w)      := io.enq(w).valid && io.enq(w).ready
-    enqOffset(w)    := olderFires(IdxW - 1, 0)
+    enqOffset(w)    := olderFires(p(RobTagWidth) - 1, 0)
     enqIdx(w)       := wrapAdd(tail, enqOffset(w))
 
     io.enq(w).rob_tag := enqIdx(w)
