@@ -421,19 +421,21 @@ class RiscCore(implicit p: Parameters) extends Module {
   debug_cycle_count   := cycle_count
   debug_instret_count := instret_count
 
-  val debug_instret  = IO(Output(Bool()))
-  val debug_pc       = IO(Output(UInt(p(XLen).W)))
-  val debug_instr    = IO(Output(UInt(p(ILen).W)))
-  val debug_reg_we   = IO(Output(Bool()))
-  val debug_reg_addr = IO(Output(UInt(log2Ceil(p(NumArchRegs)).W)))
-  val debug_reg_data = IO(Output(UInt(p(XLen).W)))
+  val debug_instret  = IO(Output(Vec(p(IssueWidth), Bool())))
+  val debug_pc       = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
+  val debug_instr    = IO(Output(Vec(p(IssueWidth), UInt(p(ILen).W))))
+  val debug_reg_we   = IO(Output(Vec(p(IssueWidth), Bool())))
+  val debug_reg_addr = IO(Output(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W))))
+  val debug_reg_data = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
 
-  debug_instret  := rob.io.commit(0).pop
-  debug_pc       := rob.io.commit(0).pc
-  debug_instr    := rob.io.commit(0).instr
-  debug_reg_we   := regfile.write_en(0)
-  debug_reg_addr := regfile.write_preg(0)
-  debug_reg_data := regfile.write_data(0)
+  for (w <- 0 until p(IssueWidth)) {
+    debug_instret(w)  := rob.io.commit(w).pop
+    debug_pc(w)       := rob.io.commit(w).pc
+    debug_instr(w)    := rob.io.commit(w).instr
+    debug_reg_we(w)   := regfile.write_en(w)
+    debug_reg_addr(w) := regfile.write_preg(w)
+    debug_reg_data(w) := regfile.write_data(w)
+  }
 
   val debug_branch_taken  = IO(Output(Bool()))
   val debug_branch_source = IO(Output(UInt(p(XLen).W)))

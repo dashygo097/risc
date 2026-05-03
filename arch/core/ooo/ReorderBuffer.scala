@@ -92,6 +92,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_rob"
 
   private val IdxW = log2Ceil(p(RobSize))
+  private val CntW = log2Ceil(p(RobSize) + 1)
 
   val io = IO(new Bundle {
     val enq    = Vec(p(IssueWidth), new RobEnqIO)
@@ -123,31 +124,130 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
   val buffer = RegInit(VecInit(Seq.fill(p(RobSize))(0.U.asTypeOf(new ROBEntry))))
   val head   = RegInit(0.U(IdxW.W))
   val tail   = RegInit(0.U(IdxW.W))
-  val count  = RegInit(0.U(log2Ceil(p(RobSize) + 1).W))
+  val count  = RegInit(0.U(CntW.W))
 
   io.empty := count === 0.U
 
-  val availableSlots = p(RobSize).U - count
-
-  val enqValids = Wire(Vec(p(IssueWidth), Bool()))
   for (w <- 0 until p(IssueWidth))
-    enqValids(w) := io.enq(w).valid
+    io.read_pd(w) := buffer(io.read_rob_tag(w)).pd
 
-  val enqCount = PopCount(enqValids)
+  for (i <- 0 until p(FunctionalUnits).size)
+    when(io.wb(i).valid) {
+      val idx = io.wb(i).rob_tag
 
-  val enqOffsets = Wire(Vec(p(IssueWidth), UInt(IdxW.W)))
-  enqOffsets(0) := 0.U
+      buffer(idx).ready := true.B
+      buffer(idx).data  := io.wb(i).data
 
-  for (w <- 1 until p(IssueWidth))
-    enqOffsets(w) := (enqOffsets(w - 1) + enqValids(w - 1).asUInt)(IdxW - 1, 0)
+      val oldPredTaken  = buffer(idx).pred_taken
+      val oldPredTarget = buffer(idx).pred_target
+      val oldPc         = buffer(idx).pc
+
+      val bruMispredict = io.wb(i).is_bru && (
+        io.wb(i).actual_taken =/= oldPredTaken ||
+          (io.wb(i).actual_taken && io.wb(i).actual_target =/= oldPredTarget)
+      )
+
+      val nonBruMispredict = !io.wb(i).is_bru && oldPredTaken
+      val isMispredict     = bruMispredict || nonBruMispredict
+      val redirectTarget   = Mux(io.wb(i).is_bru, io.wb(i).actual_target, oldPc + p(PCStep).U)
+
+      when(io.wb(i).is_bru) {
+        buffer(idx).actual_taken  := io.wb(i).actual_taken
+        buffer(idx).actual_target := io.wb(i).actual_target
+      }.elsewhen(nonBruMispredict) {
+        buffer(idx).actual_taken  := false.B
+        buffer(idx).actual_target := oldPc + p(PCStep).U
+      }
+
+      buffer(idx).flush_pipeline := isMispredict || io.wb(i).trap_req || io.wb(i).trap_ret
+      buffer(idx).flush_target   := MuxCase(
+        redirectTarget,
+        Seq(
+          io.wb(i).trap_req -> io.wb(i).trap_target,
+          io.wb(i).trap_ret -> io.wb(i).trap_ret_tgt
+        )
+      )
+    }
+
+  val commitCanContinue = Wire(Vec(p(IssueWidth) + 1, Bool()))
+  val commitBlocked     = Wire(Vec(p(IssueWidth) + 1, Bool()))
+  val commitIdx         = Wire(Vec(p(IssueWidth), UInt(IdxW.W)))
+  val commitPops        = Wire(Vec(p(IssueWidth), Bool()))
+
+  commitCanContinue(0) := true.B
+  commitBlocked(0)     := false.B
 
   for (w <- 0 until p(IssueWidth)) {
-    io.enq(w).ready := availableSlots > w.U
+    commitIdx(w) := wrapAdd(head, w.U)
 
-    val idx = wrapAdd(tail, enqOffsets(w))
-    io.enq(w).rob_tag := idx
+    val entry       = buffer(commitIdx(w))
+    val hasEntry    = count > w.U
+    val committable = hasEntry && entry.valid && entry.ready && commitCanContinue(w) && !commitBlocked(w)
 
-    when(io.enq(w).valid) {
+    io.commit(w).valid             := committable
+    io.commit(w).pc                := entry.pc
+    io.commit(w).instr             := entry.instr
+    io.commit(w).rd                := entry.rd
+    io.commit(w).data              := entry.data
+    io.commit(w).pd                := entry.pd
+    io.commit(w).old_pd            := entry.old_pd
+    io.commit(w).flush_pipeline    := entry.flush_pipeline
+    io.commit(w).flush_target      := entry.flush_target
+    io.commit(w).is_branch         := entry.is_branch
+    io.commit(w).is_store          := entry.is_store
+    io.commit(w).commit_barrier    := entry.commit_barrier
+    io.commit(w).bpu_pred_taken    := entry.pred_taken
+    io.commit(w).bpu_pred_target   := entry.pred_target
+    io.commit(w).bpu_actual_taken  := entry.actual_taken
+    io.commit(w).bpu_actual_target := entry.actual_target
+    io.commit(w).bpu_pht_index     := entry.pht_index
+    io.commit(w).bpu_ghr_snapshot  := entry.ghr_snapshot
+    io.commit(w).sq_idx            := entry.sq_idx
+
+    commitPops(w) := io.commit(w).pop
+
+    val stopYoungerCommit = entry.flush_pipeline || entry.commit_barrier
+
+    commitCanContinue(w + 1) := committable
+    commitBlocked(w + 1)     := commitBlocked(w) || (committable && stopYoungerCommit)
+  }
+
+  val commitCount               = PopCount(commitPops)
+  val availableSlots            = p(RobSize).U(CntW.W) - count
+  val availableSlotsAfterCommit = availableSlots + commitCount
+
+  val enqFire   = Wire(Vec(p(IssueWidth), Bool()))
+  val enqOffset = Wire(Vec(p(IssueWidth), UInt(IdxW.W)))
+  val enqIdx    = Wire(Vec(p(IssueWidth), UInt(IdxW.W)))
+
+  for (w <- 0 until p(IssueWidth)) {
+    val olderFires = Wire(UInt(CntW.W))
+
+    if (w == 0) {
+      olderFires := 0.U
+    } else {
+      olderFires := PopCount((0 until w).map(i => enqFire(i)))
+    }
+
+    io.enq(w).ready := availableSlotsAfterCommit > olderFires
+    enqFire(w)      := io.enq(w).valid && io.enq(w).ready
+    enqOffset(w)    := olderFires(IdxW - 1, 0)
+    enqIdx(w)       := wrapAdd(tail, enqOffset(w))
+
+    io.enq(w).rob_tag := enqIdx(w)
+  }
+
+  val enqCount = PopCount(enqFire)
+
+  for (w <- 0 until p(IssueWidth))
+    when(commitPops(w)) {
+      buffer(commitIdx(w)).valid := false.B
+    }
+
+  for (w <- 0 until p(IssueWidth))
+    when(enqFire(w)) {
+      val idx = enqIdx(w)
+
       buffer(idx).valid          := true.B
       buffer(idx).ready          := false.B
       buffer(idx).pc             := io.enq(w).pc
@@ -169,94 +269,6 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
       buffer(idx).flush_target   := 0.U
       buffer(idx).sq_idx         := io.enq(w).sq_idx
     }
-  }
-
-  for (i <- 0 until p(FunctionalUnits).size)
-    when(io.wb(i).valid) {
-      val idx = io.wb(i).rob_tag
-
-      buffer(idx).ready := true.B
-      buffer(idx).data  := io.wb(i).data
-
-      val oldPredTaken  = buffer(idx).pred_taken
-      val oldPredTarget = buffer(idx).pred_target
-      val oldPc         = buffer(idx).pc
-
-      val bruMispredict = io.wb(i).is_bru && (
-        io.wb(i).actual_taken =/= oldPredTaken ||
-          (io.wb(i).actual_taken && io.wb(i).actual_target =/= oldPredTarget)
-      )
-
-      val nonBruMispredict = !io.wb(i).is_bru && oldPredTaken
-      val isMispredict     = bruMispredict || nonBruMispredict
-
-      when(io.wb(i).is_bru) {
-        buffer(idx).actual_taken  := io.wb(i).actual_taken
-        buffer(idx).actual_target := io.wb(i).actual_target
-      }.elsewhen(nonBruMispredict) {
-        buffer(idx).actual_taken  := false.B
-        buffer(idx).actual_target := oldPc + p(PCStep).U
-      }
-
-      val redirectTarget = Mux(io.wb(i).is_bru, io.wb(i).actual_target, oldPc + p(PCStep).U)
-
-      buffer(idx).flush_pipeline :=
-        isMispredict || io.wb(i).trap_req || io.wb(i).trap_ret
-
-      buffer(idx).flush_target :=
-        MuxCase(
-          redirectTarget,
-          Seq(
-            io.wb(i).trap_req -> io.wb(i).trap_target,
-            io.wb(i).trap_ret -> io.wb(i).trap_ret_tgt
-          )
-        )
-    }
-
-  var stopCommit      = false.B
-  var commitChainOkay = true.B
-
-  for (w <- 0 until p(IssueWidth)) {
-    val idx = wrapAdd(head, w.U)
-
-    val committable = count > w.U && buffer(idx).valid && buffer(idx).ready && !stopCommit && commitChainOkay
-
-    io.commit(w).valid             := committable
-    io.commit(w).pc                := buffer(idx).pc
-    io.commit(w).instr             := buffer(idx).instr
-    io.commit(w).rd                := buffer(idx).rd
-    io.commit(w).data              := buffer(idx).data
-    io.commit(w).pd                := buffer(idx).pd
-    io.commit(w).old_pd            := buffer(idx).old_pd
-    io.commit(w).flush_pipeline    := buffer(idx).flush_pipeline
-    io.commit(w).flush_target      := buffer(idx).flush_target
-    io.commit(w).is_branch         := buffer(idx).is_branch
-    io.commit(w).is_store          := buffer(idx).is_store
-    io.commit(w).commit_barrier    := buffer(idx).commit_barrier
-    io.commit(w).bpu_pred_taken    := buffer(idx).pred_taken
-    io.commit(w).bpu_pred_target   := buffer(idx).pred_target
-    io.commit(w).bpu_actual_taken  := buffer(idx).actual_taken
-    io.commit(w).bpu_actual_target := buffer(idx).actual_target
-    io.commit(w).bpu_pht_index     := buffer(idx).pht_index
-    io.commit(w).bpu_ghr_snapshot  := buffer(idx).ghr_snapshot
-    io.commit(w).sq_idx            := buffer(idx).sq_idx
-
-    when(committable && (buffer(idx).flush_pipeline || buffer(idx).commit_barrier)) {
-      stopCommit = true.B
-    }
-
-    commitChainOkay = committable
-
-    when(io.commit(w).pop) {
-      buffer(idx).valid := false.B
-    }
-  }
-
-  val commitPops = Wire(Vec(p(IssueWidth), Bool()))
-  for (w <- 0 until p(IssueWidth))
-    commitPops(w) := io.commit(w).pop
-
-  val commitCount = PopCount(commitPops)
 
   head  := wrapAdd(head, commitCount)
   tail  := wrapAdd(tail, enqCount)
@@ -270,9 +282,6 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     for (i <- 0 until p(RobSize))
       buffer(i).valid := false.B
   }
-
-  for (w <- 0 until p(IssueWidth))
-    io.read_pd(w) := buffer(io.read_rob_tag(w)).pd
 
   def bypassNewest(rs: UInt): (Bool, UInt, Bool) = {
     val matchVec = Wire(Vec(p(RobSize), Bool()))

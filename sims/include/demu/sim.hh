@@ -31,12 +31,22 @@ public:
   void run(uint64_t max_cycles = 0);
 
   // Architecture state access
+  struct RetirePacket {
+    bool valid{false};
+    addr_t pc{0};
+    instr_t instr{0};
+    bool reg_we{false};
+    uint8_t reg_addr{0};
+    word_t reg_data{0};
+  };
+
+  [[nodiscard]] auto retire_lane0() const noexcept -> RetirePacket;
+  [[nodiscard]] auto retire_lane1() const noexcept -> RetirePacket;
+
   [[nodiscard]] auto device(addr_t addr) -> hal::Device * {
     return device_manager_->find_device_for_address(addr);
   }
-  [[nodiscard]] auto pc() const noexcept -> addr_t {
-    return static_cast<addr_t>(dut_->debug_pc);
-  };
+  [[nodiscard]] auto pc() const noexcept -> addr_t { return last_retire_pc_; }
   [[nodiscard]] auto reg(uint8_t reg) const noexcept -> word_t {
     return _register_values[reg];
   }
@@ -137,6 +147,7 @@ protected:
   uint64_t _frontend_stalls{0};
   uint64_t _backend_stalls{0};
 
+  addr_t last_retire_pc_{0};
   std::array<word_t, NUM_GPRS> _register_values{};
 
   // Internal simulation methods

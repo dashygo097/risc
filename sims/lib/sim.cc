@@ -233,6 +233,28 @@ void DemuSimulator::dump_memory(addr_t start, size_t size) const {
   device->dump(start, size);
 }
 
+auto DemuSimulator::retire_lane0() const noexcept -> RetirePacket {
+  return RetirePacket{
+      .valid = static_cast<bool>(dut_->debug_instret_0),
+      .pc = static_cast<addr_t>(dut_->debug_pc_0),
+      .instr = static_cast<instr_t>(dut_->debug_instr_0),
+      .reg_we = static_cast<bool>(dut_->debug_reg_we_0),
+      .reg_addr = static_cast<uint8_t>(dut_->debug_reg_addr_0),
+      .reg_data = static_cast<word_t>(dut_->debug_reg_data_0),
+  };
+}
+
+auto DemuSimulator::retire_lane1() const noexcept -> RetirePacket {
+  return RetirePacket{
+      .valid = static_cast<bool>(dut_->debug_instret_1),
+      .pc = static_cast<addr_t>(dut_->debug_pc_1),
+      .instr = static_cast<instr_t>(dut_->debug_instr_1),
+      .reg_we = static_cast<bool>(dut_->debug_reg_we_1),
+      .reg_addr = static_cast<uint8_t>(dut_->debug_reg_addr_1),
+      .reg_data = static_cast<word_t>(dut_->debug_reg_data_1),
+  };
+}
+
 void DemuSimulator::clock_tick() {
   DEMU_CPU_TICK(cycle_count());
 
@@ -257,25 +279,28 @@ void DemuSimulator::clock_tick() {
   handle_cache_profiling();
   handle_performance_profiling();
 
-  const auto reg_addr = dut_->debug_reg_addr;
-  if (reg_addr < NUM_GPRS && dut_->debug_reg_we) {
-    const auto reg_data = static_cast<word_t>(dut_->debug_reg_data);
-    _register_values[reg_addr] = reg_data;
-    DEMU_REG_WRITE(reg_addr, reg_data);
-  }
+  const RetirePacket retires[2] = {retire_lane0(), retire_lane1()};
 
-  if (__builtin_expect(static_cast<bool>(dut_->debug_branch_taken), 0)) {
-    DEMU_TRACE("[BRANCH] Taken: 0x{:08x} -> 0x{:08x}",
-               dut_->debug_branch_source, dut_->debug_branch_target);
-  }
+  for (uint32_t lane = 0; lane < 2; ++lane) {
+    const auto &retire = retires[lane];
 
-  if (__builtin_expect(static_cast<bool>(dut_->debug_instret), 0)) {
+    if (!retire.valid) {
+      continue;
+    }
+
+    last_retire_pc_ = retire.pc;
+
+    if (retire.reg_we && retire.reg_addr < NUM_GPRS) {
+      _register_values[retire.reg_addr] = retire.reg_data;
+      DEMU_REG_WRITE(retire.reg_addr, retire.reg_data);
+    }
+
     auto &logger = ::demu::Logger::getDemuLogger();
     if (logger->should_log(spdlog::level::info)) {
-      Instruction inst(static_cast<instr_t>(dut_->debug_instr));
-      DEMU_DEBUG("RETIRE | Cycle {:6d} | PC=0x{:08x} | Inst=0x{:08x} ({})",
-                 cycle_count(), static_cast<addr_t>(dut_->debug_pc),
-                 dut_->debug_instr, inst.to_string());
+      Instruction inst(retire.instr);
+      DEMU_DEBUG("RETIRE[{}] | Cycle {:6d} | PC=0x{:08x} | Inst=0x{:08x} ({})",
+                 lane, cycle_count(), retire.pc, retire.instr,
+                 inst.to_string());
     }
   }
 

@@ -17,8 +17,10 @@ using namespace demu::isa;
 
 struct CommitState {
   addr_t pc;
-  word_t gpr[NUM_GPRS];
   uint64_t cycle;
+  bool reg_we;
+  uint8_t reg_addr;
+  word_t reg_data;
 };
 
 class DemuSimulatorDiff final : public demu::DemuSimulator {
@@ -72,6 +74,37 @@ public:
   }
 
 protected:
+  struct RetirePacket {
+    bool valid{false};
+    addr_t pc{0};
+    instr_t instr{0};
+    bool reg_we{false};
+    uint8_t reg_addr{0};
+    word_t reg_data{0};
+  };
+
+  auto read_retire_lane0() const noexcept -> RetirePacket {
+    return RetirePacket{
+        .valid = static_cast<bool>(dut_->debug_instret_0),
+        .pc = static_cast<addr_t>(dut_->debug_pc_0),
+        .instr = static_cast<instr_t>(dut_->debug_instr_0),
+        .reg_we = static_cast<bool>(dut_->debug_reg_we_0),
+        .reg_addr = static_cast<uint8_t>(dut_->debug_reg_addr_0),
+        .reg_data = static_cast<word_t>(dut_->debug_reg_data_0),
+    };
+  }
+
+  auto read_retire_lane1() const noexcept -> RetirePacket {
+    return RetirePacket{
+        .valid = static_cast<bool>(dut_->debug_instret_1),
+        .pc = static_cast<addr_t>(dut_->debug_pc_1),
+        .instr = static_cast<instr_t>(dut_->debug_instr_1),
+        .reg_we = static_cast<bool>(dut_->debug_reg_we_1),
+        .reg_addr = static_cast<uint8_t>(dut_->debug_reg_addr_1),
+        .reg_data = static_cast<word_t>(dut_->debug_reg_data_1),
+    };
+  }
+
   void register_devices() override {
     register_port<0, demu::hal::axif::AXIFullPortHandler,
                   demu::hal::axif::AXIFullSRAM>("imem");
@@ -90,6 +123,7 @@ protected:
   void on_init() override {
     difftest_error_.store(false);
     sim_running_.store(true);
+    local_batch_.clear();
     local_batch_.reserve(batch_size_);
 
     difftest_thread_ = std::thread(&DemuSimulatorDiff::difftest_worker, this);
@@ -100,6 +134,7 @@ protected:
       std::unique_lock<std::mutex> lock(mtx_);
       if (!local_batch_.empty()) {
         state_queue_.push(std::move(local_batch_));
+        local_batch_.clear();
       }
       sim_running_.store(false);
     }
@@ -118,13 +153,21 @@ protected:
       return;
     }
 
-    if (__builtin_expect(static_cast<bool>(dut_->debug_instret), 0)) {
-      CommitState state;
-      state.pc = pc();
-      state.cycle = cycle_count();
-      for (int i = 0; i < NUM_GPRS; i++) {
-        state.gpr[i] = reg(i);
+    const RetirePacket retires[2] = {read_retire_lane0(), read_retire_lane1()};
+
+    for (uint32_t lane = 0; lane < 2; ++lane) {
+      const auto &retire = retires[lane];
+
+      if (!retire.valid) {
+        continue;
       }
+
+      CommitState state;
+      state.pc = retire.pc;
+      state.cycle = cycle_count();
+      state.reg_we = retire.reg_we;
+      state.reg_addr = retire.reg_addr;
+      state.reg_data = retire.reg_data;
 
       local_batch_.push_back(state);
 
@@ -137,17 +180,18 @@ protected:
         });
 
         state_queue_.push(std::move(local_batch_));
+        local_batch_.clear();
         local_batch_.reserve(batch_size_);
         cv_consume_.notify_one();
       }
-    }
 
-    if (__builtin_expect(
-            static_cast<bool>(dut_->debug_instr == demu::isa::SAFE_LOOP), 0)) {
-      safe_loop_counter_++;
-      if (safe_loop_counter_ > 1 && safe_loop_terminate_) {
-        DEMU_INFO("Simulation SAFE LOOP TERMINATE")
-        _terminate = true;
+      if (__builtin_expect(
+              static_cast<bool>(retire.instr == demu::isa::SAFE_LOOP), 0)) {
+        safe_loop_counter_++;
+        if (safe_loop_counter_ > 1 && safe_loop_terminate_) {
+          DEMU_INFO("Simulation SAFE LOOP TERMINATE")
+          _terminate = true;
+        }
       }
     }
   }
@@ -205,13 +249,14 @@ private:
 
         expected_qemu_pc = ref_model_->get_pc();
 
-        for (int i = 0; i < NUM_GPRS; i++) {
-          word_t ref_val = ref_model_->get_reg(i);
-          word_t dut_val = dut_state.gpr[i];
+        if (dut_state.reg_we && dut_state.reg_addr < NUM_GPRS) {
+          word_t ref_val = ref_model_->get_reg(dut_state.reg_addr);
+          word_t dut_val = dut_state.reg_data;
+
           if (ref_val != dut_val) {
             DEMU_ERROR("Difftest GPR[x{:02d}] Mismatch at Cycle {}! | DUT: "
                        "0x{:08x} | REF: 0x{:08x}",
-                       i, dut_state.cycle, dut_val, ref_val);
+                       dut_state.reg_addr, dut_state.cycle, dut_val, ref_val);
             difftest_error_.store(true, std::memory_order_relaxed);
             return;
           }
@@ -339,6 +384,8 @@ auto main(int argc, char **argv) -> int {
       case 5:
         spdlog_level = spdlog::level::err;
         break;
+      default:
+        break;
       }
     } else if (arg[0] == '+') {
       continue;
@@ -376,7 +423,6 @@ auto main(int argc, char **argv) -> int {
                         max_batches, safe_loop_terminate, argc, argv);
 
   sim.init();
-
   sim.reset();
 
   bool loaded = false;
