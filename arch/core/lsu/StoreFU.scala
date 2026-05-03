@@ -5,7 +5,7 @@ import arch.core.imm._
 import arch.core.pma._
 import arch.configs._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ switch, is, Valid }
 
 object StoreFUState extends ChiselEnum {
   val IDLE, WRITE_SB, DONE = Value

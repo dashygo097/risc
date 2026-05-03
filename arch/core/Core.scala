@@ -20,8 +20,6 @@ import chisel3.util.{ log2Ceil, MuxCase, Mux1H, PopCount }
 class RiscCore(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_cpu"
 
-  private val FuTypeW = log2Ceil(arch.configs.proto.FunctionalUnitType.values.size)
-
   val regfile_utils = RegfileUtilsFactory.getOrThrow(p(ISA).name)
 
   val imem = IO(new CacheReadOnlyIO(Vec(p(IssueWidth), UInt(p(ILen).W)), p(XLen)))
@@ -149,7 +147,7 @@ class RiscCore(implicit p: Parameters) extends Module {
   val is_mem   = Wire(Vec(p(IssueWidth), Bool()))
 
   val decoded_rd_valid = Wire(Vec(p(IssueWidth), Bool()))
-  val inst_type        = Wire(Vec(p(IssueWidth), UInt(FuTypeW.W)))
+  val inst_type        = Wire(Vec(p(IssueWidth), UInt(p(FuTypeWidth).W)))
 
   for (w <- 0 until p(IssueWidth)) {
     decoders(w).instr := ifu.if_instr(w)
@@ -171,14 +169,14 @@ class RiscCore(implicit p: Parameters) extends Module {
     decoded_rd_valid(w) := decoders(w).decoded.rd_valid && regfile_utils.writable(rds(w))
 
     inst_type(w) := MuxCase(
-      FUNCTIONAL_UNIT_TYPE_ALU.index.U(FuTypeW.W),
+      FUNCTIONAL_UNIT_TYPE_ALU.index.U(p(FuTypeWidth).W),
       Seq(
-        decoders(w).decoded.load  -> FUNCTIONAL_UNIT_TYPE_LD.index.U(FuTypeW.W),
-        decoders(w).decoded.store -> FUNCTIONAL_UNIT_TYPE_ST.index.U(FuTypeW.W),
-        decoders(w).decoded.div   -> FUNCTIONAL_UNIT_TYPE_DIV.index.U(FuTypeW.W),
-        decoders(w).decoded.mult  -> FUNCTIONAL_UNIT_TYPE_MULT.index.U(FuTypeW.W),
-        decoders(w).decoded.bru   -> FUNCTIONAL_UNIT_TYPE_BRU.index.U(FuTypeW.W),
-        decoders(w).decoded.csr   -> FUNCTIONAL_UNIT_TYPE_CSR.index.U(FuTypeW.W)
+        decoders(w).decoded.load  -> FUNCTIONAL_UNIT_TYPE_LD.index.U(p(FuTypeWidth).W),
+        decoders(w).decoded.store -> FUNCTIONAL_UNIT_TYPE_ST.index.U(p(FuTypeWidth).W),
+        decoders(w).decoded.div   -> FUNCTIONAL_UNIT_TYPE_DIV.index.U(p(FuTypeWidth).W),
+        decoders(w).decoded.mult  -> FUNCTIONAL_UNIT_TYPE_MULT.index.U(p(FuTypeWidth).W),
+        decoders(w).decoded.bru   -> FUNCTIONAL_UNIT_TYPE_BRU.index.U(p(FuTypeWidth).W),
+        decoders(w).decoded.csr   -> FUNCTIONAL_UNIT_TYPE_CSR.index.U(p(FuTypeWidth).W)
       )
     )
   }

@@ -16,16 +16,13 @@ abstract class Scheduler(implicit p: Parameters) extends Module {
   protected val numFUs  = p(FunctionalUnits).size
   protected val numRegs = p(NumArchRegs)
 
-  protected val FuTypeW = log2Ceil(FunctionalUnitType.values.size)
-  protected val FuIdW   = log2Ceil(p(FunctionalUnits).size)
-  protected val RobTagW = log2Ceil(p(ROBSize))
   protected val RegIdxW = log2Ceil(p(NumArchRegs))
 
   protected val fuTypes =
-    p(FunctionalUnits).map(_.`type`.index.U(FuTypeW.W))
+    p(FunctionalUnits).map(_.`type`.index.U(p(FuTypeWidth).W))
 
   protected def isFuType(op: MicroOp, t: FunctionalUnitType): Bool =
-    op.fu_type === t.index.U(FuTypeW.W)
+    op.fu_type === t.index.U(p(FuTypeWidth).W)
 
   protected def isLoad(op: MicroOp): Bool =
     isFuType(op, FUNCTIONAL_UNIT_TYPE_LD)
@@ -34,14 +31,14 @@ abstract class Scheduler(implicit p: Parameters) extends Module {
     isFuType(op, FUNCTIONAL_UNIT_TYPE_ST)
 
   protected def usesRs1(op: MicroOp): Bool =
-    op.fu_type =/= FUNCTIONAL_UNIT_TYPE_CSR.index.U(FuTypeW.W)
+    op.fu_type =/= FUNCTIONAL_UNIT_TYPE_CSR.index.U(p(FuTypeWidth).W)
 
   protected def usesRs2(op: MicroOp): Bool =
-    op.fu_type === FUNCTIONAL_UNIT_TYPE_ALU.index.U(FuTypeW.W) ||
-      op.fu_type === FUNCTIONAL_UNIT_TYPE_MULT.index.U(FuTypeW.W) ||
-      op.fu_type === FUNCTIONAL_UNIT_TYPE_DIV.index.U(FuTypeW.W) ||
-      op.fu_type === FUNCTIONAL_UNIT_TYPE_BRU.index.U(FuTypeW.W) ||
-      op.fu_type === FUNCTIONAL_UNIT_TYPE_ST.index.U(FuTypeW.W)
+    op.fu_type === FUNCTIONAL_UNIT_TYPE_ALU.index.U(p(FuTypeWidth).W) ||
+      op.fu_type === FUNCTIONAL_UNIT_TYPE_MULT.index.U(p(FuTypeWidth).W) ||
+      op.fu_type === FUNCTIONAL_UNIT_TYPE_DIV.index.U(p(FuTypeWidth).W) ||
+      op.fu_type === FUNCTIONAL_UNIT_TYPE_BRU.index.U(p(FuTypeWidth).W) ||
+      op.fu_type === FUNCTIONAL_UNIT_TYPE_ST.index.U(p(FuTypeWidth).W)
 
   protected def defaultFuReqs(): Unit =
     for (i <- 0 until numFUs) {

@@ -6,7 +6,7 @@ import arch.core.pma._
 import arch.configs._
 import vopts.mem.cache._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ switch, is }
 
 object LoadFUState extends ChiselEnum {
   val IDLE, FWD_REQ, FWD_RESP, MEM_REQ, WAIT_MEM, DONE, FLUSH_DRAIN = Value

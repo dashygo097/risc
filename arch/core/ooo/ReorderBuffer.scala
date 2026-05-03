@@ -19,13 +19,13 @@ class RobEnqIO(implicit p: Parameters) extends Bundle {
   val bpu_pred_target  = Input(UInt(p(XLen).W))
   val bpu_pht_index    = Input(UInt(p(GShareGhrWidth).W))
   val bpu_ghr_snapshot = Input(UInt(p(GShareGhrWidth).W))
-  val rob_tag          = Output(UInt(log2Ceil(p(ROBSize)).W))
+  val rob_tag          = Output(UInt(p(RobTagWidth).W))
   val sq_idx           = Input(UInt(log2Ceil(p(StoreBufferSize)).W))
 }
 
 class RobWbIO(implicit p: Parameters) extends Bundle {
   val valid         = Input(Bool())
-  val rob_tag       = Input(UInt(log2Ceil(p(ROBSize)).W))
+  val rob_tag       = Input(UInt(p(RobTagWidth).W))
   val data          = Input(UInt(p(XLen).W))
   val is_bru        = Input(Bool())
   val actual_taken  = Input(Bool())
@@ -91,8 +91,7 @@ class ROBEntry(implicit p: Parameters) extends Bundle {
 class ReorderBuffer(implicit p: Parameters) extends Module {
   override def desiredName: String = s"${p(ISA).name}_rob"
 
-  private val Size = p(ROBSize)
-  private val IdxW = log2Ceil(Size)
+  private val IdxW = log2Ceil(p(RobSize))
 
   val io = IO(new Bundle {
     val enq    = Vec(p(IssueWidth), new RobEnqIO)
@@ -113,22 +112,22 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
 
   private def wrapAdd(x: UInt, y: UInt): UInt = {
     val sum = x +& y
-    Mux(sum >= Size.U, sum - Size.U, sum)(IdxW - 1, 0)
+    Mux(sum >= p(RobSize).U, sum - p(RobSize).U, sum)(IdxW - 1, 0)
   }
 
   private def indexFromNewest(distance: Int): UInt = {
     val sub = distance + 1
-    Mux(tail >= sub.U, tail - sub.U, tail + Size.U - sub.U)(IdxW - 1, 0)
+    Mux(tail >= sub.U, tail - sub.U, tail + p(RobSize).U - sub.U)(IdxW - 1, 0)
   }
 
-  val buffer = RegInit(VecInit(Seq.fill(Size)(0.U.asTypeOf(new ROBEntry))))
+  val buffer = RegInit(VecInit(Seq.fill(p(RobSize))(0.U.asTypeOf(new ROBEntry))))
   val head   = RegInit(0.U(IdxW.W))
   val tail   = RegInit(0.U(IdxW.W))
-  val count  = RegInit(0.U(log2Ceil(Size + 1).W))
+  val count  = RegInit(0.U(log2Ceil(p(RobSize) + 1).W))
 
   io.empty := count === 0.U
 
-  val availableSlots = Size.U - count
+  val availableSlots = p(RobSize).U - count
 
   val enqValids = Wire(Vec(p(IssueWidth), Bool()))
   for (w <- 0 until p(IssueWidth))
@@ -268,7 +267,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     tail  := 0.U
     count := 0.U
 
-    for (i <- 0 until Size)
+    for (i <- 0 until p(RobSize))
       buffer(i).valid := false.B
   }
 
@@ -276,11 +275,11 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
     io.read_pd(w) := buffer(io.read_rob_tag(w)).pd
 
   def bypassNewest(rs: UInt): (Bool, UInt, Bool) = {
-    val matchVec = Wire(Vec(Size, Bool()))
-    val readyVec = Wire(Vec(Size, Bool()))
-    val dataVec  = Wire(Vec(Size, UInt(p(XLen).W)))
+    val matchVec = Wire(Vec(p(RobSize), Bool()))
+    val readyVec = Wire(Vec(p(RobSize), Bool()))
+    val dataVec  = Wire(Vec(p(RobSize), UInt(p(XLen).W)))
 
-    for (d <- 0 until Size) {
+    for (d <- 0 until p(RobSize)) {
       val idx = indexFromNewest(d)
       val e   = buffer(idx)
 
@@ -291,7 +290,7 @@ class ReorderBuffer(implicit p: Parameters) extends Module {
 
     val anyMatch    = matchVec.asUInt.orR
     val newest      = PriorityEncoder(matchVec)
-    val newestOH    = UIntToOH(newest, Size)
+    val newestOH    = UIntToOH(newest, p(RobSize))
     val newestReady = anyMatch && Mux1H(newestOH, readyVec)
     val newestData  = Mux(anyMatch, Mux1H(newestOH, dataVec), 0.U(p(XLen).W))
     val pending     = anyMatch && !newestReady

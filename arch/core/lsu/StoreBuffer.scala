@@ -3,17 +3,17 @@ package arch.core.lsu
 import arch.configs._
 import vopts.mem.cache._
 import chisel3._
-import chisel3.util._
+import chisel3.util.{ log2Ceil, Decoupled, Valid, Cat, Mux1H, PopCount }
 
 class StoreAllocBundle(implicit p: Parameters) extends Bundle {
   val sq_idx  = UInt(log2Ceil(p(StoreBufferSize)).W)
   val sq_seq  = UInt(64.W)
-  val rob_tag = UInt(log2Ceil(p(ROBSize)).W)
+  val rob_tag = UInt(p(RobTagWidth).W)
 }
 
 class StoreWriteBundle(implicit p: Parameters) extends Bundle {
   val sq_idx    = UInt(log2Ceil(p(StoreBufferSize)).W)
-  val rob_tag   = UInt(log2Ceil(p(ROBSize)).W)
+  val rob_tag   = UInt(p(RobTagWidth).W)
   val addr      = UInt(p(XLen).W)
   val data      = UInt(p(XLen).W)
   val mask      = UInt(p(BytesPerWord).W)
@@ -47,7 +47,7 @@ class StoreBufferEntry(implicit p: Parameters) extends Bundle {
   val addrValid = Bool()
   val fwdValid  = Bool()
   val seq       = UInt(64.W)
-  val rob_tag   = UInt(log2Ceil(p(ROBSize)).W)
+  val rob_tag   = UInt(p(RobTagWidth).W)
   val addr      = UInt(p(XLen).W)
   val data      = UInt(p(XLen).W)
   val mask      = UInt(p(BytesPerWord).W)

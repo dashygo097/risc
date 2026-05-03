@@ -39,7 +39,7 @@ object RiscDump {
       ),
       rob = Some(
         RobConfig(
-          size = p(ROBSize),
+          size = p(RobSize),
         )
       ),
       mem = Some(

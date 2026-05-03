@@ -46,7 +46,7 @@ package object configs {
   object MultPipelineStages extends Field[Int](2)
 
   // ROB Parameters
-  object ROBSize extends Field[Int](16)
+  object RobSize extends Field[Int](16)
 
   // Mem Parameters
   object StoreBufferSize extends Field[Int](8)
@@ -97,6 +97,12 @@ package object configs {
   object PCStep           extends Field[Int](ISA().ilen / 8)
   object PCAlign          extends Field[Int](log2Ceil(ISA().ilen / 8))
 
+  // Derived parameters
+  object FuTypeWidth extends Field[Int](log2Ceil(FunctionalUnitType.values.size))
+  object FuIdWidth   extends Field[Int](log2Ceil(FunctionalUnits().size))
+  object NumLDs      extends Field[Int](FunctionalUnits().count(_.`type` == FUNCTIONAL_UNIT_TYPE_LD))
+  object RobTagWidth extends Field[Int](log2Ceil(RobSize()))
+
   implicit val p: Parameters = Parameters.empty ++ Map(
     ISA       -> ISA(),
     Frequency -> Frequency(),
@@ -126,12 +132,16 @@ package object configs {
     ScheduleType    -> ScheduleType(),
     IssueWidth      -> IssueWidth(),
     FunctionalUnits -> FunctionalUnits(),
+    FuTypeWidth     -> FuTypeWidth(),
+    FuIdWidth       -> FuIdWidth(),
+    NumLDs          -> NumLDs(),
 
     // Mult
     MultPipelineStages -> MultPipelineStages(),
 
     // ROB
-    ROBSize -> ROBSize(),
+    RobSize     -> RobSize(),
+    RobTagWidth -> RobTagWidth(),
 
     // Branch Prediction
     BTBWays        -> BTBWays(),

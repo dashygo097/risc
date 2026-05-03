@@ -29,7 +29,7 @@ class MicroOp(implicit p: Parameters) extends Bundle {
   val rs1_data = UInt(p(XLen).W)
   val rs2_data = UInt(p(XLen).W)
 
-  val rob_tag = UInt(log2Ceil(p(ROBSize)).W)
+  val rob_tag = UInt(p(RobTagWidth).W)
 
   val sq_idx = UInt(log2Ceil(p(StoreBufferSize)).W)
   val sq_seq = UInt(64.W)

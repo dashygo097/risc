@@ -9,7 +9,7 @@ class FunctionalUnitResp(implicit p: Parameters) extends Bundle {
   val rd      = UInt(log2Ceil(p(NumArchRegs)).W)
   val pc      = UInt(p(XLen).W)
   val instr   = UInt(p(ILen).W)
-  val rob_tag = UInt(log2Ceil(p(ROBSize)).W)
+  val rob_tag = UInt(p(RobTagWidth).W)
 }
 
 class FunctionalUnitIO(implicit p: Parameters) extends Bundle {

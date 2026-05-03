@@ -3,18 +3,18 @@ package arch.core.ooo
 import arch.core.regfile._
 import arch.configs._
 import chisel3._
-import chisel3.util.{ log2Ceil, PriorityEncoder, Mux1H }
+import chisel3.util.{ PriorityEncoder, Mux1H }
 
 class ScoreboardEntry(implicit p: Parameters) extends Bundle {
   val valid = Bool()
   val op    = new MicroOp
 
   val q1_ready = Bool()
-  val q1_tag   = UInt(log2Ceil(p(ROBSize)).W)
+  val q1_tag   = UInt(p(RobTagWidth).W)
   val v1       = UInt(p(XLen).W)
 
   val q2_ready = Bool()
-  val q2_tag   = UInt(log2Ceil(p(ROBSize)).W)
+  val q2_tag   = UInt(p(RobTagWidth).W)
   val v2       = UInt(p(XLen).W)
 
   val seq = UInt(64.W)
@@ -26,7 +26,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   val regfile_utils = RegfileUtilsFactory.getOrThrow(p(ISA).name)
 
   val reg_pending_valid   = RegInit(VecInit(Seq.fill(numRegs)(false.B)))
-  val reg_pending_rob     = RegInit(VecInit(Seq.fill(numRegs)(0.U(RobTagW.W))))
+  val reg_pending_rob     = RegInit(VecInit(Seq.fill(numRegs)(0.U(p(RobTagWidth).W))))
   val reg_completed_valid = RegInit(VecInit(Seq.fill(numRegs)(false.B)))
   val reg_completed_data  = RegInit(VecInit(Seq.fill(numRegs)(0.U(p(XLen).W))))
   val dispatch_seq        = RegInit(0.U(64.W))
@@ -35,7 +35,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
 
   val cdb_valid   = Wire(Vec(numFUs, Bool()))
   val cdb_data    = Wire(Vec(numFUs, UInt(p(XLen).W)))
-  val cdb_rob_tag = Wire(Vec(numFUs, UInt(RobTagW.W)))
+  val cdb_rob_tag = Wire(Vec(numFUs, UInt(p(RobTagWidth).W)))
   val cdb_rd      = Wire(Vec(numFUs, UInt(RegIdxW.W)))
 
   for (i <- 0 until numFUs) {
@@ -46,7 +46,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   }
 
   val base_pending_valid   = Wire(Vec(numRegs, Bool()))
-  val base_pending_rob     = Wire(Vec(numRegs, UInt(RobTagW.W)))
+  val base_pending_rob     = Wire(Vec(numRegs, UInt(p(RobTagWidth).W)))
   val base_completed_valid = Wire(Vec(numRegs, Bool()))
   val base_completed_data  = Wire(Vec(numRegs, UInt(p(XLen).W)))
 
@@ -120,7 +120,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   dispatched_entries := issued_entries
 
   val temp_pending_valid   = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
-  val temp_pending_rob     = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(RobTagW.W))))
+  val temp_pending_rob     = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(p(RobTagWidth).W))))
   val temp_completed_valid = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
   val temp_completed_data  = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(p(XLen).W))))
   val temp_fu_avail        = Wire(Vec(p(IssueWidth) + 1, Vec(numFUs, Bool())))
