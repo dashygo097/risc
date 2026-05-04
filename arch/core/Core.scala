@@ -376,12 +376,11 @@ class RiscCore(implicit p: Parameters) extends Module {
   val bpu_update_ghr_snapshot = WireDefault(0.U(p(GShareGhrWidth).W))
   val bpu_update_mispredict   = WireDefault(false.B)
 
-  for (w <- p(IssueWidth) - 1 to 0 by -1) {
+  for (w <- 0 until p(IssueWidth)) {
     val is_bru_commit           = rob.io.commit(w).is_branch
-    val is_cond_branch_commit   = rob.io.commit(w).commit_barrier
     val mispredicted_non_branch = !is_bru_commit && rob.io.commit(w).bpu_pred_taken
 
-    when(rob.io.commit(w).pop && (is_cond_branch_commit || mispredicted_non_branch)) {
+    when(rob.io.commit(w).pop && (is_bru_commit || mispredicted_non_branch)) {
       bpu_update_valid        := true.B
       bpu_update_pc           := rob.io.commit(w).pc
       bpu_update_target       := rob.io.commit(w).bpu_actual_target
@@ -465,9 +464,9 @@ class RiscCore(implicit p: Parameters) extends Module {
   val debug_backend_stall  = IO(Output(Bool()))
 
   debug_bpu_mispredict := (0 until p(IssueWidth))
-    .map(w => rob.io.commit(w).pop && (rob.io.commit(w).commit_barrier || (!rob.io.commit(w).is_branch && rob.io.commit(w).bpu_pred_taken)) && rob.io.commit(w).flush_pipeline)
+    .map(w => rob.io.commit(w).pop && (rob.io.commit(w).is_branch || (!rob.io.commit(w).is_branch && rob.io.commit(w).bpu_pred_taken)) && rob.io.commit(w).flush_pipeline)
     .reduce(_ || _)
-  debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).commit_barrier))
+  debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch))
   debug_flush_cycle    := global_flush
   debug_rob_empty      := rob.io.empty
   debug_issue_count    := PopCount(lane_valid)
