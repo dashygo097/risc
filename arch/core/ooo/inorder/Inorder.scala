@@ -17,12 +17,12 @@ class Inorder(implicit p: Parameters) extends Scheduler {
   defaultFuReqs()
   defaultDispatchReady()
 
-  val cdb_hit   = Wire(Vec(numRegs, Vec(numFUs, Bool())))
+  val cdb_hit   = Wire(Vec(numRegs, Vec(p(NumFUs), Bool())))
   val cdb_valid = Wire(Vec(numRegs, Bool()))
   val cdb_data  = Wire(Vec(numRegs, UInt(p(XLen).W)))
 
   for (r <- 0 until numRegs) {
-    for (f <- 0 until numFUs)
+    for (f <- 0 until p(NumFUs))
       cdb_hit(r)(f) := fu_done(f).valid && fu_done(f).bits.rd === r.U && regfile_utils.writable(r.U)
 
     cdb_valid(r) := cdb_hit(r).asUInt.orR
@@ -32,7 +32,7 @@ class Inorder(implicit p: Parameters) extends Scheduler {
   val temp_pending         = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
   val temp_completed_valid = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
   val temp_completed_data  = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(p(XLen).W))))
-  val temp_fu_used         = Wire(Vec(p(IssueWidth) + 1, Vec(numFUs, Bool())))
+  val temp_fu_used         = Wire(Vec(p(IssueWidth) + 1, Vec(p(NumFUs), Bool())))
   val accepted             = Wire(Vec(p(IssueWidth), Bool()))
 
   for (r <- 0 until numRegs) {
@@ -41,7 +41,7 @@ class Inorder(implicit p: Parameters) extends Scheduler {
     temp_completed_data(0)(r)  := Mux(cdb_valid(r), cdb_data(r), reg_completed_data(r))
   }
 
-  for (f <- 0 until numFUs)
+  for (f <- 0 until p(NumFUs))
     temp_fu_used(0)(f) := false.B
 
   for (w <- 0 until p(IssueWidth)) {
@@ -62,9 +62,9 @@ class Inorder(implicit p: Parameters) extends Scheduler {
     val rs1_value = Mux(rs1_from_completed, temp_completed_data(w)(op.rs1), op.rs1_data)
     val rs2_value = Mux(rs2_from_completed, temp_completed_data(w)(op.rs2), op.rs2_data)
 
-    val fu_match = Wire(Vec(numFUs, Bool()))
+    val fu_match = Wire(Vec(p(NumFUs), Bool()))
 
-    for (f <- 0 until numFUs)
+    for (f <- 0 until p(NumFUs))
       fu_match(f) := !temp_fu_used(w)(f) && fu_reqs(f).ready && fuTypes(f) === op.fu_type
 
     val target    = PriorityEncoder(fu_match)
@@ -87,7 +87,7 @@ class Inorder(implicit p: Parameters) extends Scheduler {
       issueOp.rs1_data := rs1_value
       issueOp.rs2_data := rs2_value
 
-      for (f <- 0 until numFUs)
+      for (f <- 0 until p(NumFUs))
         when(target === f.U) {
           fu_reqs(f).valid := true.B
           fu_reqs(f).bits  := issueOp

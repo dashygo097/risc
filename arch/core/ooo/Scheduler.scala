@@ -13,9 +13,7 @@ abstract class Scheduler(implicit p: Parameters) extends Module {
 
   val flush = IO(Input(Bool()))
 
-  protected val numFUs  = p(FunctionalUnits).size
   protected val numRegs = p(NumArchRegs)
-
   protected val RegIdxW = log2Ceil(p(NumArchRegs))
 
   protected val fuTypes =
@@ -41,7 +39,7 @@ abstract class Scheduler(implicit p: Parameters) extends Module {
       op.fu_type === FUNCTIONAL_UNIT_TYPE_ST.index.U(p(FuTypeWidth).W)
 
   protected def defaultFuReqs(): Unit =
-    for (i <- 0 until numFUs) {
+    for (i <- 0 until p(NumFUs)) {
       fu_reqs(i).valid := false.B
       fu_reqs(i).bits  := 0.U.asTypeOf(new MicroOp)
     }

@@ -100,6 +100,7 @@ package object configs {
   // Derived parameters
   object FuTypeWidth extends Field[Int](log2Ceil(FunctionalUnitType.values.size))
   object FuIdWidth   extends Field[Int](log2Ceil(FunctionalUnits().size))
+  object NumFUs      extends Field[Int](FunctionalUnits().size)
   object NumLDs      extends Field[Int](FunctionalUnits().count(_.`type` == FUNCTIONAL_UNIT_TYPE_LD))
   object RobTagWidth extends Field[Int](log2Ceil(RobSize()))
 

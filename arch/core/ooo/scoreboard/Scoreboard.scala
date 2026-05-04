@@ -31,14 +31,14 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   val reg_completed_data  = RegInit(VecInit(Seq.fill(numRegs)(0.U(p(XLen).W))))
   val dispatch_seq        = RegInit(0.U(64.W))
 
-  val entries = RegInit(VecInit(Seq.fill(numFUs)(0.U.asTypeOf(new ScoreboardEntry))))
+  val entries = RegInit(VecInit(Seq.fill(p(NumFUs))(0.U.asTypeOf(new ScoreboardEntry))))
 
-  val cdb_valid   = Wire(Vec(numFUs, Bool()))
-  val cdb_data    = Wire(Vec(numFUs, UInt(p(XLen).W)))
-  val cdb_rob_tag = Wire(Vec(numFUs, UInt(p(RobTagWidth).W)))
-  val cdb_rd      = Wire(Vec(numFUs, UInt(RegIdxW.W)))
+  val cdb_valid   = Wire(Vec(p(NumFUs), Bool()))
+  val cdb_data    = Wire(Vec(p(NumFUs), UInt(p(XLen).W)))
+  val cdb_rob_tag = Wire(Vec(p(NumFUs), UInt(p(RobTagWidth).W)))
+  val cdb_rd      = Wire(Vec(p(NumFUs), UInt(RegIdxW.W)))
 
-  for (i <- 0 until numFUs) {
+  for (i <- 0 until p(NumFUs)) {
     cdb_valid(i)   := fu_done(i).valid
     cdb_data(i)    := fu_done(i).bits.result
     cdb_rob_tag(i) := fu_done(i).bits.rob_tag
@@ -51,9 +51,9 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   val base_completed_data  = Wire(Vec(numRegs, UInt(p(XLen).W)))
 
   for (r <- 0 until numRegs) {
-    val hits = Wire(Vec(numFUs, Bool()))
+    val hits = Wire(Vec(p(NumFUs), Bool()))
 
-    for (c <- 0 until numFUs)
+    for (c <- 0 until p(NumFUs))
       hits(c) := cdb_valid(c) && reg_pending_valid(r) && reg_pending_rob(r) === cdb_rob_tag(c) && cdb_rd(c) === r.U && r.U =/= 0.U
 
     val hit = hits.asUInt.orR
@@ -69,14 +69,14 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   base_completed_valid(0) := false.B
   base_completed_data(0)  := 0.U
 
-  val snooped_entries = Wire(Vec(numFUs, new ScoreboardEntry))
+  val snooped_entries = Wire(Vec(p(NumFUs), new ScoreboardEntry))
   snooped_entries := entries
 
-  for (i <- 0 until numFUs) {
+  for (i <- 0 until p(NumFUs)) {
     when(entries(i).valid && !entries(i).q1_ready) {
-      val hits = Wire(Vec(numFUs, Bool()))
+      val hits = Wire(Vec(p(NumFUs), Bool()))
 
-      for (c <- 0 until numFUs)
+      for (c <- 0 until p(NumFUs))
         hits(c) := cdb_valid(c) && entries(i).q1_tag === cdb_rob_tag(c)
 
       when(hits.asUInt.orR) {
@@ -86,9 +86,9 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     }
 
     when(entries(i).valid && !entries(i).q2_ready) {
-      val hits = Wire(Vec(numFUs, Bool()))
+      val hits = Wire(Vec(p(NumFUs), Bool()))
 
-      for (c <- 0 until numFUs)
+      for (c <- 0 until p(NumFUs))
         hits(c) := cdb_valid(c) && entries(i).q2_tag === cdb_rob_tag(c)
 
       when(hits.asUInt.orR) {
@@ -98,10 +98,10 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     }
   }
 
-  val issued_entries = Wire(Vec(numFUs, new ScoreboardEntry))
+  val issued_entries = Wire(Vec(p(NumFUs), new ScoreboardEntry))
   issued_entries := snooped_entries
 
-  for (i <- 0 until numFUs) {
+  for (i <- 0 until p(NumFUs)) {
     val entry         = snooped_entries(i)
     val ready_to_exec = entry.valid && entry.q1_ready && entry.q2_ready
 
@@ -116,14 +116,14 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
     }
   }
 
-  val dispatched_entries = Wire(Vec(numFUs, new ScoreboardEntry))
+  val dispatched_entries = Wire(Vec(p(NumFUs), new ScoreboardEntry))
   dispatched_entries := issued_entries
 
   val temp_pending_valid   = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
   val temp_pending_rob     = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(p(RobTagWidth).W))))
   val temp_completed_valid = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, Bool())))
   val temp_completed_data  = Wire(Vec(p(IssueWidth) + 1, Vec(numRegs, UInt(p(XLen).W))))
-  val temp_fu_avail        = Wire(Vec(p(IssueWidth) + 1, Vec(numFUs, Bool())))
+  val temp_fu_avail        = Wire(Vec(p(IssueWidth) + 1, Vec(p(NumFUs), Bool())))
   val temp_seq             = Wire(Vec(p(IssueWidth) + 1, UInt(64.W)))
   val accepted             = Wire(Vec(p(IssueWidth), Bool()))
 
@@ -133,16 +133,16 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
   temp_completed_data(0)  := base_completed_data
   temp_seq(0)             := dispatch_seq
 
-  for (i <- 0 until numFUs)
+  for (i <- 0 until p(NumFUs))
     temp_fu_avail(0)(i) := !issued_entries(i).valid
 
   for (w <- 0 until p(IssueWidth)) {
     val dis = dis_reqs(w)
     val op  = dis.bits
 
-    val fu_match_mask = Wire(Vec(numFUs, Bool()))
+    val fu_match_mask = Wire(Vec(p(NumFUs), Bool()))
 
-    for (i <- 0 until numFUs)
+    for (i <- 0 until p(NumFUs))
       fu_match_mask(i) := temp_fu_avail(w)(i) && fuTypes(i) === op.fu_type
 
     val target_fu_idx = PriorityEncoder(fu_match_mask)
@@ -185,9 +185,9 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
       val r1_pending   = r1_used && temp_pending_valid(w)(op.rs1)
       val r1_completed = r1_used && !r1_pending && temp_completed_valid(w)(op.rs1)
       val r1_rob_tag   = temp_pending_rob(w)(op.rs1)
-      val r1_hits      = Wire(Vec(numFUs, Bool()))
+      val r1_hits      = Wire(Vec(p(NumFUs), Bool()))
 
-      for (c <- 0 until numFUs)
+      for (c <- 0 until p(NumFUs))
         r1_hits(c) := cdb_valid(c) && r1_rob_tag === cdb_rob_tag(c)
 
       val r1_cdb_valid = r1_pending && r1_hits.asUInt.orR
@@ -201,9 +201,9 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
       val r2_pending   = r2_used && temp_pending_valid(w)(op.rs2)
       val r2_completed = r2_used && !r2_pending && temp_completed_valid(w)(op.rs2)
       val r2_rob_tag   = temp_pending_rob(w)(op.rs2)
-      val r2_hits      = Wire(Vec(numFUs, Bool()))
+      val r2_hits      = Wire(Vec(p(NumFUs), Bool()))
 
-      for (c <- 0 until numFUs)
+      for (c <- 0 until p(NumFUs))
         r2_hits(c) := cdb_valid(c) && r2_rob_tag === cdb_rob_tag(c)
 
       val r2_cdb_valid = r2_pending && r2_hits.asUInt.orR
@@ -223,7 +223,7 @@ class Scoreboard(implicit p: Parameters) extends Scheduler {
       reg_completed_data(r)  := 0.U
     }
 
-    for (i <- 0 until numFUs)
+    for (i <- 0 until p(NumFUs))
       entries(i).valid := false.B
 
     dispatch_seq := 0.U
