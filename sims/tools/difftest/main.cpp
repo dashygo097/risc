@@ -153,10 +153,10 @@ protected:
       return;
     }
 
-    const RetirePacket retires[2] = {read_retire_lane0(), read_retire_lane1()};
+    const uint32_t lanes = active_retire_lanes();
 
-    for (uint32_t lane = 0; lane < 2; ++lane) {
-      const auto &retire = retires[lane];
+    for (uint32_t lane = 0; lane < lanes; ++lane) {
+      const demu::RetirePacket retire = read_retire_lane(lane);
 
       if (!retire.valid) {
         continue;
@@ -176,21 +176,31 @@ protected:
 
         cv_produce_.wait(lock, [this]() {
           return state_queue_.size() < max_queue_batches_ ||
-                 difftest_error_.load();
+                 difftest_error_.load(std::memory_order_relaxed);
         });
+
+        if (__builtin_expect(difftest_error_.load(std::memory_order_relaxed),
+                             0)) {
+          _terminate = true;
+          return;
+        }
 
         state_queue_.push(std::move(local_batch_));
         local_batch_.clear();
         local_batch_.reserve(batch_size_);
+
+        lock.unlock();
         cv_consume_.notify_one();
       }
 
       if (__builtin_expect(
               static_cast<bool>(retire.instr == demu::isa::SAFE_LOOP), 0)) {
         safe_loop_counter_++;
+
         if (safe_loop_counter_ > 1 && safe_loop_terminate_) {
           DEMU_INFO("Simulation SAFE LOOP TERMINATE")
           _terminate = true;
+          return;
         }
       }
     }

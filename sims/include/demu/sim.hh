@@ -2,6 +2,7 @@
 
 #include "./config.hh"
 #include "./hal/hal.hh"
+#include "./retire_lane.hh"
 #include "verilated.h"
 #include <cstdint>
 #include <memory>
@@ -31,18 +32,6 @@ public:
   void run(uint64_t max_cycles = 0);
 
   // Architecture state access
-  struct RetirePacket {
-    bool valid{false};
-    addr_t pc{0};
-    instr_t instr{0};
-    bool reg_we{false};
-    uint8_t reg_addr{0};
-    word_t reg_data{0};
-  };
-
-  [[nodiscard]] auto retire_lane0() const noexcept -> RetirePacket;
-  [[nodiscard]] auto retire_lane1() const noexcept -> RetirePacket;
-
   [[nodiscard]] auto device(addr_t addr) -> hal::Device * {
     return device_manager_->find_device_for_address(addr);
   }
@@ -152,6 +141,7 @@ protected:
 
   // Internal simulation methods
   void clock_tick();
+  void handle_retirements();
   void handle_interrupt();
   void handle_cache_profiling();
   void handle_performance_profiling();
@@ -162,6 +152,26 @@ protected:
   virtual void on_init() {};
   virtual void on_exit() {};
   virtual void on_reset() {};
+
+  // retire lane helper
+  [[nodiscard]] auto active_retire_lanes() const noexcept -> uint32_t {
+    const uint32_t config_lanes =
+        static_cast<uint32_t>(config_->ifu().issue_width());
+
+    constexpr uint32_t detected_lanes =
+        demu::RetireSignalInfo<system_t>::detected_lanes;
+
+    if (config_lanes == 0 || config_lanes > detected_lanes) {
+      return detected_lanes;
+    }
+
+    return config_lanes;
+  }
+
+  [[nodiscard]] auto read_retire_lane(uint32_t lane) const noexcept
+      -> demu::RetirePacket {
+    return demu::RetireSignalInfo<system_t>::read(dut_.get(), lane);
+  }
 
   // device registry helper
   template <size_t PortID, typename HandlerType, typename DeviceType,
