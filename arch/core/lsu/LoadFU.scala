@@ -58,11 +58,17 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   busy         := state =/= LoadFUState.IDLE
   io.req.ready := state === LoadFUState.IDLE
 
-  sbFwd.req.valid       := state === LoadFUState.FWD_REQ && !io.flush
+  val acceptActive = state === LoadFUState.IDLE && io.req.valid && !io.flush
+
+  val fwdReqFromAccept  = acceptActive && acceptHasOlderStore
+  val fwdReqFromRetry   = state === LoadFUState.FWD_REQ && !io.flush
+  val fwdReqUsingAccept = state === LoadFUState.IDLE
+
+  sbFwd.req.valid       := fwdReqFromAccept || fwdReqFromRetry
   sbFwd.req.bits.valid  := true.B
-  sbFwd.req.bits.sq_seq := uopReg.sq_seq
-  sbFwd.req.bits.addr   := alignedAddrReg
-  sbFwd.req.bits.mask   := loadMaskReg
+  sbFwd.req.bits.sq_seq := Mux(fwdReqUsingAccept, io.req.bits.sq_seq, uopReg.sq_seq)
+  sbFwd.req.bits.addr   := Mux(fwdReqUsingAccept, acceptAlignedAddr, alignedAddrReg)
+  sbFwd.req.bits.mask   := Mux(fwdReqUsingAccept, acceptLoadMask, loadMaskReg)
   sbFwd.resp.ready      := state === LoadFUState.FWD_RESP && !io.flush
 
   val fwdResp           = sbFwd.resp.bits
@@ -74,23 +80,33 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
   val fwdCompleteNow    = state === LoadFUState.FWD_RESP && sbFwd.resp.valid && !shouldBlock && fullForward && !io.flush
   val canSendMemFromFwd = state === LoadFUState.FWD_RESP && sbFwd.resp.valid && !shouldBlock && !fullForward && !io.flush
 
-  mem.req.valid     := ((state === LoadFUState.MEM_REQ) || canSendMemFromFwd) && pmaCacheableReg && !io.flush
-  mem.req.bits.op   := CacheOp.READ
-  mem.req.bits.addr := alignedAddrReg
-  mem.req.bits.data := 0.U
-  mem.req.bits.strb := loadMaskReg
+  val memReqFromAccept = acceptActive && !acceptHasOlderStore
+  val memReqFromRetry  = state === LoadFUState.MEM_REQ && !io.flush
+  val memReqFromFwd    = canSendMemFromFwd
+  val memReqActive     = memReqFromAccept || memReqFromRetry || memReqFromFwd
 
-  mmio.req.valid     := ((state === LoadFUState.MEM_REQ) || canSendMemFromFwd) && !pmaCacheableReg && !io.flush
+  val memReqCacheable = Mux(memReqFromAccept, acceptPmaCacheable, pmaCacheableReg)
+  val memReqAddr      = Mux(memReqFromAccept, acceptAlignedAddr, alignedAddrReg)
+  val memReqMask      = Mux(memReqFromAccept, acceptLoadMask, loadMaskReg)
+
+  mem.req.valid     := memReqActive && memReqCacheable && !io.flush
+  mem.req.bits.op   := CacheOp.READ
+  mem.req.bits.addr := memReqAddr
+  mem.req.bits.data := 0.U
+  mem.req.bits.strb := memReqMask
+
+  mmio.req.valid     := memReqActive && !memReqCacheable && !io.flush
   mmio.req.bits.op   := CacheOp.READ
-  mmio.req.bits.addr := alignedAddrReg
+  mmio.req.bits.addr := memReqAddr
   mmio.req.bits.data := 0.U
-  mmio.req.bits.strb := loadMaskReg
+  mmio.req.bits.strb := memReqMask
 
   mem.resp.ready  := (state === LoadFUState.WAIT_MEM || state === LoadFUState.FLUSH_DRAIN) && reqWasCache
   mmio.resp.ready := (state === LoadFUState.WAIT_MEM || state === LoadFUState.FLUSH_DRAIN) && !reqWasCache
 
-  val memReqFire      = mem.req.fire || mmio.req.fire
-  val memRespFire     = mem.resp.fire || mmio.resp.fire
+  val memReqFire  = mem.req.fire || mmio.req.fire
+  val memRespFire = mem.resp.fire || mmio.resp.fire
+
   val memRespData     = Mux(reqWasCache, mem.resp.bits.data, mmio.resp.bits.data)
   val expandedFwdMask = utils.expandByteMask(fwdMaskReg)
   val mergedBusData   = (memRespData & ~expandedFwdMask) | (fwdDataReg & expandedFwdMask)
@@ -108,15 +124,17 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
 
   when(memReqFire) {
     reqOutstanding := true.B
-    reqWasCache    := pmaCacheableReg
+    reqWasCache    := memReqCacheable
   }
 
   when(memRespFire) {
     reqOutstanding := false.B
   }
 
+  val willHaveOutstanding = (reqOutstanding || memReqFire) && !memRespFire
+
   when(io.flush) {
-    when(reqOutstanding && !memRespFire) {
+    when(willHaveOutstanding) {
       state := LoadFUState.FLUSH_DRAIN
     }.otherwise {
       state := LoadFUState.IDLE
@@ -134,7 +152,12 @@ class LoadFU(implicit p: Parameters) extends FunctionalUnit {
           resultReg       := 0.U
           fwdDataReg      := 0.U
           fwdMaskReg      := 0.U
-          state           := Mux(acceptHasOlderStore, LoadFUState.FWD_REQ, LoadFUState.MEM_REQ)
+
+          when(acceptHasOlderStore) {
+            state := Mux(sbFwd.req.fire, LoadFUState.FWD_RESP, LoadFUState.FWD_REQ)
+          }.otherwise {
+            state := Mux(memReqFire, LoadFUState.WAIT_MEM, LoadFUState.MEM_REQ)
+          }
         }
       }
 

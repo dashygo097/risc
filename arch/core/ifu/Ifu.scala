@@ -135,11 +135,9 @@ class Ifu(implicit p: Parameters) extends Module {
 
   ibuffer.flush := do_redirect
 
-  val flush_cond = do_redirect
-
   for (w <- 0 until p(IssueWidth)) {
     ibuffer.deq(w).ready   := dispatch_fire(w)
-    if_valid(w)            := ibuffer.deq(w).valid && !flush_cond
+    if_valid(w)            := ibuffer.deq(w).valid && !do_redirect
     if_instr(w)            := ibuffer.deq(w).bits.instr
     if_pc(w)               := ibuffer.deq(w).bits.pc
     if_bpu_pred_taken(w)   := ibuffer.deq(w).bits.bpu_pred_taken
@@ -148,6 +146,6 @@ class Ifu(implicit p: Parameters) extends Module {
     if_bpu_ghr_snapshot(w) := ibuffer.deq(w).bits.bpu_ghr_snapshot
   }
 
-  fronend_flush := flush_cond
+  fronend_flush := do_redirect
   reset_ibuffer := do_redirect
 }
