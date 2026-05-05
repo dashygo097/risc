@@ -39,11 +39,12 @@ class StoreFU(implicit p: Parameters) extends FunctionalUnit {
   val storeData   = utils.alignedStoreData(ctrl, addr, uopReg.rs2_data)
   val storeMask   = utils.shiftedStoreMask(ctrl, addr)
 
-  val (_, _, pmaWritable, pmaCacheable) = PmaChecker(addr)
+  val (_, _, _, pmaCacheable) = PmaChecker(addr)
 
-  busy := state =/= StoreFUState.IDLE
+  busy         := state =/= StoreFUState.IDLE
+  io.req.ready := !io.flush && (state === StoreFUState.IDLE || (state === StoreFUState.DONE && io.resp.ready))
 
-  io.req.ready := state === StoreFUState.IDLE
+  val acceptFire = io.req.fire && !io.flush
 
   sbWrite.valid          := state === StoreFUState.WRITE_SB
   sbWrite.bits.sq_idx    := uopReg.sq_idx
@@ -64,12 +65,7 @@ class StoreFU(implicit p: Parameters) extends FunctionalUnit {
     state := StoreFUState.IDLE
   }.otherwise {
     switch(state) {
-      is(StoreFUState.IDLE) {
-        when(io.req.fire) {
-          uopReg := io.req.bits
-          state  := StoreFUState.WRITE_SB
-        }
-      }
+      is(StoreFUState.IDLE) {}
 
       is(StoreFUState.WRITE_SB) {
         state := StoreFUState.DONE
@@ -80,6 +76,11 @@ class StoreFU(implicit p: Parameters) extends FunctionalUnit {
           state := StoreFUState.IDLE
         }
       }
+    }
+
+    when(acceptFire) {
+      uopReg := io.req.bits
+      state  := StoreFUState.WRITE_SB
     }
   }
 }

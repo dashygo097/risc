@@ -26,8 +26,8 @@ class MemoryArbiter(implicit p: Parameters) extends Module {
   val mem  = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
   val mmio = IO(new CacheIO(UInt(p(XLen).W), p(XLen)))
 
-  val memArb  = Module(new RRArbiter(new MemoryArbiterRoutedReq(TargetW), NumReqs))
-  val mmioArb = Module(new RRArbiter(new MemoryArbiterRoutedReq(TargetW), NumReqs))
+  val memLdArb  = Module(new RRArbiter(new MemoryArbiterRoutedReq(TargetW), p(NumLDs)))
+  val mmioLdArb = Module(new RRArbiter(new MemoryArbiterRoutedReq(TargetW), p(NumLDs)))
 
   val memRespQ  = Module(new Queue(UInt(TargetW.W), p(RobSize), pipe = false, flow = false))
   val mmioRespQ = Module(new Queue(UInt(TargetW.W), p(RobSize), pipe = false, flow = false))
@@ -39,31 +39,39 @@ class MemoryArbiter(implicit p: Parameters) extends Module {
   val mmioReqBits  = Reg(new MemoryArbiterRoutedReq(TargetW))
 
   for (i <- 0 until p(NumLDs)) {
-    memArb.io.in(i).valid       := ld_mem(i).req.valid
-    memArb.io.in(i).bits.target := i.U(TargetW.W)
-    memArb.io.in(i).bits.req    := ld_mem(i).req.bits
-    ld_mem(i).req.ready         := memArb.io.in(i).ready
+    memLdArb.io.in(i).valid       := ld_mem(i).req.valid
+    memLdArb.io.in(i).bits.target := i.U(TargetW.W)
+    memLdArb.io.in(i).bits.req    := ld_mem(i).req.bits
+    ld_mem(i).req.ready           := memLdArb.io.in(i).ready
   }
 
-  memArb.io.in(p(NumLDs)).valid       := store_mem.req.valid
-  memArb.io.in(p(NumLDs)).bits.target := p(NumLDs).U(TargetW.W)
-  memArb.io.in(p(NumLDs)).bits.req    := store_mem.req.bits
-  store_mem.req.ready                 := memArb.io.in(p(NumLDs)).ready
+  val memLdSelected    = memLdArb.io.out.valid
+  val memStoreSelected = !memLdSelected && store_mem.req.valid
+  val memChosenValid   = memLdSelected || memStoreSelected
+
+  val memChosenBits = Wire(new MemoryArbiterRoutedReq(TargetW))
+  memChosenBits.target   := Mux(memLdSelected, memLdArb.io.out.bits.target, p(NumLDs).U(TargetW.W))
+  memChosenBits.req.addr := Mux(memLdSelected, memLdArb.io.out.bits.req.addr, store_mem.req.bits.addr)
+  memChosenBits.req.data := Mux(memLdSelected, memLdArb.io.out.bits.req.data, store_mem.req.bits.data)
+  memChosenBits.req.op   := Mux(memLdSelected, memLdArb.io.out.bits.req.op, store_mem.req.bits.op)
+  memChosenBits.req.strb := Mux(memLdSelected, memLdArb.io.out.bits.req.strb, store_mem.req.bits.strb)
 
   mem.req.valid := memReqValid && memRespQ.io.enq.ready
   mem.req.bits  := memReqBits.req
 
-  memRespQ.io.enq.valid := memReqValid && mem.req.ready
+  val memIssueFire  = memReqValid && mem.req.ready && memRespQ.io.enq.ready
+  val memStageReady = !memReqValid || memIssueFire
+  val memTakeFire   = memChosenValid && memStageReady
+
+  memLdArb.io.out.ready := memStageReady
+  store_mem.req.ready   := memStageReady && !memLdSelected
+
+  memRespQ.io.enq.valid := memIssueFire
   memRespQ.io.enq.bits  := memReqBits.target
-
-  val memIssueFire = memReqValid && mem.req.ready && memRespQ.io.enq.ready
-  val memTakeFire  = memArb.io.out.valid && memArb.io.out.ready
-
-  memArb.io.out.ready := !memReqValid || memIssueFire
 
   when(memTakeFire) {
     memReqValid := true.B
-    memReqBits  := memArb.io.out.bits
+    memReqBits  := memChosenBits
   }.elsewhen(memIssueFire) {
     memReqValid := false.B
   }
@@ -89,31 +97,39 @@ class MemoryArbiter(implicit p: Parameters) extends Module {
   memRespQ.io.deq.ready := mem.resp.valid && memTargetReady
 
   for (i <- 0 until p(NumLDs)) {
-    mmioArb.io.in(i).valid       := ld_mmio(i).req.valid
-    mmioArb.io.in(i).bits.target := i.U(TargetW.W)
-    mmioArb.io.in(i).bits.req    := ld_mmio(i).req.bits
-    ld_mmio(i).req.ready         := mmioArb.io.in(i).ready
+    mmioLdArb.io.in(i).valid       := ld_mmio(i).req.valid
+    mmioLdArb.io.in(i).bits.target := i.U(TargetW.W)
+    mmioLdArb.io.in(i).bits.req    := ld_mmio(i).req.bits
+    ld_mmio(i).req.ready           := mmioLdArb.io.in(i).ready
   }
 
-  mmioArb.io.in(p(NumLDs)).valid       := store_mmio.req.valid
-  mmioArb.io.in(p(NumLDs)).bits.target := p(NumLDs).U(TargetW.W)
-  mmioArb.io.in(p(NumLDs)).bits.req    := store_mmio.req.bits
-  store_mmio.req.ready                 := mmioArb.io.in(p(NumLDs)).ready
+  val mmioLdSelected    = mmioLdArb.io.out.valid
+  val mmioStoreSelected = !mmioLdSelected && store_mmio.req.valid
+  val mmioChosenValid   = mmioLdSelected || mmioStoreSelected
+
+  val mmioChosenBits = Wire(new MemoryArbiterRoutedReq(TargetW))
+  mmioChosenBits.target   := Mux(mmioLdSelected, mmioLdArb.io.out.bits.target, p(NumLDs).U(TargetW.W))
+  mmioChosenBits.req.addr := Mux(mmioLdSelected, mmioLdArb.io.out.bits.req.addr, store_mmio.req.bits.addr)
+  mmioChosenBits.req.data := Mux(mmioLdSelected, mmioLdArb.io.out.bits.req.data, store_mmio.req.bits.data)
+  mmioChosenBits.req.op   := Mux(mmioLdSelected, mmioLdArb.io.out.bits.req.op, store_mmio.req.bits.op)
+  mmioChosenBits.req.strb := Mux(mmioLdSelected, mmioLdArb.io.out.bits.req.strb, store_mmio.req.bits.strb)
 
   mmio.req.valid := mmioReqValid && mmioRespQ.io.enq.ready
   mmio.req.bits  := mmioReqBits.req
 
-  mmioRespQ.io.enq.valid := mmioReqValid && mmio.req.ready
+  val mmioIssueFire  = mmioReqValid && mmio.req.ready && mmioRespQ.io.enq.ready
+  val mmioStageReady = !mmioReqValid || mmioIssueFire
+  val mmioTakeFire   = mmioChosenValid && mmioStageReady
+
+  mmioLdArb.io.out.ready := mmioStageReady
+  store_mmio.req.ready   := mmioStageReady && !mmioLdSelected
+
+  mmioRespQ.io.enq.valid := mmioIssueFire
   mmioRespQ.io.enq.bits  := mmioReqBits.target
-
-  val mmioIssueFire = mmioReqValid && mmio.req.ready && mmioRespQ.io.enq.ready
-  val mmioTakeFire  = mmioArb.io.out.valid && mmioArb.io.out.ready
-
-  mmioArb.io.out.ready := !mmioReqValid || mmioIssueFire
 
   when(mmioTakeFire) {
     mmioReqValid := true.B
-    mmioReqBits  := mmioArb.io.out.bits
+    mmioReqBits  := mmioChosenBits
   }.elsewhen(mmioIssueFire) {
     mmioReqValid := false.B
   }
