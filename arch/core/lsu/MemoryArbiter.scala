@@ -29,8 +29,8 @@ class MemoryArbiter(implicit p: Parameters) extends Module {
   val memArb  = Module(new RRArbiter(new MemoryArbiterRoutedReq(TargetW), NumReqs))
   val mmioArb = Module(new RRArbiter(new MemoryArbiterRoutedReq(TargetW), NumReqs))
 
-  val memRespQ  = Module(new Queue(UInt(TargetW.W), p(RobSize), pipe = true, flow = true))
-  val mmioRespQ = Module(new Queue(UInt(TargetW.W), p(RobSize), pipe = true, flow = true))
+  val memRespQ  = Module(new Queue(UInt(TargetW.W), p(RobSize), pipe = false, flow = false))
+  val mmioRespQ = Module(new Queue(UInt(TargetW.W), p(RobSize), pipe = false, flow = false))
 
   val memReqValid = RegInit(false.B)
   val memReqBits  = Reg(new MemoryArbiterRoutedReq(TargetW))
