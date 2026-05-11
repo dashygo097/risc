@@ -1,7 +1,7 @@
 find_package(Threads REQUIRED)
 find_library(READLINE_LIB readline REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(verilator HINTS $ENV{VERILATOR_ROOT})
+find_package(verilator REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(absl)
 
