@@ -57,6 +57,8 @@ class RiscCore(implicit p: Parameters) extends Module {
     )
   )
 
+  val debug = if (p(EnableDebug)) Some(IO(new DebugIO)) else None
+
   val fus = p(FunctionalUnits).map { fuDesc =>
     fuDesc.`type` match {
       case FUNCTIONAL_UNIT_TYPE_ALU  => Module(new AluFU)
@@ -414,63 +416,39 @@ class RiscCore(implicit p: Parameters) extends Module {
     csr.irq.ext_irq   := RegNext(irq.ext_irq, false.B)
   }
 
-  val debug_cycle_count   = IO(Output(UInt(64.W)))
-  val debug_instret_count = IO(Output(UInt(64.W)))
+  if (debug.isDefined) {
+    val debug_io = debug.get
 
-  debug_cycle_count   := cycle_count
-  debug_instret_count := instret_count
+    debug_io.cycle_count   := cycle_count
+    debug_io.instret_count := instret_count
 
-  val debug_instret  = IO(Output(Vec(p(IssueWidth), Bool())))
-  val debug_pc       = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
-  val debug_instr    = IO(Output(Vec(p(IssueWidth), UInt(p(ILen).W))))
-  val debug_reg_we   = IO(Output(Vec(p(IssueWidth), Bool())))
-  val debug_reg_addr = IO(Output(Vec(p(IssueWidth), UInt(log2Ceil(p(NumArchRegs)).W))))
-  val debug_reg_data = IO(Output(Vec(p(IssueWidth), UInt(p(XLen).W))))
+    for (w <- 0 until p(IssueWidth)) {
+      debug_io.instret(w)  := rob.io.commit(w).pop
+      debug_io.pc(w)       := rob.io.commit(w).pc
+      debug_io.instr(w)    := rob.io.commit(w).instr
+      debug_io.reg_we(w)   := regfile.write_en(w)
+      debug_io.reg_addr(w) := regfile.write_preg(w)
+      debug_io.reg_data(w) := regfile.write_data(w)
+    }
 
-  for (w <- 0 until p(IssueWidth)) {
-    debug_instret(w)  := rob.io.commit(w).pop
-    debug_pc(w)       := rob.io.commit(w).pc
-    debug_instr(w)    := rob.io.commit(w).instr
-    debug_reg_we(w)   := regfile.write_en(w)
-    debug_reg_addr(w) := regfile.write_preg(w)
-    debug_reg_data(w) := regfile.write_data(w)
+    debug_io.branch_taken  := bpu_update_valid && bpu_update_taken
+    debug_io.branch_source := bpu_update_pc
+    debug_io.branch_target := bpu_update_target
+
+    debug_io.l1_icache_access := RegNext(l1_icache.upper.req.fire)
+    debug_io.l1_icache_miss   := !l1_icache.upper.resp.bits.hit
+    debug_io.l1_dcache_access := RegNext(l1_dcache.upper.req.fire)
+    debug_io.l1_dcache_miss   := !l1_dcache.upper.resp.bits.hit
+
+    debug_io.bpu_mispredict := (0 until p(IssueWidth))
+      .map(w => rob.io.commit(w).pop && (rob.io.commit(w).is_branch || (!rob.io.commit(w).is_branch && rob.io.commit(w).bpu_pred_taken)) && rob.io.commit(w).flush_pipeline)
+      .reduce(_ || _)
+    debug_io.branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch))
+    debug_io.flush_cycle    := global_flush
+    debug_io.rob_empty      := rob.io.empty
+    debug_io.issue_count    := PopCount(lane_valid)
+    debug_io.commit_count   := commit_pop_count
+    debug_io.frontend_stall := lane_base_req_ok(0) && !lane_valid(0)
+    debug_io.backend_stall  := !rob.io.empty && commit_pop_count === 0.U
   }
-
-  val debug_branch_taken  = IO(Output(Bool()))
-  val debug_branch_source = IO(Output(UInt(p(XLen).W)))
-  val debug_branch_target = IO(Output(UInt(p(XLen).W)))
-
-  debug_branch_taken  := bpu_update_valid && bpu_update_taken
-  debug_branch_source := bpu_update_pc
-  debug_branch_target := bpu_update_target
-
-  val debug_l1_icache_access = IO(Output(Bool()))
-  val debug_l1_icache_miss   = IO(Output(Bool()))
-  val debug_l1_dcache_access = IO(Output(Bool()))
-  val debug_l1_dcache_miss   = IO(Output(Bool()))
-
-  debug_l1_icache_access := RegNext(l1_icache.upper.req.fire)
-  debug_l1_icache_miss   := !l1_icache.upper.resp.bits.hit
-  debug_l1_dcache_access := RegNext(l1_dcache.upper.req.fire)
-  debug_l1_dcache_miss   := !l1_dcache.upper.resp.bits.hit
-
-  val debug_bpu_mispredict = IO(Output(Bool()))
-  val debug_branch_commit  = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
-  val debug_flush_cycle    = IO(Output(Bool()))
-  val debug_rob_empty      = IO(Output(Bool()))
-  val debug_issue_count    = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
-  val debug_commit_count   = IO(Output(UInt(log2Ceil(p(IssueWidth) + 1).W)))
-  val debug_frontend_stall = IO(Output(Bool()))
-  val debug_backend_stall  = IO(Output(Bool()))
-
-  debug_bpu_mispredict := (0 until p(IssueWidth))
-    .map(w => rob.io.commit(w).pop && (rob.io.commit(w).is_branch || (!rob.io.commit(w).is_branch && rob.io.commit(w).bpu_pred_taken)) && rob.io.commit(w).flush_pipeline)
-    .reduce(_ || _)
-  debug_branch_commit  := PopCount((0 until p(IssueWidth)).map(w => rob.io.commit(w).pop && rob.io.commit(w).is_branch))
-  debug_flush_cycle    := global_flush
-  debug_rob_empty      := rob.io.empty
-  debug_issue_count    := PopCount(lane_valid)
-  debug_commit_count   := commit_pop_count
-  debug_frontend_stall := lane_base_req_ok(0) && !lane_valid(0)
-  debug_backend_stall  := !rob.io.empty && commit_pop_count === 0.U
 }

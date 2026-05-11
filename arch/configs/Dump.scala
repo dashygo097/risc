@@ -9,7 +9,8 @@ import java.nio.charset.StandardCharsets
 object RiscDump {
   def buildConfig(p: Parameters): RiscConfig =
     RiscConfig(
-      freq = Frequency(),
+      freq = p(Frequency),
+      enableDebug = p(EnableDebug),
       ifu = Some(
         IfuConfig(
           ibufferSize = p(IBufferSize),

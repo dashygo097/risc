@@ -16,13 +16,14 @@ option java_outer_classname = "RiscConfigProto";
 
 message RiscConfig {
   uint64 freq = 1 ;
-  IfuConfig ifu = 2;
-  BpuConfig bpu = 3;
-  RegfileConfig regfile = 4;
-  SchedulerConfig scheduler = 5;
-  RobConfig rob = 6;
-  MemConfig mem = 7;
-  CacheConfig l1i = 8;
-  CacheConfig l1d = 9;
-  BusConfig bus = 10;
+  bool enableDebug = 2;
+  IfuConfig ifu = 3;
+  BpuConfig bpu = 4;
+  RegfileConfig regfile = 5;
+  SchedulerConfig scheduler = 6;
+  RobConfig rob = 7;
+  MemConfig mem = 8;
+  CacheConfig l1i = 9;
+  CacheConfig l1d = 10;
+  BusConfig bus = 11;
 }

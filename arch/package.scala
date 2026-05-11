@@ -12,8 +12,9 @@ package object configs {
 
   // --------------------------------------------
   // Architecture Parameters
-  object ISA       extends Field[IsaWrapper](RV32IM)
-  object Frequency extends Field[Long](50_000_000L) // NOTE: default: 50MHZ
+  object ISA         extends Field[IsaWrapper](RV32IM)
+  object Frequency   extends Field[Long](50_000_000L) // NOTE: default: 50MHZ
+  object EnableDebug extends Field[Boolean](true)
 
   // Ifu Parameters
   object IBufferSize extends Field[Int](16)
@@ -105,8 +106,9 @@ package object configs {
   object RobTagWidth extends Field[Int](log2Ceil(RobSize()))
 
   implicit val p: Parameters = Parameters.empty ++ Map(
-    ISA       -> ISA(),
-    Frequency -> Frequency(),
+    ISA         -> ISA(),
+    Frequency   -> Frequency(),
+    EnableDebug -> EnableDebug(),
 
     // ISA
     XLen             -> XLen(),
